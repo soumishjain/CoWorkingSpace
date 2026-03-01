@@ -23,7 +23,8 @@ const workspaceSchema = new mongoose.Schema({
     joinPassword : {
         type : String,
         required : true,
-        select : false
+        select : false,
+        minlength : 6
     }
 },{
     timestamps : true
