@@ -1,5 +1,5 @@
 import userModel from "../../models/user.models.js"
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import { sendEmail } from "../../services/mail.services.js"
@@ -7,26 +7,41 @@ import { sendEmail } from "../../services/mail.services.js"
 
 export async function registerUser(req,res){
    try{
-     const {name , email , password, profileImage } = req.body
+     let {name , email , password, profileImage, username } = req.body
 
-    if(!name || !email || !password) {
+    if(!name || !email || !password || !username) {
         return res.status(400).json({
             message : "All fields are required"
         })
     }
 
-    const isEmailAlreadyExists = await userModel.findOne({email : email})
+    username = username.toLowerCase()
 
-    if(isEmailAlreadyExists){
-        return res.status(409).json({
-            message : "User Already Exists"
+    const existingUser = await userModel.findOne({
+        $or : [
+            {email : email},
+            {username : username}
+        ]
+    })
+
+    if(existingUser){
+       if(existingUser.email === email){
+         return res.status(409).json({
+            message : "Email Already Exists"
         })
+       }
+
+       if(existingUser.username === username){
+         return res.status(409).json({
+            message : "Username Already Exists"
+        })
+       }
     }
 
     const hash = await bcrypt.hash(password,10)
 
 
-    const user = await userModel.create({name , email , password : hash , profileImage , isVerified : false})
+    const user = await userModel.create({name , username ,email , password : hash , profileImage , isVerified : false})
 
     const rawToken = crypto.randomBytes(32).toString("hex")
     
@@ -121,14 +136,14 @@ export async function verifyEmail(req,res){
 
 export async function loginUser(req,res){
     try{
-    const {email , password } = req.body;
-    if(!email || !password){
-        return res.status().json({
+    const {identifier , password } = req.body;
+    if(!identifier || !password){
+        return res.status(400).json({
             message : "Please Enter the details"
         })
     }
 
-    const user = await userModel.findOne({email}).select("+password")
+    const user = await userModel.findOne({$or: [{email : identifier.toLowerCase()}, {username : identifier.toLowerCase()}]}).select("+password")
 
     if(!user){
         return res.status(404).json({
@@ -165,6 +180,7 @@ export async function loginUser(req,res){
       message: "Login successful",
       user: {
         name: user.name,
+        username : user.username,
         email: user.email,
         profileImage: user.profileImage
       }
@@ -197,7 +213,8 @@ export async function logoutUser(req,res){
 }
 
 export async function getMe(req,res) {
-    const userId = req.userId
+    try{
+        const userId = req.userId
     const user = await userModel.findById(userId)
 
     if(!user){
@@ -215,4 +232,10 @@ export async function getMe(req,res) {
             avatar : user.avatar
         }
     })
+    }catch(error){
+ console.error(error);
+   return res.status(500).json({
+      message: "Internal Server Error"
+   });
+    }
 }

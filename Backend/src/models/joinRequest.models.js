@@ -5,13 +5,21 @@ const joinRequestSchema = new mongoose.Schema({
         type : mongoose.Schema.Types.ObjectId,
         ref : "User",
         required : true,
-        index : true
     },
     workspaceId : {
         type : mongoose.Schema.Types.ObjectId,
         ref : "Workspace",
         required : true,
-        index : true
+    },
+    departmentId : {
+        type : mongoose.Schema.Types.ObjectId,
+        ref : "Department",
+        default : null
+    },
+    type : {
+        type : String,
+        enum : ["workspace" , "department"],
+        required : true
     },
     status : {
         type : String,
@@ -21,7 +29,7 @@ const joinRequestSchema = new mongoose.Schema({
 },{timestamps : true})
 
 joinRequestSchema.index(
-    {userId : 1 , workspaceId : 1}, {unique : true}
+    {userId : 1 , workspaceId : 1 , departmentId : 1}, {unique : true}
 )
 
 const joinRequestModel = mongoose.model("JoinRequest",joinRequestSchema)
