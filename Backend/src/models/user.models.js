@@ -25,7 +25,13 @@ const userSchema = new mongoose.Schema({
     avatar : {
         type : String,
         default : "warrior"
-    }
+    },
+    isVerified : {
+        type : Boolean,
+        default : false
+    },
+    emailVerificationToken : String,
+    emailVerificationExpiry : Date
 },{
     timestamps : true
 })
