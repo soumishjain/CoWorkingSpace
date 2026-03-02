@@ -105,15 +105,8 @@ export async function deleteWorkspace(req,res){
     try{
         const userId = req.userId
 
-    const { workspaceId } = req.params
-
-    const workspace = await workspaceModel.findById(workspaceId)
-
-    if(!workspace){
-        return res.status(404).json({
-            message : "Workspace not found"
-        })
-    }
+    const workspace = req.workspace
+    const workspaceId = workspace._id
 
     if(workspace.createdBy.toString() !== userId){
         return res.status(403).json({
@@ -152,14 +145,8 @@ export async function deleteWorkspace(req,res){
 export async function updateWorkspace(req,res) {
     try{
         const userId = req.userId
-    const {workspaceId} = req.params;
-
-    const workspace = await workspaceModel.findById(workspaceId)
-    if(!workspace){
-        return res.status(404).json({
-            message : "Workspace not found"
-        })
-    }
+    const workspace = req.workspace
+    const workspaceId = workspace._id
 
     if(workspace.createdBy.toString() !== userId){
         return res.status(403).json({
@@ -200,18 +187,10 @@ export async function updateWorkspace(req,res) {
 
 // contoller to get a specific workspace
 export async function getWorkspace(req,res) {
-    const { workspaceId } = req.params
     const userId = req.userId
 
-    const workspace = await workspaceModel.findById(workspaceId)
-    .select("-joinPassword")
-    
-
-    if(!workspace){
-        return res.status(404).json({
-            message : "Workspace not found"
-        })
-    }
+    const workspace = req.workspace
+    const workspaceId = workspace._id
 
     const isValidUser = await workspaceMemberModel.findOne({
         workspaceId : workspaceId,
@@ -397,7 +376,7 @@ export async function rejectJoinRequest(req,res){
             workspaceId : workspaceId , userId : userId
         })
 
-        if(user.role !== "admin"){
+        if(!user || user.role !== "admin"){
             return res.status(403).json({
                 messaege : "You are not authorized to reject this request"
             })
@@ -444,14 +423,8 @@ export async function getMyWorkspaces(req,res){
 export async function leaveWorkspace(req,res){
     try{
         const userId = req.userId;
-        const {workspaceId} = req.params;
-        const workspace = await workspaceModel.findById(workspaceId)
-
-        if(!workspace){
-            return res.status(404).json({
-                message : "Workspace not found"
-            })
-        }
+        const workspace = req.workspace
+        const workspaceId = workspace._id;
 
         const isUserInWorkspace = await workspaceMemberModel.findOne({
             userId , workspaceId
@@ -512,15 +485,8 @@ export async function leaveWorkspace(req,res){
 export async function getAllPendingRequestsForWorkspace(req,res){
     try{
         const userId = req.userId;
-    const {workspaceId} = req.params;
-
-    const workspace = await workspaceModel.findById(workspaceId)
-
-    if(!workspace) {
-        return res.status(404).json({
-            message : "No workspace found"
-        })
-    }
+    const workspace = req.workspace
+        const workspaceId = workspace._id
 
     const user = await workspaceMemberModel.findOne({
         userId , workspaceId
@@ -559,15 +525,10 @@ export async function getAllPendingRequestsForWorkspace(req,res){
 export async function removeMember(req,res){
     try{
         const userId = req.userId;
-        const {workspaceId , removeUserId} = req.params
+        const {removeUserId} = req.params
 
-        const workspace = await workspaceModel.findById(workspaceId)
-
-        if(!workspace){
-            return res.status(404).json({
-                message : "No workspace found"
-            })
-        }
+        const workspace = req.workspace
+        const workspaceId = workspace._id
 
         const isUserMember = await workspaceMemberModel.findOne({
             userId : removeUserId , workspaceId
@@ -646,15 +607,10 @@ export async function removeMember(req,res){
 // changeMemberRole
 export async  function changeMemberRole(req,res){
     try{
-        const {targetUserId  , workspaceId} = req.params
+        const {targetUserId} = req.params
     const adminId = req.userId
-    const workspace = await workspaceModel.findById(workspaceId)
-
-    if(!workspace){
-        return res.status(404).json({
-            message : "Workspace not found"
-        })
-    }
+   const workspace = req.workspace
+        const workspaceId = workspace._id
 
     const user = await workspaceMemberModel.findOne({
         userId : targetUserId  , workspaceId
@@ -708,14 +664,8 @@ export async  function changeMemberRole(req,res){
 export async function getWorkspaceMembers(req,res) {
     try{
         const userId = req.userId
-    const {workspaceId} = req.params
-    const workspace = await workspaceModel.findById(workspaceId)
-
-    if(!workspace){
-        return res.status(404).json({
-            message : "Workspace not found"
-        })
-    }
+   const workspace = req.workspace
+        const workspaceId = workspace._id
 
     const user = await workspaceMemberModel.findOne({
         userId , workspaceId
@@ -746,16 +696,11 @@ export async function getWorkspaceMembers(req,res) {
 // workspaceStats
 export async function workspaceStats(req,res){
     try{
-        const {workspaceId} = req.params
     const adminId = req.userId
 
-    const workspace = await workspaceModel.findById(workspaceId)
+    const workspace = req.workspace
+        const workspaceId = workspace._id
 
-    if(!workspace) {
-        return res.status(404).json({
-            message : "Workspace not found"
-        })
-    }
 
     const admin = await workspaceMemberModel.findOne({
         userId : adminId, workspaceId
