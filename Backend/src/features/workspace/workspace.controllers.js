@@ -44,6 +44,7 @@ export async function createWorkspace(req,res){
 
     const generalDept = await departmentModel.create({
         name : "general",
+        description : "This is general Department",
         workspaceId : workspace._id,
         createdBy : userId
     })
@@ -51,7 +52,7 @@ export async function createWorkspace(req,res){
     await departmentMemberModel.create({
             userId : userId,
             departmentId: generalDept._id,
-            role: "admin"
+            role: "admin"    
         })
 
     await workspaceMemberModel.create({

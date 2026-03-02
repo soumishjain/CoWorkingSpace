@@ -6,6 +6,10 @@ const departmentSchema = new mongoose.Schema({
         required : true,
         trim : true
     },
+    description : {
+        type : String,
+        default : ""
+    },
     workspaceId : {
         type : mongoose.Schema.Types.ObjectId,
         ref : "Workspace",

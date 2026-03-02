@@ -13,7 +13,7 @@ const departmentMemberSchema = new mongoose.Schema({
     },
     role : {
         type : String,
-       enum: ["admin" , "manager", "employee"],
+       enum: ["manager", "employee"],
     required: true
   },
   currentMonthPoints : {
