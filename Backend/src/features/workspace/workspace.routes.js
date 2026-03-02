@@ -1,6 +1,6 @@
 import express from 'express'
 import { identifyUser } from '../../middleware/auth.middleware.js'
-import { approveJoinRequest, createWorkspace, deleteWorkspace, getAllPendingRequestsForWorkspace, getAllWorkspace, getMyWorkspaces, getWorkspace, joinWorkspace, leaveWorkspace, rejectJoinRequest, removeMember, updateWorkspace } from './workspace.controllers.js'
+import { approveJoinRequest, changeMemberRole, createWorkspace, deleteWorkspace, getAllPendingRequestsForWorkspace, getAllWorkspace, getMyWorkspaces, getWorkspace, getWorkspaceMembers, joinWorkspace, leaveWorkspace, rejectJoinRequest, removeMember, updateWorkspace, workspaceStats } from './workspace.controllers.js'
 
 const worskpaceRouter = express.Router()
 
@@ -16,5 +16,8 @@ worskpaceRouter.post('/leave/:workspaceId',identifyUser , leaveWorkspace)
 worskpaceRouter.get('/get-my-workspaces',identifyUser , getMyWorkspaces)
 worskpaceRouter.get('/get-all-requests/:workspaceId',identifyUser , getAllPendingRequestsForWorkspace)
 worskpaceRouter.post('/remove/:workspaceId/:removeUserId',identifyUser , removeMember)
+worskpaceRouter.post('/change-role/:workspaceId/:targetUserId', identifyUser , changeMemberRole)
+worskpaceRouter.get('/get-workspace-members/:workspaceId',identifyUser , getWorkspaceMembers)
+worskpaceRouter.get('/stats/:workspaceId',identifyUser , workspaceStats)
 
 export default worskpaceRouter

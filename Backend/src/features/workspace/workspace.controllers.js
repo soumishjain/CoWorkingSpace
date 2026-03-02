@@ -6,7 +6,6 @@ import departmentModel from "../../models/department.models.js";
 import departmentMemberModel from "../../models/departmentMember.models.js";
 import monthlyLeaderboardModel from "../../models/monthlyLeaderboard.models.js";
 import joinRequestModel from "../../models/joinRequest.models.js";
-import { request } from "express";
 
 export async function createWorkspace(req,res){
     
@@ -468,7 +467,7 @@ export async function leaveWorkspace(req,res){
         })
 
         if(adminCount === 1 && isUserInWorkspace.role === "admin"){
-            return res.status(403).jsonn({
+            return res.status(403).json({
                 message : "Assign another admin before leaving"
             })
         }
@@ -642,6 +641,153 @@ export async function removeMember(req,res){
         })
     }
 }
+
 // changeMemberRole
+export async  function changeMemberRole(req,res){
+    try{
+        const {targetUserId  , workspaceId} = req.params
+    const adminId = req.userId
+    const workspace = await workspaceModel.findById(workspaceId)
+
+    if(!workspace){
+        return res.status(404).json({
+            message : "Workspace not found"
+        })
+    }
+
+    const user = await workspaceMemberModel.findOne({
+        userId : targetUserId  , workspaceId
+    })
+
+    if(!user){
+        return res.status(404).json({
+            messaege : "User is not a member of workspace"
+        })
+    }
+
+    const admin = await workspaceMemberModel.findOne({
+        userId : adminId , workspaceId
+    })
+
+    if(!admin){
+        return res.status(404).json({
+            message : "You are not a member of this workspace"
+        })
+    }
+
+    if(admin.role !== 'admin'){
+        return res.status(403).json({
+            message : "You are not authorized to change the role of a member"
+        })
+    }
+
+    if(user.role === 'admin' ){
+        return res.status(403).json({
+            message : "You cannot change the role of an admin"
+        })
+    }
+
+    user.role = 'admin'
+    await user.save()
+
+    res.status(200).json({
+        message : "User role changed successfully",
+        user
+    })
+    }catch(error){
+        console.error(error)
+        res.status(500).json({
+            message : "Internal server error"
+        })
+    }
+
+}
+
+//getWorkspaceMembers
+export async function getWorkspaceMembers(req,res) {
+    try{
+        const userId = req.userId
+    const {workspaceId} = req.params
+    const workspace = await workspaceModel.findById(workspaceId)
+
+    if(!workspace){
+        return res.status(404).json({
+            message : "Workspace not found"
+        })
+    }
+
+    const user = await workspaceMemberModel.findOne({
+        userId , workspaceId
+    })
+
+    if(!user){
+        return res.status(400).json({
+            message : "You are not authorized to access members of this workspace"
+        })
+    }
+
+    const members = await workspaceMemberModel.find({workspaceId})
+    .populate("userId" , "name email username profileImage")
+
+    return res.status(200).json({
+        message : "Members of workspace fetched successfully",
+        members
+    })
+    }catch(error){
+        console.error(error)
+        res.status(500).json({
+            message : "Internal Server Error"
+        })
+    }
+
+}
 
 // workspaceStats
+export async function workspaceStats(req,res){
+    try{
+        const {workspaceId} = req.params
+    const adminId = req.userId
+
+    const workspace = await workspaceModel.findById(workspaceId)
+
+    if(!workspace) {
+        return res.status(404).json({
+            message : "Workspace not found"
+        })
+    }
+
+    const admin = await workspaceMemberModel.findOne({
+        userId : adminId, workspaceId
+    })
+
+    if(!admin || admin.role !== 'admin') {
+        return res.status(403).json({
+            message : "Not authorized"
+        })
+    }
+
+    const workspaceMembers = await workspaceMemberModel.countDocuments({workspaceId})
+    const departments = await departmentModel.find({workspaceId})
+    const adminCount = await workspaceMemberModel.countDocuments({workspaceId , role : 'admin'})
+    const pendingRequests = await joinRequestModel.countDocuments({workspaceId , type : 'workspace' , status : 'pending'})
+    const top3 = await monthlyLeaderboardModel.find({workspaceId})
+    .sort({month: -1})
+    .limit(1)
+
+    res.status(200).json({
+        message : "Workspace stats fetched successfully",
+        totalMembers : workspaceMembers,
+        totalDepartments : departments.length,
+        totalAdmins : adminCount,
+        departments : departments,
+        totalPendingRequests : pendingRequests,
+        top3 : top3
+    })
+
+    }catch(error){
+        console.error(error)
+        res.status(500).json({
+            message : "Internal Server Error"
+        })
+    }
+}
