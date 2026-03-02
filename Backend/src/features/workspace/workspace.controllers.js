@@ -198,6 +198,7 @@ export async function updateWorkspace(req,res) {
     }
 }
 
+// contoller to get a specific workspace
 export async function getWorkspace(req,res) {
     const { workspaceId } = req.params
     const userId = req.userId
@@ -405,6 +406,8 @@ export async function rejectJoinRequest(req,res){
         request.status = "rejected"
         await request.save()
 
+        await joinRequestModel.findByIdAndDelete(request._id)
+
         return res.status(200).json({
             message : "Request rejected successfully"
         })
@@ -419,8 +422,226 @@ export async function rejectJoinRequest(req,res){
 }
 
 // getMyWorkspaces
+export async function getMyWorkspaces(req,res){
+    try{
+        const userId = req.userId;
+    const workspaces = await workspaceMemberModel
+    .find({userId})
+    .populate("workspaceId", "name coverImage description createdBy")
+    res.status(200).json({
+        message : "All workspaces fetched for user",
+        workspaces : workspaces
+    })
+    }catch(error){
+        console.error(error)
+        res.status(500).json({
+            message : "Internal Server Error"
+        })
+    }
+}
+
 // leaveWorkspace
-// removeMember
-// changeMemberRole
+export async function leaveWorkspace(req,res){
+    try{
+        const userId = req.userId;
+        const {workspaceId} = req.params;
+        const workspace = await workspaceModel.findById(workspaceId)
+
+        if(!workspace){
+            return res.status(404).json({
+                message : "Workspace not found"
+            })
+        }
+
+        const isUserInWorkspace = await workspaceMemberModel.findOne({
+            userId , workspaceId
+        })
+
+        if(!isUserInWorkspace) {
+            return res.status(403).json({
+                message : "User is not the part of this workspace"
+            })
+        }
+
+        const adminCount = await workspaceMemberModel.countDocuments({
+            workspaceId , role : "admin"
+        })
+
+        if(adminCount === 1 && isUserInWorkspace.role === "admin"){
+            return res.status(403).jsonn({
+                message : "Assign another admin before leaving"
+            })
+        }
+
+       
+
+    await workspaceMemberModel.findOneAndDelete({
+        userId : userId, workspaceId : workspaceId
+    })
+
+    await joinRequestModel.deleteMany({
+        userId , workspaceId
+    })
+
+    const departments = await departmentModel
+    .find({workspaceId})
+    .select("_id")
+
+    const departmentIds = departments.map(d => d._id)
+
+    await departmentMemberModel.deleteMany({
+        userId,
+        departmentId : {$in : departmentIds}
+    })
+
+    res.status(200).json({
+        message : "You are no more part of this workspace"
+    })
+
+
+
+    }catch(error){
+        console.error(error)
+        res.status(500).json({
+            message : "Internal Server Error"
+        })
+    }
+}
+
 // getPendingRequests
+export async function getAllPendingRequestsForWorkspace(req,res){
+    try{
+        const userId = req.userId;
+    const {workspaceId} = req.params;
+
+    const workspace = await workspaceModel.findById(workspaceId)
+
+    if(!workspace) {
+        return res.status(404).json({
+            message : "No workspace found"
+        })
+    }
+
+    const user = await workspaceMemberModel.findOne({
+        userId , workspaceId
+    })
+
+    if(!user) {
+        return res.status(404).json({
+            message : "You are not a member of this workspace"
+        })
+    }
+
+    if(user.role !== 'admin'){
+        return res.status(403).json({
+            message : "You are not the admin for this workspace"
+        })
+    }
+
+    const requests = await joinRequestModel.find({
+        workspaceId , status: 'pending' , type : 'workspace'
+    }).populate("userId" , "name email profileImage")
+
+    res.status(200).json({
+        message : "All requests fethced successfully",
+        requests
+    })
+    }catch(error){
+        console.error(error)
+        res.status(500).json({
+            message : "Internal Server error"
+        })
+    }
+
+}
+
+// removeMember
+export async function removeMember(req,res){
+    try{
+        const userId = req.userId;
+        const {workspaceId , removeUserId} = req.params
+
+        const workspace = await workspaceModel.findById(workspaceId)
+
+        if(!workspace){
+            return res.status(404).json({
+                message : "No workspace found"
+            })
+        }
+
+        const isUserMember = await workspaceMemberModel.findOne({
+            userId : removeUserId , workspaceId
+        })
+
+        const isUserAdmin = await workspaceMemberModel.findOne({
+            userId , workspaceId
+        })
+
+        if(!isUserAdmin){
+            return res.status(404).json({
+                messaege : "You are not part of this Workspace"
+            })
+        }
+
+
+        if(isUserAdmin.role !== 'admin'){
+            return res.status(403).json({
+                message : "You are not authorized to remove a member from this workspace"
+            })
+        }
+
+        if(removeUserId === userId){
+            return res.status(400).json({
+                message : "Use leave Workspace instead"
+            })
+        }
+
+        if(!isUserMember) {
+            return res.status(404).json({
+                message : "user is not a member of this workspace"
+            })
+        }
+
+        if(isUserMember.role === 'admin'){
+            return res.status(403).json({
+                message : "Admins cannot be removed"
+            })
+        }
+
+        
+
+        await joinRequestModel.deleteMany({
+            userId : removeUserId , workspaceId
+        })
+
+        await workspaceMemberModel.deleteOne({
+            userId : removeUserId,
+            workspaceId
+        })
+
+        const departments = await departmentModel
+        .find({workspaceId})
+        .select("_id")
+
+        const departmentIds = departments.map(d => d._id)
+
+        await departmentMemberModel.deleteMany({
+            userId : removeUserId , 
+            departmentId : {$in : departmentIds}
+        })
+
+        res.status(200).json({
+            message : "User removed Successfully",
+        })
+
+    }
+    catch(error){
+        console.log(error)
+        res.status(500).json({
+            message : "Internal Server Error"
+        })
+    }
+}
+// changeMemberRole
+
 // workspaceStats
