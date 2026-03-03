@@ -1,4 +1,4 @@
-import departmentModel from "../models/department.models"
+import departmentModel from "../models/department.models.js"
 
 export async function validateDepartment(req,res , next){
     try{

@@ -1,14 +1,13 @@
 import mongoose from "mongoose";
-import departmentModel from "../../models/department.models";
-import departmentMemberModel from "../../models/departmentMember.models";
-import workspaceModel from "../../models/workspace.models";
-import workspaceMemberModel from "../../models/workspaceMember.models";
-import joinRequestModel from "../../models/joinRequest.models";
-import taskModel from "../../models/task.models";
-import subtaskModel from "../../models/subtask.models";
-import monthlyLeaderboardModel from "../../models/monthlyLeaderboard.models";
+import departmentModel from "../../models/department.models.js";
+import departmentMemberModel from "../../models/departmentMember.models.js";
+import workspaceModel from "../../models/workspace.models.js";
+import workspaceMemberModel from "../../models/workspaceMember.models.js";
+import joinRequestModel from "../../models/joinRequest.models.js";
+import taskModel from "../../models/task.models.js";
+import subtaskModel from "../../models/subtask.models.js";
+import monthlyLeaderboardModel from "../../models/monthlyLeaderboard.models.js";
 
-/** ================ NOT TESTED ================= **/
 export async function createDepartment(req,res){
     try{
 
@@ -43,6 +42,7 @@ export async function createDepartment(req,res){
     }
 
 }
+/** ================ NOT TESTED ================= **/
 
 export async function addDepartmentManager(req,res){
 
@@ -196,18 +196,15 @@ export async function deleteDepartment(req,res) {
         const departmentId = department._id
         const workspaceId = workspace._id
 
-        const departmentManager = await departmentMemberModel.findOne({userId , departmentId , role : 'manager'})
-        let workspaceAdmin = null
+        
+        const workspaceAdmin = await workspaceMemberModel.findOne({workspaceId,userId,role : 'admin'})
 
-        if(!departmentManager){
-            workspaceAdmin = await workspaceMemberModel.findOne({userId , workspaceId , role : 'admin'})
-        }
-
-        if(!departmentManager && !workspaceAdmin){
+        if(!workspaceAdmin) {
             return res.status(403).json({
                 message : "Not Authorized"
             })
         }
+       
 
         const session = await mongoose.startSession()
 
@@ -264,11 +261,10 @@ export async function updateDepartment(req,res) {
         const workspaceId = workspace._id
 
         const departmentManager = await departmentMemberModel.findOne({userId , departmentId , role : 'manager'})
-        let workspaceAdmin = null
 
-        if(!departmentManager){
-            workspaceAdmin = await workspaceMemberModel.findOne({userId , workspaceId , role : 'admin'})
-        }
+        const workspaceAdmin = await workspaceMemberModel.findOne({userId , workspaceId , role : 'admin'})
+
+  
 
         if(!departmentManager && !workspaceAdmin){
             return res.status(403).json({
@@ -293,7 +289,7 @@ export async function updateDepartment(req,res) {
 // * getThisDepartment
 export async function getThisDepartment(req,res) {
         try{
-            const userId = req.userId
+        const userId = req.userId
         const workspace = req.workspace
         const department = req.department
         const departmentId = department._id
@@ -301,11 +297,8 @@ export async function getThisDepartment(req,res) {
 
         const user = await departmentMemberModel.findOne({userId , departmentId})
 
-        let admin = null
+        const admin = await workspaceMemberModel.findOne({userId , workspaceId , role : 'admin'})
 
-        if(!user){
-            admin = await workspaceMemberModel.findOne({userId , workspaceId , role : 'admin'})
-        }
 
         if(!user && !admin){
             return res.status(403).json({
@@ -584,7 +577,6 @@ export async function joinDepartment(req,res){
     const request = await joinRequestModel.create({
         userId , 
         departmentId , 
-        workspaceId , 
         type : 'department',
         status : 'pending'
     })
@@ -604,7 +596,7 @@ export async function joinDepartment(req,res){
 
 export async function approveDepartmentJoinRequest (req,res) {
     try{
-        const userId = req.userId
+    const userId = req.userId
     const workspace = req.workspace
     const department = req.department
     const workspaceId = workspace._id
@@ -619,7 +611,7 @@ export async function approveDepartmentJoinRequest (req,res) {
             })
     }
 
-    const request = await joinRequestModel.findOne({_id : reqId , departmentId , status: 'pending' , type : 'department'})
+    const request = await joinRequestModel.findOne({_id : reqId , status: 'pending' , type : 'department'})
 
     if(!request){
         return res.status(404).json({
@@ -641,8 +633,8 @@ export async function approveDepartmentJoinRequest (req,res) {
 
     const newUser = await departmentMemberModel.create({userId : request.userId , departmentId , role : 'employee'})
 
-    request.status = 'approved'
-    await request.save()
+
+    await joinRequestModel.findByIdAndDelete(reqId)
 
     res.status(200).json({
         message : "Join request approved",
@@ -682,8 +674,8 @@ export async function rejectDepartmentJoinRequest(req,res){
         })
     }
 
-    request.status = 'rejected'
-    await request.save()
+    await joinRequestModel.findByIdAndDelete(reqId)
+
 
     res.status(200).json({
         message : "Join request rejected"

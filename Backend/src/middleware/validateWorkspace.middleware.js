@@ -1,4 +1,4 @@
-import workspaceModel from "../models/workspace.models"
+import workspaceModel from "../models/workspace.models.js"
 
 export async function validateWorkspace(req,res , next){
     try{

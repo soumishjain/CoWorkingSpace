@@ -49,12 +49,6 @@ export async function createWorkspace(req,res){
         createdBy : userId
     })
 
-    await departmentMemberModel.create({
-            userId : userId,
-            departmentId: generalDept._id,
-            role: "admin"    
-        })
-
     await workspaceMemberModel.create({
         userId : userId,
         workspaceId : workspace._id,
