@@ -9,7 +9,7 @@ const joinRequestSchema = new mongoose.Schema({
     workspaceId : {
         type : mongoose.Schema.Types.ObjectId,
         ref : "Workspace",
-        required : true,
+        default : null
     },
     departmentId : {
         type : mongoose.Schema.Types.ObjectId,
