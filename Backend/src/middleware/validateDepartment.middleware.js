@@ -2,11 +2,13 @@ import departmentModel from "../models/department.models"
 
 export async function validateDepartment(req,res , next){
     try{
-        const {departmentId , workspaceId} = req.params
+        const {departmentId} = req.params
+
+        const workspace = req.workspace
 
     const department = await departmentModel.findOne({
         _id : departmentId,
-        workspaceId
+        workspaceId : workspace._id
     })
 
     if(!department) {

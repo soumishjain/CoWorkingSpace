@@ -336,22 +336,434 @@ export async function getThisDepartment(req,res) {
         })
         }catch(error){
             console.error(error)
-            return res.status(500),json({message : "Internal Server Error"})
+            return res.status(500).json({message : "Internal Server Error"})
         }
 
 }
 
+// * getMyDepartments
+export async function getMyDepartments(req,res) {
+    try{
+        const userId = req.userId
+    const workspace = req.workspace
+    const workspaceId = workspace._id
 
-/**
+    const isUserInWorkspace = await workspaceMemberModel.findOne({workspaceId , userId})
 
- * getMyDepartments
- * leaveDepartment
- * getAllDepartmentsOfThisWorkspace
- * getAllDepartmentMembers
- * removeMemeberFromDepartment
- * departmentJoinRequest
- * approveDepartmentJoinRequest
- * rejectDepartmentJoinRequest
- * getAllPendingDepartmentRequests
- * departmentStats
- */
+    if(!isUserInWorkspace){
+        return res.status(403).json({
+            message : "User not in workspace"
+        })
+    }
+
+    const myDepartments = await departmentMemberModel.find({userId})
+    .populate({
+        path : "departmentId",
+        match: {workspaceId},
+        select : "name description createdBy"
+    })
+
+    const filtered = myDepartments.filter(d => d.departmentId !== null)
+
+    res.status(200).json({
+        message : "All Departments fetched successfully",
+        filtered
+    })
+
+    }catch(error){
+        console.error(error)
+        res.status(500).json({
+            message : "Internal Server Error"
+        })
+    }
+
+}
+
+// *leaveDepartment
+export async function leaveDepartment(req,res){
+    try{
+        const workspace = req.workspace
+    const userId = req.userId
+    const department = req.department
+
+    const departmentId = department._id
+    const workspaceId = workspace._id
+
+    let user = await workspaceMemberModel.findOne({userId , workspaceId})
+
+    if(!user){
+        return res.status(404).json({
+            message : "You are not the part of this workspace"
+        })
+    }
+
+    user = await departmentMemberModel.findOne({departmentId , userId})
+
+
+    if(!user){
+        return res.status(404).json({
+            message : "You are not the part of this department"
+        })
+    }
+
+    await departmentMemberModel.findOneAndDelete({userId , departmentId})
+
+    res.status(200).json({
+        message : "You are no longer part of this department",
+    })
+    }catch(error){
+        console.error(error)
+        res.status(500).json({
+            message : "Internal Server Error"
+        })
+    }
+}
+
+export async function getAllDepartmentsOfThisWorkspace(req,res){
+    try{
+        const userId = req.userId
+    const workspace = req.workspace
+    const workspaceId = workspace._id
+
+    const user = await workspaceMemberModel.findOne({userId , workspaceId})
+
+    if(!user){
+        return res.status(403).json({
+            message : "You are not a member of this workspace"
+        })
+    }
+
+    const departments = await departmentModel.find({workspaceId})
+
+    return res.status(200).json({
+        message : "All departments of this workspace fetched",
+        departments
+    })
+
+    }catch(error){
+        console.error(error)
+        res.status(500).json({
+            message : "Internal Server Error"
+        })
+    }
+}
+
+// * getAllDepartmentMembers
+export async function getAllDepartmentMembers(req,res){
+    try{
+        const userId = req.userId
+    const workspace = req.workspace
+    const department = req.department
+    const departmentId = department._id
+    const workspaceId = workspace._id
+
+    const workspaceMember = await workspaceMemberModel.findOne({userId , workspaceId})
+
+    if(!workspaceMember){
+        return res.status(403).json({
+            message : "You are not the member of this workspace"
+        })
+    }
+
+    const departmentMember = await departmentMemberModel.findOne({userId , departmentId})
+
+    if(!departmentMember && workspaceMember.role !== 'admin') {
+        return res.status(403).json({
+            message : "You are not a member of this department"
+        })
+    }
+
+    const departmentMembers = await departmentMemberModel.find({departmentId}).populate("userId" , "name email profileImage")
+
+    res.status(200).json({
+        message : "All department Members fetched successfully",
+        total : departmentMembers.length,
+        departmentMembers
+    })
+    }catch(error){
+        console.error(error)
+        return res.status(500).json({
+            message : "Internal Server Error"
+        })
+    }
+
+    
+
+}
+
+// * removeMemeberFromDepartment
+export async function removeMemberFromDepartment(req,res) {
+    try{
+        const headId = req.userId
+    const workspace = req.workspace
+    const department = req.department
+    const departmentId = department._id
+    const workspaceId = workspace._id
+
+
+    const {removeUserId} = req.params
+
+    const headAdmin = await workspaceMemberModel.findOne({workspaceId , userId : headId , role: "admin"})
+
+    const headManager = await departmentMemberModel.findOne({userId : headId , departmentId , role : 'manager'})
+
+    if(!headAdmin && !headManager) {
+        return res.status(403).json({
+            message : "Unauthorized Access"
+        })
+    }
+
+    const removeUser = await departmentMemberModel.findOne({userId : removeUserId , departmentId})
+
+    if(!removeUser){
+        return res.status(404).json({
+            message : "User is not a member of department"
+        })
+    }
+
+    if(removeUserId == headId) {
+        return res.status(400).json({
+            message : "Use Leave Workspace Instead"
+        })
+    }
+
+    await departmentMemberModel.findOneAndDelete({userId : removeUserId , departmentId})
+
+    return res.status(200).json({
+        message : "User removed Successfully"
+    })
+    }catch(error){
+        console.error(error)
+        res.status(500).json({
+            message : "Internal Server Error"
+        })
+    }
+
+    
+
+}
+
+export async function joinDepartment(req,res){
+    try{
+        const workspace = req.workspace
+    const department = req.department
+    const userId = req.userId
+    const departmentId = department._id
+    const workspaceId = workspace._id
+
+    const user = await workspaceMemberModel.findOne({userId , workspaceId})
+
+    if(!user){
+        return res.status(403).json({
+            message : "You are not a member of this Workspace"
+        })
+    }
+
+    if(user.role === 'admin'){
+        return res.status(403).json({
+            message : "Admin cannot join any department"
+        })
+    }
+
+    const departmentMember = await departmentMemberModel.findOne({userId , departmentId})
+
+    if(departmentMember) {
+        return res.status(400).json({
+            message : "You are already a member of this department"
+        })
+    }
+
+    const requested = await joinRequestModel.findOne({userId , departmentId , type : 'department' , status : 'pending'})
+
+    if(requested) {
+        return res.status(400).json({
+            message : "You have already sent a request to this department"
+        })
+    }
+
+    const request = await joinRequestModel.create({
+        userId , 
+        departmentId , 
+        workspaceId , 
+        type : 'department',
+        status : 'pending'
+    })
+
+    res.status(201).json({
+        message : "Request sent successfully",
+        request
+    })
+    }catch(error){
+        console.error(error)
+        res.status(500).json({
+            message : "Internal Server Error"
+        })
+    }
+
+}
+
+export async function approveDepartmentJoinRequest (req,res) {
+    try{
+        const userId = req.userId
+    const workspace = req.workspace
+    const department = req.department
+    const workspaceId = workspace._id
+    const departmentId = department._id
+    const {reqId} = req.params
+
+    const departmentManager = await departmentMemberModel.findOne({userId , departmentId , role : 'manager'})
+    const workspaceAdmin = await workspaceMemberModel.findOne({userId , workspaceId , role : 'admin'})
+    if(!departmentManager && !workspaceAdmin) {
+            return res.status(403).json({
+                message : "You are not authorized"
+            })
+    }
+
+    const request = await joinRequestModel.findOne({_id : reqId , departmentId , status: 'pending' , type : 'department'})
+
+    if(!request){
+        return res.status(404).json({
+            message : "No request found"
+        })
+    }
+
+    const alreadyMember = await departmentMemberModel.findOne({
+        userId : request.userId,
+        departmentId
+    })
+
+    if(alreadyMember) {
+        return res.status(400).json({
+            message : "User already a member"
+        })
+    }
+
+
+    const newUser = await departmentMemberModel.create({userId : request.userId , departmentId , role : 'employee'})
+
+    request.status = 'approved'
+    await request.save()
+
+    res.status(200).json({
+        message : "Join request approved",
+        newUser
+    })
+    }catch(error){
+        console.error(error)
+        res.status(500).json({
+            message : "Internal Server Error"
+        })
+    }
+
+
+} 
+
+export async function rejectDepartmentJoinRequest(req,res){
+    try{
+    const userId = req.userId
+    const workspace = req.workspace
+    const department = req.department
+    const workspaceId = workspace._id
+    const departmentId = department._id
+    const {reqId} = req.params
+
+     const departmentManager = await departmentMemberModel.findOne({userId , departmentId , role : 'manager'})
+    const workspaceAdmin = await workspaceMemberModel.findOne({userId , workspaceId , role : 'admin'})
+    if(!departmentManager && !workspaceAdmin) {
+            return res.status(403).json({
+                message : "You are not authorized"
+            })
+    }
+    const request = await joinRequestModel.findOne({_id : reqId , departmentId , status: 'pending' , type : 'department'})
+
+    if(!request){
+        return res.status(404).json({
+            message : "No request found"
+        })
+    }
+
+    request.status = 'rejected'
+    await request.save()
+
+    res.status(200).json({
+        message : "Join request rejected"
+    })
+    }catch(error){
+        console.error(error)
+        res.status(500).json({
+            message : "Internal Server Error"
+        })
+    }
+}
+
+export async function getAllPendingDepartmentRequests(req,res) {
+    const userId = req.userId
+    const workspace = req.workspace
+    const department = req.department
+    const workspaceId = workspace._id
+    const departmentId = department._id
+
+    const departmentManager = await departmentMemberModel.findOne({userId , departmentId , role : 'manager'})
+    const workspaceAdmin = await workspaceMemberModel.findOne({userId , workspaceId , role : 'admin'})
+
+    if(!departmentManager && ! workspaceAdmin) {
+        return res.status(403).json({
+            message : "Not Authorized"
+        })
+    }
+
+    const requests = await joinRequestModel.find({departmentId , type: 'department' , status : 'pending'}).populate("userId" , "name email profileImage")
+
+    res.status(200).json({
+        message : "All Department Pending Requests Fetched Successfully",
+        total : requests.length,
+        requests
+    })
+
+}
+
+export async function departmentStats(req,res) {
+     try{
+        const userId = req.userId
+    const workspace = req.workspace
+    const department = req.department
+    const workspaceId = workspace._id
+    const departmentId = department._id
+
+    const departmentManager = await departmentMemberModel.findOne({userId , departmentId , role : 'manager'})
+    const workspaceAdmin = await workspaceMemberModel.findOne({userId , workspaceId , role : 'admin'})
+
+    if(!departmentManager && ! workspaceAdmin) {
+        return res.status(403).json({
+            message : "Not Authorized"
+        })
+    }
+  const manager = await departmentMemberModel.findOne({departmentId , role : 'manager'})
+  .populate("userId" , "name email profileImage")
+
+    const totalEmployees = await departmentMemberModel.countDocuments({departmentId , role : 'employee'})
+    const totalMembers = await departmentMemberModel.countDocuments({departmentId})
+
+    const requests = await joinRequestModel.countDocuments({departmentId , status : "pending" , type : 'department'})
+
+    const leaderboard = await departmentMemberModel.find({departmentId , role : 'employee'})
+    .sort({currentMonthPoints : -1})
+    .limit(3)
+    .populate("userId" , "name email profileImage")
+
+    res.status(200).json({
+        message : "Department Stats fetched Successfully",
+        totalMembers,
+        totalEmployees,
+        manager ,
+        requests,
+        leaderboard
+    })
+     } catch(error){
+        console.error(error)
+        res.status(500).json({
+            message : "Internal Server Error"
+        })
+     }
+
+}
