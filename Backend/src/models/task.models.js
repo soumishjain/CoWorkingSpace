@@ -28,6 +28,10 @@ const taskSchema = new mongoose.Schema({
         required : true,
         index : true
     },
+    assignedMembers : [{
+        type : mongoose.Schema.Types.ObjectId,
+        ref : "User"
+    }],
     priority : {
         type : String,
         enum : ["low" , "medium" , "high"],
@@ -36,6 +40,14 @@ const taskSchema = new mongoose.Schema({
     totalPoints : {
         type : Number,
         required : true
+    },
+    totalSubtasks : {
+        type : Number,
+        default : 0,
+    },
+    completedSubtasks : {
+        type : Number , 
+        default : 0
     },
     deadline : {
         type : Date,
