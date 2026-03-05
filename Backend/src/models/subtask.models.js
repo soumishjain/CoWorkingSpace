@@ -16,11 +16,15 @@ const subtaskSchema = new mongoose.Schema({
         required : true,
         index : true
     },
-    assignedTo: {
+    assignedTo : {
         type : mongoose.Schema.Types.ObjectId,
         ref : "User",
         default : null,
         index : true
+    },
+    claimedAt : {
+        type : Date,
+        default : null
     },
     points : {
         type : Number,
@@ -36,15 +40,18 @@ const subtaskSchema = new mongoose.Schema({
         default : "pending"
     },
     completedAt : {
-        type : Date
+        type : Date,
+        default : null
     },
     completedBy : {
         type : mongoose.Schema.Types.ObjectId,
-        ref : "User"
+        ref : "User",
+        default :null
     }
 },{timestamps : true})
 
 subtaskSchema.index({assignedTo : 1 , status : 1});
+subtaskSchema.index({taskId: 1 , status : 1})
 
 const subtaskModel = mongoose.model("Subtask",subtaskSchema)
 
