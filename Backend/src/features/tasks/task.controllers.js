@@ -24,6 +24,17 @@ export async function createTask(req,res) {
         })
     }
 
+    const members = await departmentMemberModel.find({
+        userId : {$in : assignedMembers} ,
+        departmentId : department._id
+    })
+
+    if(members.length !== assignedMembers.length){
+        return res.status(400).json({
+            message : "Some assigned users are not department members"
+        })
+    }
+
     if(!subtasks || !subtasks.length){
         return res.status(400).json({
             message : "At least one subtask is required"
@@ -141,7 +152,7 @@ export async function getSingleTask(req,res) {
     const departmentId = task.departmentId
     const departmentManager = await departmentMemberModel.findOne({userId , departmentId , role : 'manager'})
     const assignedUser = task.assignedMembers
-    .some(mem => mem.toString() === userId)
+    .some(mem => mem._id.toString() === userId)
     if(!departmentManager && !assignedUser) {
         return res.status(403).json({
             message : "Not authorized"
