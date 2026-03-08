@@ -1,6 +1,7 @@
 import departmentMemberModel from "../../models/departmentMember.models.js"
 import subtaskModel from "../../models/subtask.models.js"
 import taskModel from "../../models/task.models.js"
+import {io} from '../../../server.js'
 
 export async function getSubtasksOfTasks(req,res){
     try{
@@ -72,6 +73,7 @@ export async function claimSubtask(req,res) {
         })
     }
 
+    const departmentId = task.departmentId
     
     const assignedMembers = task.assignedMembers
 
@@ -101,6 +103,12 @@ export async function claimSubtask(req,res) {
     subtask.claimedAt = new Date()
 
     await subtask.save()
+
+    io.to(departmentId.toString()).emit("subtask-claimed",{
+        subtaskId : subtask._id,
+        userId,
+        taskId
+    })
 
     return res.status(200).json({
         message : "Subtask has been claimed successfully"
@@ -146,12 +154,20 @@ export async function completeSubtask(req,res) {
             message : "Task not found"
         })
     }
+    const taskId = subtask.taskId
 
     subtask.status = 'completed'
     subtask.completedAt = new Date()
     subtask.completedBy = userId
 
     await subtask.save()
+
+    const departmentId = task.departmentId
+    io.to(departmentId.toString()).emit('subtask-completed', {
+        subtaskId : subtask._id,
+        userId,
+        taskId
+    })
 
     const progress = (task.completedSubtasks / task.totalSubtasks ) * 90;
 

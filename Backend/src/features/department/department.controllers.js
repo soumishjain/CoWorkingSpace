@@ -42,7 +42,6 @@ export async function createDepartment(req,res){
     }
 
 }
-/** ================ NOT TESTED ================= **/
 
 export async function addDepartmentManager(req,res){
 
