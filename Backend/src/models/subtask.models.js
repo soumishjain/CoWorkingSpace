@@ -32,7 +32,7 @@ const subtaskSchema = new mongoose.Schema({
     },
     deadline : {
         type : Date,
-        required : true
+        default: null
     },
     status : {
         type : String,
