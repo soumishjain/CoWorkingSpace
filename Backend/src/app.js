@@ -8,6 +8,7 @@ import departmentRouter from './features/department/department.routes.js'
 import taskRouter from './features/tasks/task.routes.js'
 import subtaskRouter from './features/subtasks/subtask.routes.js'
 import activityRouter from './features/activity/activity.routes.js'
+import notificationRouter from './features/notification/notification.routes.js'
 
 const app = express()
 
@@ -22,5 +23,6 @@ app.use('/api/department',departmentRouter)
 app.use('/api/task',taskRouter)
 app.use('/api/subtask',subtaskRouter)
 app.use('/api/activity',activityRouter)
+app.use('/api/notifications',notificationRouter)
 
 export default  app
