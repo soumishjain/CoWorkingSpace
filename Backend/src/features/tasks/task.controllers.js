@@ -1,12 +1,14 @@
 import mongoose from "mongoose";
-import departmentMemberModel from "../../models/departmentMember.models";
-import subtaskModel from "../../models/subtask.models";
+import departmentMemberModel from "../../models/departmentMember.models.js";
+import subtaskModel from "../../models/subtask.models.js";
 import taskModel from "../../models/task.models";
-import workspaceMemberModel from "../../models/workspaceMember.models";
+import workspaceMemberModel from "../../models/workspaceMember.models.js";
+import { createActivity } from "../../utils/createActivity.js";
 
 export async function createTask(req,res) {
 
-    const userId = req.userId;
+    try{
+        const userId = req.userId;
     const workspace = req.workspace ;
     const department = req.department;
 
@@ -18,26 +20,35 @@ export async function createTask(req,res) {
         })
     }
 
+    if(!["low" , "medium" , "high"].includes(priority)){
+        return res.status(400).json({
+            message : "inavalid priority value"
+        })
+    }
+
     if(!assignedMembers || !assignedMembers.length) {
         return res.status(400).json({
             message : "Task must be assigned to at least one member"
         })
     }
 
-    const members = await departmentMemberModel.find({
-        userId : {$in : assignedMembers} ,
-        departmentId : department._id
-    })
-
-    if(members.length !== assignedMembers.length){
-        return res.status(400).json({
-            message : "Some assigned users are not department members"
-        })
-    }
 
     if(!subtasks || !subtasks.length){
         return res.status(400).json({
             message : "At least one subtask is required"
+        })
+    }
+
+    const uniqueMembers = [...new Set(assignedMembers)]
+
+    const membersCount = await departmentMemberModel.countDocuments({
+        userId : {$in : uniqueMembers},
+        departmentId : department._id
+    })
+
+    if(membersCount !== uniqueMembers.length){
+        return res.status(400).json({
+            message : "Some assigned users are not department members"
         })
     }
 
@@ -85,10 +96,29 @@ export async function createTask(req,res) {
 
     await subtaskModel.insertMany(subtaskDocs)
 
+    await createActivity({
+        workspaceId : task.workspaceId,
+        departmentId : task.departmentId,
+        userId,
+        type : "TASK_CREATED",
+        message : `created task ${task.title}`
+    })
+
+    io.to(task.departmentId.toString()).emit("task-created", {
+        taskId : task._id,
+        createdBy : userId
+    })
+
     return res.status(201).json({
         message : "Task Created Successfully",
         task
     })
+    }catch(error){
+        console.error(error)
+        res.status(500).json({
+            message : "Internal Server Error"
+        })
+    }
 }
 
 export async function deleteTask(req,res) {
@@ -297,6 +327,20 @@ export async function approveTask(req,res) {
 
     session.endSession()
 
+    await createActivity({
+        workspaceId : task.workspaceId,
+        departmentId,
+        userId,
+        type : "TASK_APPROVED",
+        message : `approve task ${task.title}`
+    })
+
+    io.to(departmentId.toString()).emit("task-approved", {
+        taskId : task._id,
+        approvedBy : userId
+    })
+    
+
     return res.status(200).json({
         message : "task approved successfully"
     })
@@ -347,6 +391,19 @@ export async function rejectTask(req,res) {
     task.approvalFeedback = feedback || "Task needs improvement"
 
     await task.save()
+
+    await createActivity({
+        workspaceId : task.workspaceId,
+        departmentId : task.departmentId,
+        userId,
+        type : 'TASK_REJECTED',
+        message : `rejected task ${task.title}`
+    })
+
+    io.to(task.departmentId.toString()).emit("task-rejected",{
+        taskId : task._id,
+        feedback : task.approvalFeedback
+    })
 
     return res.status(200).json({
         message : "Task rejected with feedback"

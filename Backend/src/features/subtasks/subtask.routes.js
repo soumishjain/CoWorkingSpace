@@ -1,6 +1,6 @@
 import express from 'express'
-import { claimSubtask, completeSubtask, getMyPendingSubtasks, getSubtasksOfTasks } from './subtask.controllers'
-import { identifyUser } from '../../middleware/auth.middleware'
+import { claimSubtask, completeSubtask, getMyPendingSubtasks, getSubtasksOfTasks } from './subtask.controllers.js'
+import { identifyUser } from '../../middleware/auth.middleware.js'
 
 const subtaskRouter = express.Router()
 

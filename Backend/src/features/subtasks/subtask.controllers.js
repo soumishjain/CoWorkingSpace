@@ -2,6 +2,7 @@ import departmentMemberModel from "../../models/departmentMember.models.js"
 import subtaskModel from "../../models/subtask.models.js"
 import taskModel from "../../models/task.models.js"
 import {io} from '../../../server.js'
+import { createActivity } from "../../utils/createActivity.js"
 
 export async function getSubtasksOfTasks(req,res){
     try{
@@ -104,6 +105,14 @@ export async function claimSubtask(req,res) {
 
     await subtask.save()
 
+    await createActivity({
+        workspaceId : task.workspaceId,
+        departmentId,
+        userId,
+        type : "SUBTASK_CLAIMED",
+        message : `claimed subtask ${subtask.title}`
+    })
+
     io.to(departmentId.toString()).emit("subtask-claimed",{
         subtaskId : subtask._id,
         userId,
@@ -163,6 +172,15 @@ export async function completeSubtask(req,res) {
     await subtask.save()
 
     const departmentId = task.departmentId
+
+    await createActivity({
+        workspaceId : task.workspaceId,
+        departmentId,
+        userId,
+        type : "SUBTASK_COMPLETED",
+        message : `complete subtask ${subtask.title}`
+    })
+
     io.to(departmentId.toString()).emit('subtask-completed', {
         subtaskId : subtask._id,
         userId,

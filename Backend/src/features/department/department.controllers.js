@@ -7,6 +7,7 @@ import joinRequestModel from "../../models/joinRequest.models.js";
 import taskModel from "../../models/task.models.js";
 import subtaskModel from "../../models/subtask.models.js";
 import monthlyLeaderboardModel from "../../models/monthlyLeaderboard.models.js";
+import { createActivity } from "../../utils/createActivity.js";
 
 export async function createDepartment(req,res){
     try{
@@ -114,6 +115,19 @@ export async function addDepartmentManager(req,res){
     })
 }
 
+await createActivity({
+    workspaceId : department.workspaceId,
+    departmentid : department._id,
+    userId : adminId,
+    type : "MANAGER_ASSIGNED",
+    message : `assigned ${user.name} as manager`
+})
+
+io.to(department._id.toString())
+.emit('manager-assigned',{
+    departmentId : department._id,
+    managerId : user._id
+})
     res.status(201).json({
         message : "Manager Assigned Successfully",
         manager
@@ -172,6 +186,22 @@ export async function addMemberInDepartment(req,res){
         departmentId : department._id ,
         role : "employee"
     })
+
+
+    await createActivity({
+        workspaceId : workspace._id,
+        departmentId : department._id,
+        userId : headId,
+        type : "MEMBER_ADDED",
+        message : `added a member to department`
+    })
+
+    io.to(department._id.toString()).emit("member-added",{
+        departmentId : department._id,
+        userId : newUserId
+    })
+
+
 
     return res.status(201).json({
         message : "user added successfully",
@@ -275,6 +305,18 @@ export async function updateDepartment(req,res) {
 
         department.description = description
         await department.save()
+
+        await createActivity({
+        workspaceId : workspace._id,
+        departmentId : department._id,
+        userId : headId,
+        type : "DEPARTMENT_UPDATED",
+        message : `department updated`
+    })
+
+    io.to(department._id.toString()).emit("department-updated",{
+        departmentId : department._id,
+    })
 
         return res.status(200).json({
             message : "Department Updated Successfully",
@@ -400,6 +442,20 @@ export async function leaveDepartment(req,res){
 
     await departmentMemberModel.findOneAndDelete({userId , departmentId})
 
+    await createActivity({
+        workspaceId : workspace._id,
+        departmentId : department._id,
+        userId : headId,
+        type : "MEMBER-LEFT",
+        message : `${user.name} left the department`
+    })
+
+    io.to(department._id.toString()).emit("member-left",{
+        departmentId : department._id,
+        userId
+    })
+
+
     res.status(200).json({
         message : "You are no longer part of this department",
     })
@@ -520,6 +576,23 @@ export async function removeMemberFromDepartment(req,res) {
     }
 
     await departmentMemberModel.findOneAndDelete({userId : removeUserId , departmentId})
+
+
+    await createActivity({
+        workspaceId : workspace._id,
+        departmentId : department._id,
+        userId : headId,
+        type : "MEMBER_REMOVED",
+        message : `removed a member from department`
+    })
+
+    io.to(department._id.toString()).emit("member-removed",{
+        departmentId : department._id,
+        userId : removeUserId
+    })
+
+
+
 
     return res.status(200).json({
         message : "User removed Successfully"
