@@ -9,6 +9,7 @@ import taskRouter from './features/tasks/task.routes.js'
 import subtaskRouter from './features/subtasks/subtask.routes.js'
 import activityRouter from './features/activity/activity.routes.js'
 import notificationRouter from './features/notification/notification.routes.js'
+import "./cron/leaderboardReset.js"
 
 const app = express()
 
