@@ -17,6 +17,10 @@ const monthlyLeaderboardSchema = new mongoose.Schema({
         type : String,
         required : true
     },  
+    year : {
+        type :Number,
+        required : true
+    },
     rankings : [
         {
         userId : {
@@ -37,7 +41,7 @@ const monthlyLeaderboardSchema = new mongoose.Schema({
 },{timestamps : true})
 
 monthlyLeaderboardSchema.index(
-    {workspaceId : 1 , departmentId : 1 , month : 1} , {unique : true}
+    {workspaceId : 1 ,year : 1 ,  departmentId : 1 , month : 1} , {unique : true}
 )
 
 const monthlyLeaderboardModel = mongoose.model("MonthlyLeaderboard", monthlyLeaderboardSchema)

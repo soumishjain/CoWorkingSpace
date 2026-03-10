@@ -1,6 +1,6 @@
 import express from 'express'
-import { identifyUser } from '../../middleware/auth.middleware'
-import { getMyNotification, getUnreadNotificationCount, markAllNotificationAsRead, markNotification } from './notification.controllers'
+import { identifyUser } from '../../middleware/auth.middleware.js'
+import { getMyNotification, getUnreadNotificationCount, markAllNotificationAsRead, markNotification } from './notification.controllers.js'
 
 const notificationRouter = express.Router()
 
