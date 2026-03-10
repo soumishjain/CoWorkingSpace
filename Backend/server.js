@@ -10,6 +10,14 @@ export const io = new Server(server , {
     }
 })
 
+process.on("uncaughtException" , (err) => {
+    console.error("uncaught Exception", err)
+})
+
+process.on("unhandledRejection", (err) => {
+    console.error("Unhandled Rejection" , err)
+})
+
 io.on("connection" ,(socket) => {
     console.log("User Connected : ", socket.id)
 

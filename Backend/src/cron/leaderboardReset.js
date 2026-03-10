@@ -56,10 +56,10 @@ cron.schedule("0 0 1 * *", async () => {
 
         }
 
-        console.log("Leaderboard reset complegted")
+        console.log("Leaderboard reset completed")
 
 
     }catch(error){
-        console.error("Leaderboard reset errro",error)
+        console.error("Leaderboard reset errror",error)
     }
 })
