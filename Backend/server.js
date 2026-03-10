@@ -13,6 +13,10 @@ export const io = new Server(server , {
 io.on("connection" ,(socket) => {
     console.log("User Connected : ", socket.id)
 
+    socket.on("join-user",(userId) => {
+        socket.join(userId)
+    })
+
     socket.on("join-department", (departmentId) => {
         socket.join(departmentId)
         console.log(`Socket ${socket.id} joined department ${departmentId}`)

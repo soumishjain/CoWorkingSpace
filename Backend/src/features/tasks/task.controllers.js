@@ -76,7 +76,7 @@ export async function createTask(req,res) {
         createdBy : userId,
         workspaceId : workspace._id,
         departmentId : department._id,
-        assignedMembers,
+        assignedMembers : uniqueMembers,
         priority,
         totalPoints,
         totalSubtasks,
@@ -108,6 +108,23 @@ export async function createTask(req,res) {
         taskId : task._id,
         createdBy : userId
     })
+
+    for (const memberId of assignedMembers) {
+
+    await createNotification({
+        workspaceId : task.workspaceId,
+        departmentId : task.departmentId,
+        userId : memberId,
+        type : "TASK_ASSIGNED",
+        message : `You were assigned a new task: ${task.title}`
+    })
+
+    io.to(memberId.toString()).emit("notification", {
+        type : "TASK_ASSIGNED",
+        taskId : task._id,
+        title : task.title
+    })
+}
 
     return res.status(201).json({
         message : "Task Created Successfully",
@@ -339,6 +356,27 @@ export async function approveTask(req,res) {
         taskId : task._id,
         approvedBy : userId
     })
+
+    // notify assigned members
+await Promise.all(
+    task.assignedMembers.map(memberId => 
+        createNotification({
+            workspaceId : task.workspaceId,
+            departmentId : departmentId,
+            userId : memberId,
+            type : "TASK_APPROVED",
+            message : `Task "${task.title}" has been approved`
+        })
+    )
+)
+
+task.assignedMembers.forEach(memberId => {
+    io.to(memberId.toString()).emit("notification", {
+        type : "TASK_APPROVED",
+        taskId : task._id,
+        title : task.title
+    })
+})
     
 
     return res.status(200).json({
@@ -404,6 +442,26 @@ export async function rejectTask(req,res) {
         taskId : task._id,
         feedback : task.approvalFeedback
     })
+
+    await Promise.all(
+    task.assignedMembers.map(memberId => 
+        createNotification({
+            workspaceId : task.workspaceId,
+            departmentId : task.departmentId,
+            userId : memberId,
+            type : "TASK_REJECTED",
+            message : `Task "${task.title}" was rejected. Feedback: ${task.approvalFeedback}`
+        })
+    )
+)
+
+task.assignedMembers.forEach(memberId => {
+    io.to(memberId.toString()).emit("notification", {
+        type : "TASK_REJECTED",
+        taskId : task._id,
+        feedback : task.approvalFeedback
+    })
+})
 
     return res.status(200).json({
         message : "Task rejected with feedback"

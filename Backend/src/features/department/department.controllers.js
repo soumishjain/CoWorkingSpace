@@ -8,6 +8,7 @@ import taskModel from "../../models/task.models.js";
 import subtaskModel from "../../models/subtask.models.js";
 import monthlyLeaderboardModel from "../../models/monthlyLeaderboard.models.js";
 import { createActivity } from "../../utils/createActivity.js";
+import { createNotification } from "../../utils/createNotification.js";
 
 export async function createDepartment(req,res){
     try{
@@ -117,17 +118,33 @@ export async function addDepartmentManager(req,res){
 
 await createActivity({
     workspaceId : department.workspaceId,
-    departmentid : department._id,
+    departmentId : department._id,
     userId : adminId,
     type : "MANAGER_ASSIGNED",
-    message : `assigned ${user.name} as manager`
+    message : `${assignedUser.name} was assigned as department manager`
 })
 
 io.to(department._id.toString())
 .emit('manager-assigned',{
     departmentId : department._id,
-    managerId : user._id
+    managerId : assignedUserId
 })
+
+await createNotification({
+    workspaceId : department.workspaceId,
+    departmentId : department._id,
+    userId : assignedUserId,
+    type : "MANAGER_ASSIGNED",
+    message : "Congratulations! you have been assigned as department manager"
+})
+
+io.to(assignedUser._id.toString()).emit("manager-assigned",{
+    departmentId : department._id,
+    type : "MANAGER_ASSIGNED"
+})
+
+
+
     res.status(201).json({
         message : "Manager Assigned Successfully",
         manager
@@ -199,6 +216,19 @@ export async function addMemberInDepartment(req,res){
     io.to(department._id.toString()).emit("member-added",{
         departmentId : department._id,
         userId : newUserId
+    })
+
+    await createNotification({
+        workspaceId : workspace._id,
+        departmentId : department._id,
+        userId : newUserId,
+        type : "MEMBER_ADDED",
+        message : `you have been added in the department`
+    })
+
+    io.to(newUserId.toString()).emoit("member-added",{
+        departmentId : department._id,
+        type : "MEMBER_ADDED"
     })
 
 
@@ -439,6 +469,7 @@ export async function leaveDepartment(req,res){
             message : "You are not the part of this department"
         })
     }
+    const manager = await departmentMemberModel.findOne({departmentId,role : 'manager'})
 
     await departmentMemberModel.findOneAndDelete({userId , departmentId})
 
@@ -453,6 +484,18 @@ export async function leaveDepartment(req,res){
     io.to(department._id.toString()).emit("member-left",{
         departmentId : department._id,
         userId
+    })
+
+    await createNotification({
+        workspaceId : workspace._id,
+        departmentId : department._id,
+        userId : manager._id,
+        type : "MEMBER-LEFT",
+        message : `${user.name} left the department`
+    })
+
+    io.to(manager._id.toString()).emit("member-left",{
+        departmentId : department._id
     })
 
 
@@ -591,6 +634,18 @@ export async function removeMemberFromDepartment(req,res) {
         userId : removeUserId
     })
 
+    await createNotification({
+        workspaceId : workspace._id,
+        departmentId : department._id,
+        userId : removeUserId,
+        type : "MEMBER-REMOVED",
+        message : `You have been removed from the department`
+    })
+
+    io.to(removeUserId.toString()).emit("member-removed",{
+        departmentId : department._id
+    })
+
 
 
 
@@ -653,6 +708,20 @@ export async function joinDepartment(req,res){
         status : 'pending'
     })
 
+    const manager = departmentMember.model.find({departmentId , role : 'manager'})
+
+    await createNotification({
+        workspaceId : workspaceId,
+        departmentId : departmentId,
+        userId : manager._id,
+        type : "JOIN_REQUEST",
+        message : `${user.name} requested to join the department ${department.name}`
+    })
+
+    io.to(manager._id.toString()).emit('join-request',{
+        department : departmentId
+    })
+
     res.status(201).json({
         message : "Request sent successfully",
         request
@@ -708,6 +777,18 @@ export async function approveDepartmentJoinRequest (req,res) {
 
     await joinRequestModel.findByIdAndDelete(reqId)
 
+    await createNotification({
+    workspaceId : workspace._id,
+    departmentId : department._id,
+    userId : request.userId,
+    type : "JOIN_REQUEST_APPROVED",
+    message : `Your request to join ${department.name} was approved`
+})
+
+io.to(request.userId.toString()).emit("join-request-approved",{
+    departmentId : department._id
+})
+
     res.status(200).json({
         message : "Join request approved",
         newUser
@@ -747,6 +828,20 @@ export async function rejectDepartmentJoinRequest(req,res){
     }
 
     await joinRequestModel.findByIdAndDelete(reqId)
+
+   
+
+    await createNotification({
+    workspaceId : workspace._id,
+    departmentId : department._id,
+    userId : request.userId,
+    type : "JOIN_REQUEST_REJECTED",
+    message : `Your request to join ${department.name} was rejected`
+})
+
+io.to(request.userId.toString()).emit("join-request-rejected",{
+    departmentId : department._id
+})
 
 
     res.status(200).json({
