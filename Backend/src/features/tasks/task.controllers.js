@@ -1,9 +1,11 @@
 import mongoose from "mongoose";
 import departmentMemberModel from "../../models/departmentMember.models.js";
 import subtaskModel from "../../models/subtask.models.js";
-import taskModel from "../../models/task.models";
+import taskModel from "../../models/task.models.js";
 import workspaceMemberModel from "../../models/workspaceMember.models.js";
 import { createActivity } from "../../utils/createActivity.js";
+import { io } from "../../../server.js";
+import { createNotification } from "../../utils/createNotification.js";
 
 export async function createTask(req,res) {
 
@@ -426,7 +428,11 @@ export async function rejectTask(req,res) {
     }
 
     task.status = 'in-progress'
+    task.progress = 0
     task.approvalFeedback = feedback || "Task needs improvement"
+    task.completedSubtasks = 0;
+
+    await subtaskModel.find({taskId}).updateMany({status : "pending" , completedAt : null , completedBy : null})
 
     await task.save()
 

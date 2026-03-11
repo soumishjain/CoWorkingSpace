@@ -9,6 +9,7 @@ import subtaskModel from "../../models/subtask.models.js";
 import monthlyLeaderboardModel from "../../models/monthlyLeaderboard.models.js";
 import { createActivity } from "../../utils/createActivity.js";
 import { createNotification } from "../../utils/createNotification.js";
+import { io } from "../../../server.js";
 
 export async function createDepartment(req,res){
     try{
