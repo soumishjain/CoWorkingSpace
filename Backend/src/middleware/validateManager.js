@@ -1,4 +1,4 @@
-import departmentMemberModel from "../models/departmentMember.models"
+import departmentMemberModel from "../models/departmentMember.models.js"
 
 export async function validateManager(req,res,next) {
     try{
