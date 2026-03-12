@@ -3,11 +3,17 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import { sendEmail } from "../../services/mail.services.js"
+import ImageKit from '@imagekit/nodejs' 
 
+const imagekit = new ImageKit({
+  privateKey: process.env.IMAGE_KIT_PRIVATE_KEY,
+});
 
 export async function registerUser(req,res){
    try{
-     let {name , email , password, profileImage, username } = req.body
+     let {name , email , password, username } = req.body
+
+
 
     if(!name || !email || !password || !username) {
         return res.status(400).json({
@@ -24,28 +30,34 @@ export async function registerUser(req,res){
         ]
     })
 
-    if(existingUser){
-       if(existingUser.email === email){
-         return res.status(409).json({
-            message : "Email Already Exists"
-        })
-       }
+    if (existingUser) {
 
-       if(existingUser.username === username){
-         return res.status(409).json({
-            message : "Username Already Exists"
-        })
-       }
-    }
+  if (existingUser.isVerified) {
+    return res.status(409).json({
+      message: "User already exists"
+    });
+  }
+
+}
 
     const hash = await bcrypt.hash(password,10)
+    let profileImageUrl
+
+    if(req.file){
+    const file = await imagekit.files.upload({
+        file :  req.file.buffer.toString("base64"),
+        fileName : `profile-${Date.now()}`,
+        folder : '/coworkingspace/profile'
+     })
+     profileImageUrl = file.url
+    }
 
 
-    const user = await userModel.create({name , username ,email , password : hash , profileImage , isVerified : false})
+    const user = await userModel.create({name , username ,email , password : hash , profileImage : profileImageUrl , isVerified : false})
 
     const rawToken = crypto.randomBytes(32).toString("hex")
     
-    const hashedToken = crypto
+   const hashedToken = crypto
   .createHash("sha256")
   .update(rawToken)
   .digest("hex");
@@ -73,7 +85,7 @@ export async function registerUser(req,res){
         user : {
             name : name ,
             email , 
-            profileImage : profileImage
+            profileImage : profileImageUrl
         }
     })
    }catch(error){
@@ -127,7 +139,7 @@ export async function verifyEmail(req,res){
       maxAge: 24 * 60 * 60 * 1000
     });
 
-    res.redirect("http://localhost:5173")
+    res.redirect("http://localhost:5173/login")
     } catch(error){
         console.log(error)
         res.status(500).send("Something Went Wrong")

@@ -2,10 +2,12 @@ import express from 'express'
 import { identifyUser } from '../../middleware/auth.middleware.js'
 import { approveJoinRequest, changeMemberRole, createWorkspace, deleteWorkspace, getAllPendingRequestsForWorkspace, getAllWorkspace, getMyWorkspaces, getWorkspace, getWorkspaceMembers, joinWorkspace, leaveWorkspace, rejectJoinRequest, removeMember, updateWorkspace, workspaceStats } from './workspace.controllers.js'
 import { validateWorkspace } from '../../middleware/validateWorkspace.middleware.js'
+import multer from 'multer'
 
+const upload = multer({storage : multer.memoryStorage()})
 const worskpaceRouter = express.Router()
 
-worskpaceRouter.post('/create',identifyUser , createWorkspace)
+worskpaceRouter.post('/create',upload.single("coverImage"),identifyUser , createWorkspace)
 worskpaceRouter.get('/get-all-workspace',identifyUser , getAllWorkspace)
 worskpaceRouter.get('/get-workspace/:workspaceId',identifyUser , validateWorkspace , getWorkspace)
 worskpaceRouter.post('/delete/:workspaceId',identifyUser, validateWorkspace , deleteWorkspace)

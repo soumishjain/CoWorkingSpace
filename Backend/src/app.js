@@ -13,13 +13,17 @@ import "./cron/leaderboardReset.js"
 import aiRouter from './features/ai/ai.routes.js'
 import { apiLimiter } from './middleware/rateLimit.middleware.js'
 import { globalErrorHandler } from './middleware/error.middleware.js'
-
+import cors from 'cors'
 const app = express()
 
 connectToDb()
 
 app.use(express.json())
 app.use(cookieParser());
+app.use(cors({
+    origin : "http://localhost:5173",
+    credentials : true
+}))
 app.use(globalErrorHandler)
 
 app.use('/api',apiLimiter)

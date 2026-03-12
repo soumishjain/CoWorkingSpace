@@ -6,6 +6,12 @@ import departmentModel from "../../models/department.models.js";
 import departmentMemberModel from "../../models/departmentMember.models.js";
 import monthlyLeaderboardModel from "../../models/monthlyLeaderboard.models.js";
 import joinRequestModel from "../../models/joinRequest.models.js";
+import ImageKit from '@imagekit/nodejs' 
+
+const imagekit = new ImageKit({
+  privateKey: process.env.IMAGE_KIT_PRIVATE_KEY,
+});
+
 
 export async function createWorkspace(req,res){
     
@@ -19,7 +25,7 @@ export async function createWorkspace(req,res){
         })
     }
 
-    let {name , description , coverImage , joinPassword} = req.body;
+    let {name , description , joinPassword} = req.body;
     if(!name || !joinPassword){
         return res.status(400).json({
             messsage : "Please fill All the Details"
@@ -38,8 +44,20 @@ export async function createWorkspace(req,res){
 
     const hash = await bcrypt.hash(joinPassword,10);
 
+    let coverImageUrl;
+
+     if(req.file){
+     const file = await imagekit.files.upload({
+        file : await toFile(Buffer.from(req.file.buffer) , 'workspacecover.jpg'),
+        fileName : `workspace-${Date.now()}`,
+        folder : '/coworkingspace/workspace/coverImage'
+     })
+     coverImageUrl = file
+    }
+
+
     const workspace = await workspaceModel.create({
-        name , description , coverImage , joinPassword : hash , createdBy : userId
+        name , description , coverImage : coverImageUrl, joinPassword : hash , createdBy : userId
     })
 
     const generalDept = await departmentModel.create({
