@@ -5,6 +5,8 @@ import Register from './pages/Register'
 import Login from './pages/Login'
 import PersonalDashboard from './pages/PersonalDashboard'
 import VerifyEmail from './components/VerifyEmail'
+import DashboardLeftNav from './components/DashboardLeftNav'
+import ProtectedRoute from './components/ProtectedRoute'
 
 const AppRoutes = () => {
   return (
@@ -12,7 +14,16 @@ const AppRoutes = () => {
         <Route path='/' element={<GlobalDashboard />}/>
         <Route path='/register' element={<Register />}/>
         <Route path='/login' element={<Login />}/>
-        <Route path='/dashboard' element={<PersonalDashboard />}/>
+        <Route
+  path="/dashboard"
+  element={
+    <ProtectedRoute>
+      <DashboardLeftNav />
+    </ProtectedRoute>
+  }
+>
+  <Route index element={<PersonalDashboard />} />
+</Route>
     </Routes>
   )
 }

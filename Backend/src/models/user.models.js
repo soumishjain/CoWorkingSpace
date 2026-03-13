@@ -31,7 +31,7 @@ const userSchema = new mongoose.Schema({
     },
     avatar : {
         type : String,
-        default : "warrior"
+        default : "https://ik.imagekit.io/soumisjain/download.png"
     },
     isVerified : {
         type : Boolean,

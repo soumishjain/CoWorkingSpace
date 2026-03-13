@@ -22,6 +22,8 @@ export const loginUser = async(formData) => {
     const response = await axios.post('/auth/login',{
         identifier : formData.identifier,
         password: formData.password
+    },{
+        withCredentials : true
     })
 
     console.log(response)

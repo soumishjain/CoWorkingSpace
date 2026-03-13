@@ -1,10 +1,11 @@
 import { useNavigate } from "react-router-dom"
 import { loginUser } from "../api/auth.api"
+import { useAuth } from "../context/AuthContext"
 
 
 export const useLogin = (state) => {
 const navigate = useNavigate()
-
+const {setUser} = useAuth()
     const {formData , setLoading , setError} = state
     const submitLogin = async () => {
         try{
@@ -13,7 +14,7 @@ const navigate = useNavigate()
             const data = await loginUser(formData)
 
             console.log("Login Success : " , data)
-            
+            setUser(data.user)
             navigate('/dashboard')
 
         }catch(error){

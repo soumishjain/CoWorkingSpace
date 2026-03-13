@@ -14,7 +14,7 @@ const workspaceSchema = new mongoose.Schema({
     },
     coverImage : {
         type : String,
-        default : "https://i.pinimg.com/1200x/92/46/50/924650bbe679764dcb8c0d7fa386e76c.jpg"
+        default : "https://i.pinimg.com/736x/08/00/c1/0800c1a670b7e070d55bef3b1bfb4b57.jpg"
     },
     createdBy : {
         type : mongoose.Schema.Types.ObjectId,
