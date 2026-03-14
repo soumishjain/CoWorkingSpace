@@ -1,10 +1,9 @@
 import React from 'react'
+import Landing from './Landing'
 
 const GlobalDashboard = () => {
   return (
-    <div>
-      
-    </div>
+    <Landing />
   )
 }
 

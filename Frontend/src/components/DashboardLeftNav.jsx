@@ -1,15 +1,22 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, User, Settings, LogOut } from "lucide-react";
-import axios from "axios";
+import {
+  LayoutDashboard,
+  Settings,
+  LogOut,
+  Bell,
+  Menu,
+} from "lucide-react";
+import axios from "../api/axios";
 import { useAuth } from "../context/AuthContext";
-
 
 const DashboardLeftNav = () => {
 
   const location = useLocation();
   const navigate = useNavigate();
-  const {user , logout} = useAuth()
+  const { user, logout } = useAuth();
+
+  const [open, setOpen] = useState(false);
 
   const navItems = [
     {
@@ -18,9 +25,9 @@ const DashboardLeftNav = () => {
       icon: <LayoutDashboard size={20} />,
     },
     {
-      name: "About Me",
+      name: "Notifications",
       path: "/about",
-      icon: <User size={20} />,
+      icon: <Bell size={20} />,
     },
     {
       name: "Settings",
@@ -30,25 +37,21 @@ const DashboardLeftNav = () => {
   ];
 
   const handleLogout = async () => {
-
-    try{
-        await axios.post('/api/auth/logout',{},{withCredentials : true})
-        logout()
-        navigate('/login')
-    }catch(err){
-        console.error(err)
+    try {
+      await axios.post("/auth/logout", {}, { withCredentials: true });
+      logout();
+      navigate("/login");
+    } catch (err) {
+      console.error(err);
     }
+  };
 
-  }
-
-  return (
-    <div className="flex h-screen">
-        <aside className="h-screen w-[260px] bg-[var(--color-bg)] border-r border-gray-200 flex flex-col shadow-sm">
-
+  const SidebarContent = () => (
+    <>
       {/* Logo */}
-      <div className="px-6 py-6 border-b border-gray-200">
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--color-primary)]">
-          CoWorking
+      <div className="px-6 flex justify-center py-4 border-b border-gray-200">
+        <h1 className="text-xl font-bold text-[var(--color-primary)]">
+          CoworkSpace
         </h1>
       </div>
 
@@ -61,7 +64,7 @@ const DashboardLeftNav = () => {
         />
 
         <h2 className="mt-3 font-semibold text-lg text-[var(--color-text)]">
-         {user?.name}
+          {user?.name}
         </h2>
 
         <p className="text-sm text-gray-500">Member</p>
@@ -71,13 +74,13 @@ const DashboardLeftNav = () => {
       <nav className="flex-1 px-4 py-6">
         <ul className="space-y-2">
           {navItems.map((item) => {
-
             const isActive = location.pathname === item.path;
 
             return (
               <li key={item.name}>
                 <Link
                   to={item.path}
+                  onClick={() => setOpen(false)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all
                   
                   ${
@@ -95,12 +98,12 @@ const DashboardLeftNav = () => {
         </ul>
       </nav>
 
-      {/* Bottom section */}
+      {/* Bottom */}
       <div className="p-4 border-t border-gray-200 space-y-3">
 
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition"
+          className="flex cursor-pointer items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition"
         >
           <LogOut size={20} />
           Logout
@@ -111,11 +114,48 @@ const DashboardLeftNav = () => {
         </p>
 
       </div>
+    </>
+  );
 
-    </aside>
-    <main className="flex-1 overflow-y-auto p-6 bg-gray-50">
+  return (
+    <div className="flex h-screen">
+
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setOpen(true)}
+        className="md:hidden fixed top-4 left-4 z-50 bg-white p-2 rounded-lg shadow"
+      >
+        <Menu size={22} />
+      </button>
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex h-screen w-[260px] bg-[var(--color-bg)] border-r border-gray-200 flex-col shadow-sm">
+        <SidebarContent />
+      </aside>
+
+      {/* Mobile Sidebar Drawer */}
+      {open && (
+        <div className="fixed inset-0 z-40 flex">
+
+          {/* Overlay */}
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setOpen(false)}
+          />
+
+          {/* Drawer */}
+          <div className="relative w-[260px] bg-[var(--color-bg)] h-full shadow-lg flex flex-col animate-slide">
+            <SidebarContent />
+          </div>
+
+        </div>
+      )}
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto p-6 bg-gray-50 w-full">
         <Outlet />
-    </main>
+      </main>
+
     </div>
   );
 };

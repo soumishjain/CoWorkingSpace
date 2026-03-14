@@ -47,12 +47,12 @@ export async function createWorkspace(req,res){
     let coverImageUrl;
 
      if(req.file){
-     const file = await imagekit.files.upload({
-        file : await toFile(Buffer.from(req.file.buffer) , 'workspacecover.jpg'),
+    const file = await imagekit.files.upload({
+        file :  req.file.buffer.toString("base64"),
         fileName : `workspace-${Date.now()}`,
-        folder : '/coworkingspace/workspace/coverImage'
+        folder : '/coworkingspace/workspace'
      })
-     coverImageUrl = file
+     coverImageUrl = file.url
     }
 
 
