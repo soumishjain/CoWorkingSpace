@@ -26,11 +26,7 @@ const TopGreeting = () => {
           <p className="text-xs text-gray-400">Workspace Member</p>
         </div>
 
-        <img
-          src={user?.avatar || "https://i.pravatar.cc/150"}
-          alt="user"
-          className="h-20 w-15 object-cover "
-        />
+        
       </div>
 
     </div>

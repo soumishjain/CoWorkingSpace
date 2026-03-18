@@ -413,27 +413,36 @@ export async function getMyDepartments(req,res) {
     const workspace = req.workspace
     const workspaceId = workspace._id
 
-    const isUserInWorkspace = await workspaceMemberModel.findOne({workspaceId , userId})
+    const user = await workspaceMemberModel.findOne({ workspaceId, userId });
 
-    if(!isUserInWorkspace){
-        return res.status(403).json({
-            message : "User not in workspace"
-        })
-    }
+if (!user) {
+    return res.status(403).json({
+        message: "User not in workspace"
+    });
+}
 
-    const myDepartments = await departmentMemberModel.find({userId})
-    .populate({
-        path : "departmentId",
-        match: {workspaceId},
-        select : "name description createdBy"
-    })
+if (user.role === "admin") {
+    const departments = await departmentModel.find({ workspaceId });
 
-    const filtered = myDepartments.filter(d => d.departmentId !== null)
+    return res.status(200).json({
+        message: "All departments (admin access)",
+        departments
+    });
+}
 
-    res.status(200).json({
-        message : "All Departments fetched successfully",
-        filtered
-    })
+const myDepartments = await departmentMemberModel.find({ userId })
+.populate({
+    path: "departmentId",
+    match: { workspaceId },
+    select: "name description createdBy"
+});
+
+const filtered = myDepartments.filter(d => d.departmentId !== null);
+
+return res.status(200).json({
+    message: "User departments fetched",
+    departments: filtered.map(d => d.departmentId)
+});
 
     }catch(error){
         console.error(error)

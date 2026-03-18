@@ -706,46 +706,87 @@ export async function getWorkspaceMembers(req,res) {
 }
 
 // workspaceStats
-export async function workspaceStats(req,res){
-    try{
-    const adminId = req.userId
+export async function workspaceStats(req, res) {
+  try {
+    const userId = req.userId;
+    const workspace = req.workspace;
+    const workspaceId = workspace._id;
 
-    const workspace = req.workspace
-        const workspaceId = workspace._id
+    // 🔥 GET WORKSPACE
+    const workspaceData = await workspaceModel
+      .findById(workspaceId)
+      .populate("createdBy", "name email");
 
-
-    const admin = await workspaceMemberModel.findOne({
-        userId : adminId, workspaceId
-    })
-
-    if(!admin || admin.role !== 'admin') {
-        return res.status(403).json({
-            message : "Not authorized"
-        })
+    if (!workspaceData) {
+      return res.status(404).json({
+        message: "Workspace not found",
+      });
     }
 
-    const workspaceMembers = await workspaceMemberModel.countDocuments({workspaceId})
-    const departments = await departmentModel.find({workspaceId})
-    const adminCount = await workspaceMemberModel.countDocuments({workspaceId , role : 'admin'})
-    const pendingRequests = await joinRequestModel.countDocuments({workspaceId , type : 'workspace' , status : 'pending'})
-    const top3 = await monthlyLeaderboardModel.find({workspaceId})
-    .sort({month: -1})
-    .limit(1)
+    // 🔥 CHECK USER IS MEMBER
+    const member = await workspaceMemberModel.findOne({
+      userId,
+      workspaceId,
+    });
 
-    res.status(200).json({
-        message : "Workspace stats fetched successfully",
-        totalMembers : workspaceMembers,
-        totalDepartments : departments.length,
-        totalAdmins : adminCount,
-        departments : departments,
-        totalPendingRequests : pendingRequests,
-        top3 : top3
-    })
-
-    }catch(error){
-        console.error(error)
-        res.status(500).json({
-            message : "Internal Server Error"
-        })
+    if (!member) {
+      return res.status(403).json({
+        message: "You are not a member of this workspace",
+      });
     }
+
+    // 🔥 COUNTS
+    const totalMembers = await workspaceMemberModel.countDocuments({
+      workspaceId,
+    });
+
+    const departments = await departmentModel.find({ workspaceId });
+
+    const totalAdmins = await workspaceMemberModel.countDocuments({
+      workspaceId,
+      role: "admin",
+    });
+
+    const totalPendingRequests = await joinRequestModel.countDocuments({
+      workspaceId,
+      type: "workspace",
+      status: "pending",
+    });
+
+    const top3 = await monthlyLeaderboardModel
+      .find({ workspaceId })
+      .sort({ month: -1 })
+      .limit(1);
+
+    // 🔥 ADMIN CHECK (FINAL FIX)
+    const isAdmin =
+      workspaceData.createdBy._id.toString() === userId.toString();
+
+    // 🔥 RESPONSE
+    return res.status(200).json({
+      message: "Workspace stats fetched successfully",
+
+      workspace: {
+        _id: workspaceData._id,
+        name: workspaceData.name,
+        coverImage: workspaceData.coverImage,
+        createdBy: workspaceData.createdBy,
+      },
+
+      totalMembers,
+      totalDepartments: departments.length,
+      totalAdmins,
+      departments,
+      totalPendingRequests,
+      top3,
+
+      isAdmin, // 🔥 IMPORTANT
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }

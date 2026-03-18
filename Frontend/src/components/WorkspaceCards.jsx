@@ -1,26 +1,32 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 const WorkspaceCards = ({ workspace }) => {
 
-    const ws = workspace.workspaceId
+  const navigate = useNavigate();
+  const ws = workspace.workspaceId;
+
+  const handleOpen = () => {
+    navigate(`/dashboard/workspace/${ws._id}`);
+  };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer">
+    <div
+      onClick={handleOpen} // 🔥 CLICK HANDLER
+      className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer"
+    >
 
-      {/* Workspace Image */}
+      {/* Image */}
       <img
-        src={
-          ws.coverImage 
-        }
+        src={ws?.coverImage}
         alt="workspace"
         className="h-36 w-full object-cover rounded-lg mb-4"
       />
 
-      {/* Workspace Info */}
+      {/* Info */}
       <h3 className="text-lg font-semibold text-gray-900">
         {ws?.name}
       </h3>
-
 
       <p className="text-sm text-gray-500 mt-1">
         ROLE : {workspace.role}
@@ -33,7 +39,13 @@ const WorkspaceCards = ({ workspace }) => {
           Active
         </span>
 
-        <button className="text-sm font-medium text-[var(--color-primary)] hover:underline">
+        <button
+          onClick={(e) => {
+            e.stopPropagation(); // 🔥 important
+            handleOpen();
+          }}
+          className="text-sm font-medium text-[var(--color-primary)] hover:underline"
+        >
           Open →
         </button>
 

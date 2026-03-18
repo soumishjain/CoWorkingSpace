@@ -1,11 +1,19 @@
-import React, { useState } from "react";
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import {
+  Link,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 import {
   LayoutDashboard,
   Settings,
   LogOut,
   Bell,
   Menu,
+  TrashIcon,
+  BuildingIcon,
 } from "lucide-react";
 import axios from "../api/axios";
 import { useAuth } from "../context/AuthContext";
@@ -15,27 +23,118 @@ const DashboardLeftNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { workspaceId, departmentId } = useParams();
 
   const [open, setOpen] = useState(false);
 
-  const navItems = [
-    {
-      name: "Dashboard",
-      path: "/dashboard",
-      icon: <LayoutDashboard size={20} />,
-    },
-    {
-      name: "Notifications",
-      path: "/about",
-      icon: <Bell size={20} />,
-    },
-    {
-      name: "Settings",
-      path: "/settings",
-      icon: <Settings size={20} />,
-    },
-  ];
+  // 🔥 LOCAL STATE (FIX)
+  const [isAdmin, setIsAdmin] = useState(false);
 
+  // 🔥 DIRECT FETCH (NO CUSTOM STATE)
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        if (!workspaceId) return;
+
+        const res = await axios.get(
+          `/workspace/workspace-stats/${workspaceId}`,
+          { withCredentials: true }
+        );
+
+        setIsAdmin(res.data.isAdmin);
+      } catch (err) {
+        console.error("Sidebar stats error:", err);
+      }
+    };
+
+    fetchStats();
+  }, [workspaceId]);
+
+  console.log("IS ADMIN:", isAdmin);
+
+  // 🔥 NAV ITEMS
+  let navItems = [];
+
+  // 🔴 Department Level
+  if (departmentId) {
+    navItems = [
+      {
+        name: "Dashboard",
+        path: `/dashboard/workspace/${workspaceId}/department/${departmentId}`,
+        icon: <LayoutDashboard size={20} />,
+      },
+      {
+        name: "Members",
+        path: `/dashboard/workspace/${workspaceId}/department/${departmentId}/members`,
+        icon: <Bell size={20} />,
+      },
+      {
+        name: "Tasks",
+        path: `/dashboard/workspace/${workspaceId}/department/${departmentId}/tasks`,
+        icon: <Settings size={20} />,
+      },
+    ];
+  }
+
+  // 🟡 Workspace Level
+  else if (workspaceId) {
+    navItems = [
+      {
+        name: "Dashboard",
+        path: `/dashboard/workspace/${workspaceId}`,
+        icon: <LayoutDashboard size={20} />,
+      },
+      {
+        name: "Departments",
+        path: `/dashboard/workspace/${workspaceId}/departments`,
+        icon: <BuildingIcon size={20} />,
+      },
+      {
+        name: "Activity Log",
+        path: `/dashboard/workspace/${workspaceId}/activity`,
+        icon: <Bell size={20} />,
+      },
+
+      // 🔥 ADMIN ONLY
+      ...(isAdmin
+        ? [
+            {
+              name: "Delete",
+              path: `/dashboard/workspace/${workspaceId}/delete-department`,
+              icon: <TrashIcon size={20} />,
+            },
+          ]
+        : []),
+    ];
+  }
+
+  // 🔵 Global Level
+  else {
+    navItems = [
+      {
+        name: "Dashboard",
+        path: "/dashboard",
+        icon: <LayoutDashboard size={20} />,
+      },
+      {
+        name: "Notifications",
+        path: "/about",
+        icon: <Bell size={20} />,
+      },
+      {
+        name: "Delete",
+        path: "/dashboard/delete-workspace",
+        icon: <TrashIcon size={20} />,
+      },
+      {
+        name: "Settings",
+        path: "/settings",
+        icon: <Settings size={20} />,
+      },
+    ];
+  }
+
+  // 🔥 LOGOUT
   const handleLogout = async () => {
     try {
       await axios.post("/auth/logout", {}, { withCredentials: true });
@@ -67,25 +166,32 @@ const DashboardLeftNav = () => {
           {user?.name}
         </h2>
 
-        <p className="text-sm text-gray-500">Member</p>
+        <p className="text-sm text-gray-500">
+          {departmentId
+            ? "Department"
+            : workspaceId
+            ? isAdmin
+              ? "Admin"
+              : "Member"
+            : "User"}
+        </p>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-6">
         <ul className="space-y-2">
           {navItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive = location.pathname.startsWith(item.path);
 
             return (
               <li key={item.name}>
                 <Link
                   to={item.path}
                   onClick={() => setOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all
-                  
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium
                   ${
                     isActive
-                      ? "bg-[var(--color-primary)] text-white shadow-sm"
+                      ? "bg-[var(--color-primary)] text-white"
                       : "text-gray-600 hover:bg-gray-100"
                   }`}
                 >
@@ -100,10 +206,9 @@ const DashboardLeftNav = () => {
 
       {/* Bottom */}
       <div className="p-4 border-t border-gray-200 space-y-3">
-
         <button
           onClick={handleLogout}
-          className="flex cursor-pointer items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition"
+          className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50"
         >
           <LogOut size={20} />
           Logout
@@ -112,7 +217,6 @@ const DashboardLeftNav = () => {
         <p className="text-xs text-gray-400 text-center">
           © 2026 CoWorking
         </p>
-
       </div>
     </>
   );
@@ -120,7 +224,6 @@ const DashboardLeftNav = () => {
   return (
     <div className="flex h-screen">
 
-      {/* Mobile Menu Button */}
       <button
         onClick={() => setOpen(true)}
         className="md:hidden fixed top-4 left-4 z-50 bg-white p-2 rounded-lg shadow"
@@ -128,31 +231,23 @@ const DashboardLeftNav = () => {
         <Menu size={22} />
       </button>
 
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:flex h-screen w-[260px] bg-[var(--color-bg)] border-r border-gray-200 flex-col shadow-sm">
+      <aside className="hidden md:flex w-[260px] bg-[var(--color-bg)] border-r border-gray-200 flex-col">
         <SidebarContent />
       </aside>
 
-      {/* Mobile Sidebar Drawer */}
       {open && (
         <div className="fixed inset-0 z-40 flex">
-
-          {/* Overlay */}
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => setOpen(false)}
           />
-
-          {/* Drawer */}
-          <div className="relative w-[260px] bg-[var(--color-bg)] h-full shadow-lg flex flex-col animate-slide">
+          <div className="relative w-[260px] bg-white h-full flex flex-col">
             <SidebarContent />
           </div>
-
         </div>
       )}
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-6 bg-gray-50 w-full">
+      <main className="flex-1 overflow-y-auto p-6 bg-gray-50">
         <Outlet />
       </main>
 
