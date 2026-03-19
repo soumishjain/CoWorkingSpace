@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
-  Link,
+  NavLink,
   Outlet,
   useLocation,
   useNavigate,
@@ -19,98 +19,86 @@ import axios from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 
 const DashboardLeftNav = () => {
-
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { workspaceId, departmentId } = useParams();
 
   const [open, setOpen] = useState(false);
-
-  // 🔥 LOCAL STATE (FIX)
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // 🔥 DIRECT FETCH (NO CUSTOM STATE)
+  // 🔥 FETCH ADMIN STATUS
   useEffect(() => {
     const fetchStats = async () => {
       try {
         if (!workspaceId) return;
 
         const res = await axios.get(
-          `/workspace/workspace-stats/${workspaceId}`,
+          `/workspace/stats/${workspaceId}`,
           { withCredentials: true }
         );
 
         setIsAdmin(res.data.isAdmin);
       } catch (err) {
-        console.error("Sidebar stats error:", err);
+        console.log("Sidebar stats error:", err.response?.data || err.message);
       }
     };
 
     fetchStats();
   }, [workspaceId]);
 
-  console.log("IS ADMIN:", isAdmin);
-
   // 🔥 NAV ITEMS
-  let navItems = [];
+  const navItems = useMemo(() => {
+    if (departmentId) {
+      return [
+        {
+          name: "Dashboard",
+          path: `/dashboard/workspace/${workspaceId}/department/${departmentId}`,
+          icon: <LayoutDashboard size={20} />,
+        },
+        {
+          name: "Members",
+          path: `/dashboard/workspace/${workspaceId}/department/${departmentId}/members`,
+          icon: <Bell size={20} />,
+        },
+        {
+          name: "Tasks",
+          path: `/dashboard/workspace/${workspaceId}/department/${departmentId}/tasks`,
+          icon: <Settings size={20} />,
+        },
+      ];
+    }
 
-  // 🔴 Department Level
-  if (departmentId) {
-    navItems = [
-      {
-        name: "Dashboard",
-        path: `/dashboard/workspace/${workspaceId}/department/${departmentId}`,
-        icon: <LayoutDashboard size={20} />,
-      },
-      {
-        name: "Members",
-        path: `/dashboard/workspace/${workspaceId}/department/${departmentId}/members`,
-        icon: <Bell size={20} />,
-      },
-      {
-        name: "Tasks",
-        path: `/dashboard/workspace/${workspaceId}/department/${departmentId}/tasks`,
-        icon: <Settings size={20} />,
-      },
-    ];
-  }
+    if (workspaceId) {
+      return [
+        {
+          name: "Dashboard",
+          path: `/dashboard/workspace/${workspaceId}`,
+          icon: <LayoutDashboard size={20} />,
+        },
+        {
+          name: "Departments",
+          path: `/dashboard/workspace/${workspaceId}/departments`,
+          icon: <BuildingIcon size={20} />,
+        },
+        {
+          name: "Activity Log",
+          path: `/dashboard/workspace/${workspaceId}/activity`,
+          icon: <Bell size={20} />,
+        },
+        ...(isAdmin
+          ? [
+              {
+                name: "Delete",
+                path: `/dashboard/workspace/${workspaceId}/delete-department`,
+                icon: <TrashIcon size={20} />,
+              },
+            ]
+          : []),
+      ];
+    }
 
-  // 🟡 Workspace Level
-  else if (workspaceId) {
-    navItems = [
-      {
-        name: "Dashboard",
-        path: `/dashboard/workspace/${workspaceId}`,
-        icon: <LayoutDashboard size={20} />,
-      },
-      {
-        name: "Departments",
-        path: `/dashboard/workspace/${workspaceId}/departments`,
-        icon: <BuildingIcon size={20} />,
-      },
-      {
-        name: "Activity Log",
-        path: `/dashboard/workspace/${workspaceId}/activity`,
-        icon: <Bell size={20} />,
-      },
-
-      // 🔥 ADMIN ONLY
-      ...(isAdmin
-        ? [
-            {
-              name: "Delete",
-              path: `/dashboard/workspace/${workspaceId}/delete-department`,
-              icon: <TrashIcon size={20} />,
-            },
-          ]
-        : []),
-    ];
-  }
-
-  // 🔵 Global Level
-  else {
-    navItems = [
+    return [
       {
         name: "Dashboard",
         path: "/dashboard",
@@ -132,7 +120,7 @@ const DashboardLeftNav = () => {
         icon: <Settings size={20} />,
       },
     ];
-  }
+  }, [workspaceId, departmentId, isAdmin]);
 
   // 🔥 LOGOUT
   const handleLogout = async () => {
@@ -180,27 +168,26 @@ const DashboardLeftNav = () => {
       {/* Navigation */}
       <nav className="flex-1 px-4 py-6">
         <ul className="space-y-2">
-          {navItems.map((item) => {
-            const isActive = location.pathname.startsWith(item.path);
+          {navItems.map((item) => (
+            <li key={item.name}>
+              <NavLink
+                to={item.path}
+                onClick={() => setOpen(false)}
+                className={() => {
+                  const isActive = location.pathname === item.path;
 
-            return (
-              <li key={item.name}>
-                <Link
-                  to={item.path}
-                  onClick={() => setOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium
-                  ${
+                  return `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium ${
                     isActive
                       ? "bg-[var(--color-primary)] text-white"
                       : "text-gray-600 hover:bg-gray-100"
-                  }`}
-                >
-                  {item.icon}
-                  {item.name}
-                </Link>
-              </li>
-            );
-          })}
+                  }`;
+                }}
+              >
+                {item.icon}
+                {item.name}
+              </NavLink>
+            </li>
+          ))}
         </ul>
       </nav>
 
@@ -223,7 +210,7 @@ const DashboardLeftNav = () => {
 
   return (
     <div className="flex h-screen">
-
+      {/* Mobile toggle */}
       <button
         onClick={() => setOpen(true)}
         className="md:hidden fixed top-4 left-4 z-50 bg-white p-2 rounded-lg shadow"
@@ -231,10 +218,12 @@ const DashboardLeftNav = () => {
         <Menu size={22} />
       </button>
 
+      {/* Desktop */}
       <aside className="hidden md:flex w-[260px] bg-[var(--color-bg)] border-r border-gray-200 flex-col">
         <SidebarContent />
       </aside>
 
+      {/* Mobile */}
       {open && (
         <div className="fixed inset-0 z-40 flex">
           <div
@@ -247,10 +236,10 @@ const DashboardLeftNav = () => {
         </div>
       )}
 
+      {/* Main */}
       <main className="flex-1 overflow-y-auto p-6 bg-gray-50">
         <Outlet />
       </main>
-
     </div>
   );
 };

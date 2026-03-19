@@ -12,20 +12,36 @@ import { useWorkspaceStats } from "../hooks/useWorkspaceStats";
 
 import { useWorkspaceContext } from "../context/WorkspaceContext";
 
-const Workspace = () => {
+// 🔥 REQUIRED IMPORTS (missing the before)
+import { useCreateDepartmentState } from "../state/useCreateDepartmentState";
+import { useCreateDepartment } from "../hooks/useCreateDepartment";
 
+const Workspace = () => {
   const { workspaceId } = useParams();
   const navigate = useNavigate();
 
+  // 🔹 departments
   const departmentState = useDepartmentState();
   const { fetchDepartments } = useDepartment(departmentState);
 
+  // 🔹 stats
   const statsState = useWorkspaceStatsState();
   const { fetchWorkspaceStats } = useWorkspaceStats(statsState);
 
-  // 🔥 CONTEXT
+  // 🔹 context
   const { setWorkspace, setIsAdmin } = useWorkspaceContext();
 
+  // 🔥 CREATE DEPARTMENT STATE
+  const createDeptState = useCreateDepartmentState();
+
+  // 🔥 CREATE HOOK
+  const { handleCreateDepartment } = useCreateDepartment(
+    createDeptState,
+    workspaceId,
+    () => fetchDepartments(workspaceId)
+  );
+
+  // 🔹 fetch data
   useEffect(() => {
     if (workspaceId) {
       fetchDepartments(workspaceId);
@@ -33,7 +49,7 @@ const Workspace = () => {
     }
   }, [workspaceId]);
 
-  // 🔥 UPDATE CONTEXT
+  // 🔹 update context
   useEffect(() => {
     if (statsState.workspace) {
       setWorkspace(statsState.workspace);
@@ -41,6 +57,7 @@ const Workspace = () => {
     }
   }, [statsState]);
 
+  // 🔹 open department
   const handleOpenDepartment = (deptId) => {
     navigate(`/dashboard/workspace/${workspaceId}/department/${deptId}`);
   };
@@ -55,6 +72,8 @@ const Workspace = () => {
         loading={departmentState.loading}
         error={departmentState.error}
         onOpenDepartment={handleOpenDepartment}
+        onCreateDepartment={handleCreateDepartment}
+        createDeptState={createDeptState}
       />
 
     </div>

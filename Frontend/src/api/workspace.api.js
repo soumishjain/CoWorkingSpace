@@ -42,7 +42,7 @@ export const deleteWorkspace = async (workspaceId) => {
 export const getWorkspaceStats = async (workspaceId) => {
   try {
     const res = await axios.get(
-      `/workspace/workspace-stats/${workspaceId}`,
+      `/workspace/stats/${workspaceId}`,
       { withCredentials: true }
     );
 
