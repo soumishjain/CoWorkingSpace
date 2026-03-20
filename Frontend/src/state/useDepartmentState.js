@@ -5,6 +5,7 @@ export const useDepartmentState = () => {
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [role, setRole] = useState(""); // 🔥 ADD THIS
 
   return {
     departments,
@@ -12,6 +13,8 @@ export const useDepartmentState = () => {
     loading,
     setLoading,
     error,
-    setError
+    setError,
+    role,
+    setRole,
   };
 };

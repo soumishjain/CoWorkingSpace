@@ -75,3 +75,38 @@ export const getWorkspaceStats = async (workspaceId) => {
     throw error.response?.data?.message || "Failed to fetch workspace stats";
   }
 };
+
+
+// 🔥 LEAVE DEPARTMENT
+export const leaveDepartment = async (workspaceId, departmentId) => {
+  try {
+    const res = await axios.post(
+      `/department/leave/${workspaceId}/${departmentId}`,
+      {},
+      { withCredentials: true }
+    );
+
+    return res.data;
+
+  } catch (error) {
+    throw error.response?.data?.message || "Failed to leave department";
+  }
+};
+
+// 🔥 ASSIGN MANAGER
+export const assignManager = async (
+  workspaceId,
+  departmentId,
+  assignedUserId
+) => {
+  try {
+    const res = await axios.patch(
+      `/department/assign-manager/${departmentId}/${workspaceId}/${assignedUserId}`,
+      {},
+      { withCredentials: true }
+    );
+    return res.data;
+  } catch (error) {
+    throw error.response?.data?.message || "Failed to assign manager";
+  }
+};

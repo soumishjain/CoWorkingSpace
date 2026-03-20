@@ -52,3 +52,45 @@ export const getWorkspaceStats = async (workspaceId) => {
     throw error.response?.data?.message || "Failed to fetch workspace stats";
   }
 };
+
+export const searchWorkspaces = async (query) => {
+  const res = await axios.get(`/workspace/search?query=${query}`, {
+    withCredentials: true,
+  });
+  return res.data;
+};
+
+export const joinWorkspace = async (workspaceId, password) => {
+  const res = await axios.post(
+    `/workspace/join-request/${workspaceId}`,
+    {joinPassword : password},
+    { withCredentials: true }
+  );
+  return res.data;
+};
+
+export const approveRequest = async (requestId) => {
+  try {
+    const res = await axios.patch(
+      `/workspace/join-request/approve/${requestId}`,
+      {},
+      { withCredentials: true }
+    );
+    return res.data;
+  } catch (err) {
+    throw err.response?.data?.message || "Failed to approve";
+  }
+};
+
+export const rejectRequest = async (requestId) => {
+  try {
+    const res = await axios.patch(
+      `/workspace/join-request/reject/${requestId}`,
+      {},
+      { withCredentials: true }
+    );
+    return res.data;
+  } catch (err) {
+    throw err.response?.data?.message || "Failed to approve";
+  }
+};

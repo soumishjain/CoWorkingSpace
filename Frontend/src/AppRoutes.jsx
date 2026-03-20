@@ -15,6 +15,8 @@ import Department from './pages/Department' // optional bana lena
 import ActivityPage from './pages/ActivityPage' // optional
 import DeleteDepartment from './pages/DeleteDepartment'
 import { WorkspaceProvider } from './context/WorkspaceContext'
+import NotificationsPage from './pages/NotificationPage'
+import UserNotificationsPage from './pages/UserNotifications'
 
 const AppRoutes = () => {
   return (
@@ -58,6 +60,16 @@ const AppRoutes = () => {
         <Route
           path='workspace/:workspaceId/activity'
           element={<ActivityPage />}
+        />
+
+        <Route
+          path='/dashboard/workspace/:workspaceId/notifications'
+          element={<NotificationsPage />}
+        />
+
+        <Route
+          path='/dashboard/notifications'
+          element={<UserNotificationsPage />}
         />
 
         <Route

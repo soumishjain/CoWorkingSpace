@@ -8,7 +8,7 @@ const departmentRouter = express.Router()
 
 departmentRouter.post('/create/:workspaceId',identifyUser,validateWorkspace,createDepartment)
 
-departmentRouter.post('/assign-manager/:workspaceId/:departmentId/:assignedUserId',identifyUser,validateWorkspace,validateDepartment,addDepartmentManager)
+departmentRouter.patch('/assign-manager/:workspaceId/:departmentId/:assignedUserId',identifyUser,validateWorkspace,validateDepartment,addDepartmentManager)
 
 departmentRouter.post('/add-member/:workspaceId/:departmentId/:newUserId',identifyUser,validateWorkspace,validateDepartment,addMemberInDepartment)
 

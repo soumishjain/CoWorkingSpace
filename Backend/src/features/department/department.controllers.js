@@ -520,33 +520,37 @@ export async function leaveDepartment(req,res){
     }
 }
 
-export async function getAllDepartmentsOfThisWorkspace(req,res){
-    try{
-        const userId = req.userId
-    const workspace = req.workspace
-    const workspaceId = workspace._id
+export async function getAllDepartmentsOfThisWorkspace(req, res) {
+  try {
+    const userId = req.userId;
+    const workspace = req.workspace;
+    const workspaceId = workspace._id;
 
-    const user = await workspaceMemberModel.findOne({userId , workspaceId})
+    const user = await workspaceMemberModel.findOne({
+      userId,
+      workspaceId,
+    });
 
-    if(!user){
-        return res.status(403).json({
-            message : "You are not a member of this workspace"
-        })
+    if (!user) {
+      return res.status(403).json({
+        message: "You are not a member of this workspace",
+      });
     }
 
-    const departments = await departmentModel.find({workspaceId})
+    const departments = await departmentModel.find({ workspaceId });
 
     return res.status(200).json({
-        message : "All departments of this workspace fetched",
-        departments
-    })
+      message: "All departments of this workspace fetched",
+      departments,
+      currentUserRole: user.role, // 🔥 ADD THIS LINE
+    });
 
-    }catch(error){
-        console.error(error)
-        res.status(500).json({
-            message : "Internal Server Error"
-        })
-    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }
 
 // * getAllDepartmentMembers

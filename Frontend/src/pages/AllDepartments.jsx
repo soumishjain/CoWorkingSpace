@@ -1,67 +1,67 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
-import WorkspaceDashboard from "../components/WorkspaceDashboard";
-import DepartmentContainer from "../components/DepartmentContainer";
+import SmartDepartmentContainer from "../components/SmartDepartmentContainer";
 
 import { useDepartmentState } from "../state/useDepartmentState";
 import { useDepartment } from "../hooks/useDepartment";
+import { useDepartmentActions } from "../hooks/useDepartmentActions";
 
-import { useWorkspaceStatsState } from "../state/useWorkspaceStatsState";
-import { useWorkspaceStats } from "../hooks/useWorkspaceStats";
+import { useAuth } from "../context/AuthContext";
 
 const AllDepartments = () => {
 
   const { workspaceId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
-  // 🔥 Department state + hook
+  const [role, setRole] = useState(""); // 🔥 IMPORTANT
+
   const departmentState = useDepartmentState();
   const { fetchDepartments } = useDepartment(departmentState);
 
-  // 🔥 Workspace stats state + hook
-  const statsState = useWorkspaceStatsState();
-  const { fetchWorkspaceStats } = useWorkspaceStats(statsState);
+  const actions = useDepartmentActions(
+    departmentState,
+    fetchDepartments
+  );
 
-  // 🔥 Fetch data
   useEffect(() => {
     if (workspaceId) {
       fetchDepartments(workspaceId);
-      fetchWorkspaceStats(workspaceId);
     }
   }, [workspaceId]);
 
-  // 🔥 Handlers
+  // 🔥 TEMP FIX (jab tak backend role nahi bhej raha)
+  useEffect(() => {
+    // 👇 yaha tu manually test kar sakta hai
+    setRole("admin"); // 🔥 CHANGE THIS to "member" to test
+  }, []);
 
-  // open department page
   const handleOpenDepartment = (deptId) => {
     navigate(`/dashboard/workspace/${workspaceId}/department/${deptId}`);
   };
 
-  // create department (abhi console, baad me modal laga)
-  const handleCreateDepartment = () => {
-    console.log("Create Department clicked");
-  };
-
-  // add member (future)
-  const handleAddMember = () => {
-    console.log("Add Member clicked");
-  };
+  if (!user) return null;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6">
 
-      {/* 🔥 Top Workspace Banner */}
-      <WorkspaceDashboard workspace={statsState.workspace} />
+      <h1 className="text-2xl font-semibold mb-6">
+        Departments
+      </h1>
 
-      {/* 🔥 Departments */}
-      <DepartmentContainer
+      <SmartDepartmentContainer
         departments={departmentState.departments}
         loading={departmentState.loading}
         error={departmentState.error}
+        user={user}
+        role={role} // 🔥 PASSING ROLE
+        onJoin={(id) => actions.join(workspaceId, id)}
+        onLeave={(id) => actions.leave(workspaceId, id)}
+        onAssignManager={(deptId, userId) =>
+          actions.setManager(workspaceId, deptId, userId)
+        }
         onOpenDepartment={handleOpenDepartment}
-        onCreateDepartment={handleCreateDepartment}
-        onAddMember={handleAddMember}
       />
 
     </div>

@@ -494,43 +494,59 @@ export async function leaveWorkspace(req,res){
 }
 
 // getPendingRequests
-export async function getAllPendingRequestsForWorkspace(req,res){
-    try{
-        const userId = req.userId;
-    const workspace = req.workspace
-        const workspaceId = workspace._id
+export async function getAllPendingRequestsForWorkspace(req, res) {
+  try {
+    const userId = req.userId;
+    const workspaceId = req.workspace?._id;
 
-    const user = await workspaceMemberModel.findOne({
-        userId , workspaceId
-    })
-
-    if(!user) {
-        return res.status(404).json({
-            message : "You are not a member of this workspace"
-        })
+    if (!workspaceId) {
+      return res.status(400).json({
+        message: "Workspace not found in request",
+      });
     }
 
-    if(user.role !== 'admin'){
-        return res.status(403).json({
-            message : "You are not the admin for this workspace"
-        })
+    // 🔥 Check membership
+    const member = await workspaceMemberModel.findOne({
+      userId,
+      workspaceId,
+    });
+
+    if (!member) {
+      return res.status(403).json({
+        message: "You are not a member of this workspace",
+      });
     }
 
-    const requests = await joinRequestModel.find({
-        workspaceId , status: 'pending' , type : 'workspace'
-    }).populate("userId" , "name email profileImage")
-
-    res.status(200).json({
-        message : "All requests fethced successfully",
-        requests
-    })
-    }catch(error){
-        console.error(error)
-        res.status(500).json({
-            message : "Internal Server error"
-        })
+    // 🔥 Check admin
+    if (member.role !== "admin") {
+      return res.status(403).json({
+        message: "Only admin can view join requests",
+      });
     }
 
+    // 🔥 Fetch requests
+    const requests = await joinRequestModel
+      .find({
+        workspaceId,
+        status: "pending",
+        type: "workspace",
+      })
+      .populate("userId", "name email profileImage")
+      .sort({ createdAt: -1 }); // 🔥 latest first
+
+    return res.status(200).json({
+      message: "All pending requests fetched successfully",
+      requests,
+      role: member.role, // 🔥 IMPORTANT (frontend ke liye)
+    });
+
+  } catch (error) {
+    console.error("GET REQUESTS ERROR:", error);
+
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }
 
 // removeMember
@@ -787,6 +803,75 @@ export async function workspaceStats(req, res) {
     console.error(error);
     return res.status(500).json({
       message: "Internal Server Error",
+    });
+  }
+}
+
+export async function searchWorkspaces(req, res) {
+  try {
+    const { query } = req.query;
+    const userId = req.userId;
+
+    // 🔥 empty query safe
+    if (!query) {
+      return res.status(200).json({
+        workspaces: [],
+      });
+    }
+
+    // 🔥 find workspaces (starts with)
+    const workspaces = await workspaceModel.find({
+      name: { $regex: `^${query}`, $options: "i" },
+    }).limit(10);
+
+    // 🔥 joined workspaces
+    const memberships = await workspaceMemberModel.find({
+      userId,
+    });
+
+    const joinedIds = memberships.map((m) =>
+      m.workspaceId.toString()
+    );
+
+    // 🔥 pending join requests (IMPORTANT FIX)
+    const requests = await joinRequestModel.find({
+      userId,
+      type: "workspace", // 🔥 MUST
+      status: "pending",
+    });
+
+    const requestedIds = requests.map((r) =>
+      r.workspaceId?.toString()
+    );
+
+    // 🔥 FINAL RESULT
+    const results = workspaces.map((ws) => {
+      const obj = ws.toObject(); // safe
+
+      let status = "none";
+
+      if (joinedIds.includes(ws._id.toString())) {
+        status = "joined";
+      } else if (requestedIds.includes(ws._id.toString())) {
+        status = "requested";
+      }
+
+      return {
+        ...obj,
+        status,
+      };
+    });
+
+    return res.status(200).json({
+      message: "Search successful",
+      workspaces: results,
+    });
+
+  } catch (error) {
+    console.error("SEARCH ERROR:", error); // 🔥 DEBUG
+
+    return res.status(500).json({
+      message: error.message || "Internal Server Error",
     });
   }
 }

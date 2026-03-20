@@ -1,21 +1,36 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { Bell } from "lucide-react";
+
 import WorkspaceCards from "./WorkspaceCards";
-import { useCreateWorkspaceState } from "../state/useCreateWorkspaceState";
-import { useWorkspace } from "../hooks/useWorkspace";
-import { useWorkspaceState } from "../state/useWorkspaceState";
-import { useCreateWorkspace } from "../hooks/useCrateWorkspace";
-import CreateWorkspaceModal from "./createWorkspaceModal";
 import WorkspaceCardSkeleton from "./WorkspaceSkeleton";
+
+import CreateWorkspaceModal from "./createWorkspaceModal";
+import JoinWorkspaceModal from "./JoinWorkspaceModal";
+
+import { useWorkspaceState } from "../state/useWorkspaceState";
+import { useWorkspace } from "../hooks/useWorkspace";
+
+import { useCreateWorkspaceState } from "../state/useCreateWorkspaceState";
+import { useCreateWorkspace } from "../hooks/useCrateWorkspace";
 
 const CardContainer = () => {
 
-  const [openModal, setOpenModal] = useState(false);
+  // 🔥 Navigation
+  const navigate = useNavigate();
+  const { workspaceId } = useParams();
 
+  // 🔥 Modals
+  const [openCreateModal, setOpenCreateModal] = useState(false);
+  const [openJoinModal, setOpenJoinModal] = useState(false);
+
+  // 🔥 Workspace State
   const workspaceState = useWorkspaceState();
   const { fetchWorkspaces } = useWorkspace(workspaceState);
 
   const { workspaces, loading, error } = workspaceState;
 
+  // 🔥 Create Workspace State
   const createState = useCreateWorkspaceState();
 
   const {
@@ -27,28 +42,28 @@ const CardContainer = () => {
 
   const { submitWorkspace } = useCreateWorkspace(
     createState,
-    () => setOpenModal(false),
+    () => setOpenCreateModal(false),
     fetchWorkspaces
   );
 
-  const handleChange = (e) => {
+  // 🔥 Fetch Workspaces
+  useEffect(() => {
+    if (workspaceId) {
+      fetchWorkspaces(workspaceId);
+    }
+  }, [workspaceId]);
 
+  // 🔥 Handle Input
+  const handleChange = (e) => {
     const { name, value, files } = e.target;
 
-    if (name === "coverImage") {
-      setFormData(prev => ({
-        ...prev,
-        coverImage: files[0]
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
-    }
-
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === "coverImage" ? files[0] : value,
+    }));
   };
 
+  // 🔥 Submit Create
   const handleSubmit = (e) => {
     e.preventDefault();
     submitWorkspace();
@@ -57,9 +72,10 @@ const CardContainer = () => {
   return (
     <div className="mt-8">
 
-      {/* Header */}
+      {/* 🔥 HEADER */}
       <div className="flex items-center justify-between mb-6">
 
+        {/* LEFT */}
         <div>
           <h2 className="text-xl font-semibold text-gray-900">
             Your Workspaces
@@ -70,54 +86,94 @@ const CardContainer = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => setOpenModal(true)}
-          className="bg-[var(--color-primary)] text-white text-sm font-medium px-4 py-2 rounded-lg hover:opacity-90 transition"
-        >
-          + New Workspace
-        </button>
+        {/* RIGHT */}
+        <div className="flex items-center gap-3">
 
+          {/* 🔔 NOTIFICATIONS */}
+          <button
+            onClick={() =>
+              navigate(`/dashboard/notifications`)
+            }
+            className="relative p-2 rounded-lg hover:bg-gray-100 transition"
+          >
+            <Bell size={20} />
+
+            {/* 🔴 static badge (baad me dynamic kar lena) */}
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1 rounded-full">
+              3
+            </span>
+          </button>
+
+          {/* 🔥 JOIN BUTTON */}
+          <button
+            onClick={() => setOpenJoinModal(true)}
+            className="bg-gray-100 text-gray-800 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-200 transition"
+          >
+            + Join Workspace
+          </button>
+
+          {/* 🔥 CREATE BUTTON */}
+          <button
+            onClick={() => setOpenCreateModal(true)}
+            className="bg-[var(--color-primary)] text-white text-sm font-medium px-4 py-2 rounded-lg hover:opacity-90 transition"
+          >
+            + New Workspace
+          </button>
+
+        </div>
       </div>
 
-      {/* ERROR */}
+      {/* 🔥 ERROR */}
       {error && (
         <p className="text-red-500 text-sm mb-4">{error}</p>
       )}
 
-      {/* SKELETON LOADING */}
+      {/* 🔥 LOADING */}
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-
           {Array.from({ length: 8 }).map((_, i) => (
             <WorkspaceCardSkeleton key={i} />
           ))}
-
         </div>
       )}
 
-      {/* WORKSPACE CARDS */}
+      {/* 🔥 WORKSPACES */}
       {!loading && !error && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 
-          {workspaces?.map((workspace) => (
-            <WorkspaceCards
-              key={workspace._id}
-              workspace={workspace}
-            />
-          ))}
+          {workspaces?.length > 0 ? (
+            workspaces.map((workspace) => (
+              <WorkspaceCards
+                key={workspace._id}
+                workspace={workspace}
+              />
+            ))
+          ) : (
+            <p className="text-gray-500 text-sm">
+              No workspaces found
+            </p>
+          )}
 
         </div>
       )}
 
-      {/* CREATE WORKSPACE MODAL */}
-      {openModal && (
+      {/* 🔥 CREATE MODAL */}
+      {openCreateModal && (
         <CreateWorkspaceModal
           formData={formData}
           onChange={handleChange}
           onSubmit={handleSubmit}
           loading={createLoading}
           error={createError}
-          setOpenModal={setOpenModal}
+          setOpenModal={setOpenCreateModal}
+        />
+      )}
+
+      {/* 🔥 JOIN MODAL */}
+      {openJoinModal && (
+        <JoinWorkspaceModal
+          setOpen={setOpenJoinModal}
+          fetchWorkspaces={fetchWorkspaces}
         />
       )}
 

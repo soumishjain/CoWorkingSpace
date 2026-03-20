@@ -28,7 +28,9 @@ export default function Navbar() {
             Login
           </button>
 
-          <button className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white hover:bg-[var(--color-secondary)]">
+          <button onClick={() => {
+            navigate('/dashboard')
+          }}  className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white hover:bg-[var(--color-secondary)]">
             Get Started
           </button>
         </div>

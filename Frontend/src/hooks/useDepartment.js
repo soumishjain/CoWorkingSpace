@@ -1,9 +1,10 @@
-import { useEffect } from "react";
 import {
   getAllDepartments,
   createDepartment,
   joinDepartment,
+  leaveDepartment,
   deleteDepartment,
+  assignManager,
 } from "../api/department.api";
 
 export const useDepartment = (state) => {
@@ -12,73 +13,106 @@ export const useDepartment = (state) => {
     setDepartments,
     setLoading,
     setError,
+    setRole, // 🔥 IMPORTANT (ADD IN STATE)
   } = state;
 
-  // 🔥 FETCH ALL DEPARTMENTS
+  // 🔥 FETCH ALL
   const fetchDepartments = async (workspaceId) => {
     try {
       setLoading(true);
-      setError(null);
+      setError("");
 
       const data = await getAllDepartments(workspaceId);
 
-      setDepartments(data.departments);
+      setDepartments(data?.departments || []);
+      setRole(data?.currentUserRole || "member"); // 🔥 ADD THIS
 
     } catch (err) {
-      setError(err);
+      setError(err || "Failed to fetch departments");
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔥 CREATE DEPARTMENT
+  // 🔥 CREATE
   const handleCreateDepartment = async (workspaceId, payload) => {
     try {
       setLoading(true);
-      setError(null);
+      setError("");
 
       await createDepartment(workspaceId, payload);
-
-      await fetchDepartments(workspaceId); // refresh
+      await fetchDepartments(workspaceId);
 
     } catch (err) {
-      setError(err);
+      setError(err || "Failed to create department");
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔥 JOIN DEPARTMENT
+  // 🔥 JOIN
   const handleJoinDepartment = async (workspaceId, departmentId) => {
     try {
       setLoading(true);
-      setError(null);
+      setError("");
 
       await joinDepartment(workspaceId, departmentId);
-
-      // optional refresh
       await fetchDepartments(workspaceId);
 
     } catch (err) {
-      setError(err);
+      setError(err || "Failed to join department");
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔥 DELETE DEPARTMENT
-  const handleDeleteDepartment = async (workspaceId, departmentId) => {
+  // 🔥 LEAVE
+  const handleLeaveDepartment = async (workspaceId, departmentId) => {
     try {
       setLoading(true);
-      setError(null);
+      setError("");
 
-      await deleteDepartment(workspaceId, departmentId);
-
-      // 🔥 simple approach (no headache)
+      await leaveDepartment(workspaceId, departmentId);
       await fetchDepartments(workspaceId);
 
     } catch (err) {
-      setError(err);
+      setError(err || "Failed to leave department");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🔥 ASSIGN / CHANGE MANAGER
+  const handleAssignManager = async (
+    workspaceId,
+    departmentId,
+    assignedUserId
+  ) => {
+    try {
+      setLoading(true);
+      setError("");
+
+      await assignManager(workspaceId, departmentId, assignedUserId);
+      await fetchDepartments(workspaceId);
+
+    } catch (err) {
+      setError(err || "Failed to assign manager");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🔥 DELETE
+  const handleDeleteDepartment = async (workspaceId, departmentId) => {
+    try {
+      setLoading(true);
+      setError("");
+
+      await deleteDepartment(workspaceId, departmentId);
+      await fetchDepartments(workspaceId);
+
+    } catch (err) {
+      setError(err || "Failed to delete department");
     } finally {
       setLoading(false);
     }
@@ -88,6 +122,8 @@ export const useDepartment = (state) => {
     fetchDepartments,
     handleCreateDepartment,
     handleJoinDepartment,
+    handleLeaveDepartment,
+    handleAssignManager,
     handleDeleteDepartment,
   };
 };
