@@ -1,32 +1,41 @@
 import React, { useState, useEffect } from "react";
+import { X, Search } from "lucide-react";
 import { useJoinWorkspaceState } from "../state/useJoinWorkspaceState";
 import { useJoinWorkspace } from "../hooks/useJoinWorkspace";
 import { useDebounce } from "../hooks/useDebounce";
 
-// 🔥 PASSWORD MODAL
+// 🔥 PASSWORD MODAL (UPGRADED)
 const PasswordModal = ({ workspace, onClose, onSubmit, loading }) => {
   const [password, setPassword] = useState("");
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60]">
-      <div className="bg-white w-full max-w-sm rounded-xl p-6">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60]">
 
-        <h2 className="text-lg font-semibold mb-4">
-          Join {workspace.name}
-        </h2>
+      <div className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-xl">
+
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Join {workspace.name}
+          </h2>
+
+          <button onClick={onClose}>
+            <X size={18} className="text-gray-400 hover:text-gray-700" />
+          </button>
+        </div>
 
         <input
           type="password"
           placeholder="Enter workspace password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full border rounded-lg px-3 py-2 mb-4"
+          className="w-full border border-gray-200 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20 rounded-lg px-3 py-2 mb-4 outline-none transition"
         />
 
         <div className="flex justify-end gap-2">
+
           <button
             onClick={onClose}
-            className="text-gray-500 text-sm"
+            className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition"
           >
             Cancel
           </button>
@@ -34,10 +43,14 @@ const PasswordModal = ({ workspace, onClose, onSubmit, loading }) => {
           <button
             onClick={() => onSubmit(workspace._id, password)}
             disabled={loading}
-            className="bg-[var(--color-primary)] text-white px-4 py-2 rounded-lg text-sm disabled:opacity-50"
+            className="px-4 py-2 text-sm bg-[var(--color-primary)] text-white rounded-lg hover:opacity-90 flex items-center gap-2 transition disabled:opacity-50"
           >
-            {loading ? "Sending..." : "Join"}
+            {loading && (
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+            )}
+            {loading ? "Joining..." : "Join"}
           </button>
+
         </div>
 
       </div>
@@ -55,7 +68,6 @@ const JoinWorkspaceModal = ({ setOpen, fetchWorkspaces }) => {
 
   const debouncedQuery = useDebounce(query, 300);
 
-  // 🔥 LIVE SEARCH
   useEffect(() => {
     if (debouncedQuery.trim()) {
       search(debouncedQuery);
@@ -66,33 +78,34 @@ const JoinWorkspaceModal = ({ setOpen, fetchWorkspaces }) => {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
 
         <div className="bg-white w-full max-w-md rounded-2xl shadow-xl p-6">
 
-          {/* 🔥 HEADER */}
+          {/* HEADER */}
           <div className="flex justify-between items-center mb-5">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-xl font-semibold text-gray-900">
               Join Workspace
             </h2>
 
-            <button
-              onClick={() => setOpen(false)}
-              className="text-gray-400 hover:text-gray-700 text-xl"
-            >
-              ✕
+            <button onClick={() => setOpen(false)}>
+              <X size={20} className="text-gray-400 hover:text-gray-700" />
             </button>
           </div>
 
-          {/* 🔥 SEARCH */}
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search workspaces..."
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
-          />
+          {/* SEARCH BAR */}
+          <div className="relative mb-4">
+            <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
 
-          {/* 🔥 RESULTS */}
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search workspaces..."
+              className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] transition"
+            />
+          </div>
+
+          {/* RESULTS */}
           <div className="max-h-64 overflow-y-auto space-y-2">
 
             {state.loading && (
@@ -110,7 +123,7 @@ const JoinWorkspaceModal = ({ setOpen, fetchWorkspaces }) => {
             {state.results.map((ws) => (
               <div
                 key={ws._id}
-                className="flex items-center justify-between p-3 rounded-xl border hover:shadow-sm transition"
+                className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-gray-200 hover:shadow-sm transition"
               >
 
                 {/* LEFT */}
@@ -132,14 +145,14 @@ const JoinWorkspaceModal = ({ setOpen, fetchWorkspaces }) => {
 
                 {ws.status === "requested" && (
                   <span className="text-xs px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 font-medium">
-                    Req Sent
+                    Requested
                   </span>
                 )}
 
                 {ws.status === "none" && (
                   <button
                     onClick={() => setSelectedWorkspace(ws)}
-                    className="bg-[var(--color-primary)] text-white text-xs px-4 py-1.5 rounded-full hover:opacity-90"
+                    className="bg-[var(--color-primary)] text-white text-xs px-4 py-1.5 rounded-full hover:opacity-90 transition"
                   >
                     Join
                   </button>
@@ -153,7 +166,7 @@ const JoinWorkspaceModal = ({ setOpen, fetchWorkspaces }) => {
         </div>
       </div>
 
-      {/* 🔥 PASSWORD MODAL */}
+      {/* PASSWORD MODAL */}
       {selectedWorkspace && (
         <PasswordModal
           workspace={selectedWorkspace}

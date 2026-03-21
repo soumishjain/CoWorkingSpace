@@ -15,6 +15,7 @@ import { useWorkspaceContext } from "../context/WorkspaceContext";
 // 🔥 REQUIRED IMPORTS (missing the before)
 import { useCreateDepartmentState } from "../state/useCreateDepartmentState";
 import { useCreateDepartment } from "../hooks/useCreateDepartment";
+import Loader from "../components/Loader";
 
 const Workspace = () => {
   const { workspaceId } = useParams();
@@ -62,6 +63,8 @@ const Workspace = () => {
     navigate(`/dashboard/workspace/${workspaceId}/department/${deptId}`);
   };
 
+  if(statsState.loading) return <Loader />
+
   return (
     <div className="p-6 space-y-6">
 
@@ -74,6 +77,7 @@ const Workspace = () => {
         onOpenDepartment={handleOpenDepartment}
         onCreateDepartment={handleCreateDepartment}
         createDeptState={createDeptState}
+        role = {statsState.isAdmin ? 'admin' : 'member'}
       />
 
     </div>

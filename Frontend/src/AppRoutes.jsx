@@ -1,37 +1,39 @@
 import React from 'react'
 import { Route, Routes } from 'react-router-dom'
+
 import GlobalDashboard from './pages/GlobalDashboard'
 import Register from './pages/Register'
 import Login from './pages/Login'
 import PersonalDashboard from './pages/PersonalDashboard'
-import VerifyEmail from './components/VerifyEmail'
 import DashboardLeftNav from './components/DashboardLeftNav'
 import ProtectedRoute from './components/ProtectedRoute'
+
 import DeleteWorkspace from './pages/DeleteWorkspace'
 import Workspace from './pages/Workspace'
-import AllDepartments from './pages/AllDepartments' // 🔥 ADD
-// (future pages)
-import Department from './pages/Department' // optional bana lena
-import ActivityPage from './pages/ActivityPage' // optional
+import AllDepartments from './pages/AllDepartments'
+import Department from './pages/Department'
+import ActivityPage from './pages/ActivityPage'
 import DeleteDepartment from './pages/DeleteDepartment'
-import { WorkspaceProvider } from './context/WorkspaceContext'
 import NotificationsPage from './pages/NotificationPage'
-import UserNotificationsPage from './pages/UserNotifications'
+
+import { WorkspaceProvider } from './context/WorkspaceContext'
 
 const AppRoutes = () => {
   return (
     <Routes>
 
+      {/* PUBLIC */}
       <Route path='/' element={<GlobalDashboard />} />
       <Route path='/register' element={<Register />} />
       <Route path='/login' element={<Login />} />
 
+      {/* PROTECTED */}
       <Route
         path="/dashboard"
         element={
           <ProtectedRoute>
             <WorkspaceProvider>
-            <DashboardLeftNav />
+              <DashboardLeftNav />
             </WorkspaceProvider>
           </ProtectedRoute>
         }
@@ -41,37 +43,32 @@ const AppRoutes = () => {
         <Route index element={<PersonalDashboard />} />
         <Route path='delete-workspace' element={<DeleteWorkspace />} />
 
+        {/* 🔔 USER NOTIFICATIONS */}
+        <Route path='notifications' element={<NotificationsPage />} />
+
         {/* 🟡 WORKSPACE */}
         <Route path='workspace/:workspaceId' element={<Workspace />} />
 
-        {/* 🔥 ALL DEPARTMENTS PAGE */}
+        {/* 🔥 ALL DEPARTMENTS */}
         <Route
           path='workspace/:workspaceId/departments'
           element={<AllDepartments />}
         />
 
-        {/* 🔴 DEPARTMENT LEVEL */}
+        {/* 🔴 DEPARTMENT */}
         <Route
           path='workspace/:workspaceId/department/:departmentId'
           element={<Department />}
         />
 
-        {/* 🔥 OPTIONAL */}
+        {/* 📊 ACTIVITY */}
         <Route
           path='workspace/:workspaceId/activity'
           element={<ActivityPage />}
         />
 
-        <Route
-          path='/dashboard/workspace/:workspaceId/notifications'
-          element={<NotificationsPage />}
-        />
 
-        <Route
-          path='/dashboard/notifications'
-          element={<UserNotificationsPage />}
-        />
-
+        {/* ❌ DELETE DEPARTMENT */}
         <Route
           path='workspace/:workspaceId/delete-department'
           element={<DeleteDepartment />}

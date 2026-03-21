@@ -46,117 +46,145 @@ export async function createDepartment(req,res){
 
 }
 
-export async function addDepartmentManager(req,res){
+export async function addDepartmentManager(req, res) {
+  try {
+    const { assignedUserId } = req.params;
+    const adminId = req.userId;
+    const workspace = req.workspace;
+    const department = req.department;
 
-    try{
-        const {assignedUserId} = req.params
-    const adminId = req.userId
-    const workspace = req.workspace
-    const department = req.department
+    const workspaceId = workspace._id;
+    const departmentId = department._id;
 
+    // 🔥 1. BLOCK GENERAL DEPARTMENT (name-based, case-insensitive)
+    if ((department.name || "").trim().toLowerCase() === "general") {
+      return res.status(400).json({
+        message: "General department cannot have a manager",
+      });
+    }
+
+    // 🔥 2. CHECK ADMIN
     const admin = await workspaceMemberModel.findOne({
-        userId : adminId , 
-        workspaceId : workspace._id
-    })
+      userId: adminId,
+      workspaceId,
+    });
 
-    if(!admin || admin.role !== 'admin'){
-        return res.status(403).json({
-            message : "Not authorized"
-        })
+    if (!admin || admin.role !== "admin") {
+      return res.status(403).json({
+        message: "Not authorized",
+      });
     }
 
-    const assignedUser = await workspaceMemberModel.findOne({
-        userId : assignedUserId,
-        workspaceId : workspace._id
-    })
+    // 🔥 3. CHECK USER EXISTS IN WORKSPACE + get name
+    const assignedUser = await workspaceMemberModel
+      .findOne({
+        userId: assignedUserId,
+        workspaceId,
+      })
+      .populate("userId", "name");
 
-    if(!assignedUser) {
-        return res.status(404).json({
-            message : "User is not the part of workspace"
-        })
+    if (!assignedUser) {
+      return res.status(404).json({
+        message: "User is not part of workspace",
+      });
     }
 
-      if(assignedUser.role === 'admin'){
-        return res.status(400).json({
-            message : "Workspace admin cannot be assigned as department manager"
-        })
+    // ❌ WORKSPACE ADMIN cannot be department manager
+    if (assignedUser.role === "admin") {
+      return res.status(400).json({
+        message: "Workspace admin cannot be assigned as department manager",
+      });
     }
 
+    // ❌ optional: block self-assign (remove if you want to allow)
+    // if (adminId.toString() === assignedUserId.toString()) {
+    //   return res.status(400).json({
+    //     message: "You cannot assign yourself as manager",
+    //   });
+    // }
 
-    const isManagerExist = await departmentMemberModel.findOne({
-        departmentId : department._id , role : 'manager'
-    })
+    // 🔥 4. CHECK EXISTING MANAGER
+    const existingManager = await departmentMemberModel.findOne({
+      departmentId,
+      role: "manager",
+    });
 
-    if(isManagerExist && isManagerExist.userId.toString() === assignedUserId){
-        return res.status(403).json({
-            message : "User is already a manager"
-        })
+    if (
+      existingManager &&
+      existingManager.userId.toString() === assignedUserId
+    ) {
+      return res.status(400).json({
+        message: "User is already the manager",
+      });
     }
 
-    if(isManagerExist){
-       isManagerExist.role = 'employee'
-       await isManagerExist.save()
+    // 🔥 5. DEMOTE OLD MANAGER (if any)
+    if (existingManager) {
+      existingManager.role = "employee";
+      await existingManager.save();
     }
 
-    const existingMember = await departmentMemberModel.findOne({
-        userId : assignedUserId,
-        departmentId : department._id
-    })
-
+    // 🔥 6. PROMOTE / CREATE
     let manager;
 
-    if(existingMember){
-        existingMember.role = 'manager';
-        manager = await existingMember.save()
-    }
-    else{
-    manager = await departmentMemberModel.create({
-       userId : assignedUserId ,
-        departmentId : department._id ,
-         role : 'manager'
-    })
-}
+    const existingMember = await departmentMemberModel.findOne({
+      userId: assignedUserId,
+      departmentId,
+    });
 
-await createActivity({
-    workspaceId : department.workspaceId,
-    departmentId : department._id,
-    userId : adminId,
-    type : "MANAGER_ASSIGNED",
-    message : `${assignedUser.name} was assigned as department manager`
-})
-
-io.to(department._id.toString())
-.emit('manager-assigned',{
-    departmentId : department._id,
-    managerId : assignedUserId
-})
-
-await createNotification({
-    workspaceId : department.workspaceId,
-    departmentId : department._id,
-    userId : assignedUserId,
-    type : "MANAGER_ASSIGNED",
-    message : "Congratulations! you have been assigned as department manager"
-})
-
-io.to(assignedUser._id.toString()).emit("manager-assigned",{
-    departmentId : department._id,
-    type : "MANAGER_ASSIGNED"
-})
-
-
-
-    res.status(201).json({
-        message : "Manager Assigned Successfully",
-        manager
-    })
-    }catch(error){
-        console.log(error)
-        res.status(500).json({
-            message : "Internal Server Error"
-        })
+    if (existingMember) {
+      existingMember.role = "manager";
+      manager = await existingMember.save();
+    } else {
+      manager = await departmentMemberModel.create({
+        userId: assignedUserId,
+        departmentId,
+        role: "manager",
+      });
     }
 
+    const userName = assignedUser.userId?.name || "User";
+
+    // 🔥 7. ACTIVITY
+    await createActivity({
+      workspaceId,
+      departmentId,
+      userId: adminId,
+      type: "MANAGER_ASSIGNED",
+      message: `${userName} was assigned as department manager`,
+    });
+
+    // 🔥 8. SOCKET (department room)
+    io.to(departmentId.toString()).emit("manager-assigned", {
+      departmentId,
+      managerId: assignedUserId,
+    });
+
+    // 🔥 9. NOTIFICATION
+    await createNotification({
+      workspaceId,
+      departmentId,
+      userId: assignedUserId,
+      type: "MANAGER_ASSIGNED",
+      message: "Congratulations! You are now the department manager",
+    });
+
+    io.to(assignedUserId.toString()).emit("manager-assigned", {
+      departmentId,
+    });
+
+    // 🔥 10. RESPONSE
+    return res.status(200).json({
+      message: "Manager assigned successfully",
+      manager,
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }
 
 export async function addMemberInDepartment(req,res){
@@ -248,65 +276,65 @@ export async function addMemberInDepartment(req,res){
 }
 
 //* deleteDepartment
-export async function deleteDepartment(req,res) {
-    try{
-        const userId = req.userId
-        const workspace = req.workspace
-        const department = req.department
-        const departmentId = department._id
-        const workspaceId = workspace._id
+export async function deleteDepartment(req, res) {
+  try {
+    const userId = req.userId;
+    const workspace = req.workspace;
+    const department = req.department;
 
-        
-        const workspaceAdmin = await workspaceMemberModel.findOne({workspaceId,userId,role : 'admin'})
+    const workspaceId = workspace._id;
+    const departmentId = department._id;
 
-        if(!workspaceAdmin) {
-            return res.status(403).json({
-                message : "Not Authorized"
-            })
-        }
-       
+    // 🔥 1. BLOCK GENERAL DEPARTMENT (NAME BASED)
+    if (department.name === "general") {
+      return res.status(400).json({
+        message: "General department cannot be deleted",
+      });
+    }
 
-        const session = await mongoose.startSession()
-
-        await session.withTransaction(async () => {
-
-      await departmentModel.deleteOne(
-        { _id: departmentId },
-        { session }
-      );
-
-      await departmentMemberModel.deleteMany(
-        { departmentId },
-        { session }
-      );
-
-      await joinRequestModel.deleteMany(
-        { departmentId },
-        { session }
-      );
-
-      await taskModel.deleteMany(
-        { departmentId },
-        { session }
-      );
-
-      await subtaskModel.deleteMany(
-        { departmentId },
-        { session }
-      );
-
+    // 🔥 2. CHECK ADMIN
+    const user = await workspaceMemberModel.findOne({
+      userId,
+      workspaceId,
     });
 
-    session.endSession();
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({
+        message: "Not authorized",
+      });
+    }
 
+    // 🔥 3. DELETE ALL MEMBERS
+    await departmentMemberModel.deleteMany({
+      departmentId,
+    });
+
+    // 🔥 4. DELETE DEPARTMENT
+    await departmentModel.findByIdAndDelete(departmentId);
+
+    // 🔥 5. ACTIVITY LOG
+    await createActivity({
+      workspaceId,
+      departmentId,
+      userId,
+      type: "DEPARTMENT_DELETED",
+      message: `${department.name} department was deleted`,
+    });
+
+    // 🔥 6. SOCKET EVENT
+    io.to(workspaceId.toString()).emit("department-deleted", {
+      departmentId,
+    });
+
+    // 🔥 7. RESPONSE
     return res.status(200).json({
-      message: "Department Deleted Successfully"
+      message: "Department deleted successfully",
     });
 
   } catch (error) {
     console.error(error);
     return res.status(500).json({
-      message: "Internal Server Error"
+      message: "Internal Server Error",
     });
   }
 }
@@ -454,105 +482,101 @@ return res.status(200).json({
 }
 
 // *leaveDepartment
-export async function leaveDepartment(req,res){
-    try{
-        const workspace = req.workspace
-    const userId = req.userId
-    const department = req.department
-
-    const departmentId = department._id
-    const workspaceId = workspace._id
-
-    let user = await workspaceMemberModel.findOne({userId , workspaceId})
-
-    if(!user){
-        return res.status(404).json({
-            message : "You are not the part of this workspace"
-        })
-    }
-
-    user = await departmentMemberModel.findOne({departmentId , userId})
-
-
-    if(!user){
-        return res.status(404).json({
-            message : "You are not the part of this department"
-        })
-    }
-    const manager = await departmentMemberModel.findOne({departmentId,role : 'manager'})
-
-    await departmentMemberModel.findOneAndDelete({userId , departmentId})
-
-    await createActivity({
-        workspaceId : workspace._id,
-        departmentId : department._id,
-        userId : headId,
-        type : "MEMBER-LEFT",
-        message : `${user.name} left the department`
-    })
-
-    io.to(department._id.toString()).emit("member-left",{
-        departmentId : department._id,
-        userId
-    })
-
-    await createNotification({
-        workspaceId : workspace._id,
-        departmentId : department._id,
-        userId : manager._id,
-        type : "MEMBER-LEFT",
-        message : `${user.name} left the department`
-    })
-
-    io.to(manager._id.toString()).emit("member-left",{
-        departmentId : department._id
-    })
-
-
-    res.status(200).json({
-        message : "You are no longer part of this department",
-    })
-    }catch(error){
-        console.error(error)
-        res.status(500).json({
-            message : "Internal Server Error"
-        })
-    }
-}
-
-export async function getAllDepartmentsOfThisWorkspace(req, res) {
+export async function leaveDepartment(req, res) {
   try {
-    const userId = req.userId;
     const workspace = req.workspace;
+    const userId = req.userId;
+    const department = req.department;
+
+    const departmentId = department._id;
     const workspaceId = workspace._id;
 
-    const user = await workspaceMemberModel.findOne({
+    // 🔥 1. BLOCK GENERAL DEPARTMENT (name-based, case-insensitive)
+    if ((department.name || "").toLowerCase() === "general") {
+      return res.status(400).json({
+        message: "You cannot leave the general department",
+      });
+    }
+
+    // 🔥 2. CHECK WORKSPACE MEMBERSHIP
+    const workspaceMember = await workspaceMemberModel.findOne({
       userId,
       workspaceId,
     });
 
-    if (!user) {
+    if (!workspaceMember) {
       return res.status(403).json({
-        message: "You are not a member of this workspace",
+        message: "You are not part of this workspace",
       });
     }
 
-    const departments = await departmentModel.find({ workspaceId });
+    // 🔥 3. CHECK DEPARTMENT MEMBERSHIP + populate name
+    const deptMember = await departmentMemberModel
+      .findOne({ departmentId, userId })
+      .populate("userId", "name");
 
+    if (!deptMember) {
+      return res.status(404).json({
+        message: "You are not part of this department",
+      });
+    }
+
+    const userName = deptMember.userId?.name || "User";
+
+    // 🔥 4. FIND MANAGER
+    const manager = await departmentMemberModel.findOne({
+      departmentId,
+      role: "manager",
+    });
+
+    // 🔥 5. REMOVE USER
+    await departmentMemberModel.findOneAndDelete({
+      userId,
+      departmentId,
+    });
+
+    // 🔥 6. ACTIVITY
+    await createActivity({
+      workspaceId,
+      departmentId,
+      userId,
+      type: "MEMBER-LEFT",
+      message: `${userName} left the department`,
+    });
+
+    // 🔥 7. SOCKET (department room)
+    io.to(departmentId.toString()).emit("member-left", {
+      departmentId,
+      userId,
+    });
+
+    // 🔥 8. NOTIFY MANAGER (if exists & not same user)
+    if (manager && manager.userId.toString() !== userId.toString()) {
+      await createNotification({
+        workspaceId,
+        departmentId,
+        userId: manager.userId,
+        type: "MEMBER-LEFT",
+        message: `${userName} left the department`,
+      });
+
+      io.to(manager.userId.toString()).emit("member-left", {
+        departmentId,
+      });
+    }
+
+    // 🔥 9. RESPONSE
     return res.status(200).json({
-      message: "All departments of this workspace fetched",
-      departments,
-      currentUserRole: user.role, // 🔥 ADD THIS LINE
+      message: "You are no longer part of this department",
     });
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({
+    return res.status(500).json({
       message: "Internal Server Error",
     });
   }
 }
-
 // * getAllDepartmentMembers
 export async function getAllDepartmentMembers(req,res){
     try{
@@ -677,76 +701,103 @@ export async function removeMemberFromDepartment(req,res) {
 
 }
 
-export async function joinDepartment(req,res){
-    try{
-        const workspace = req.workspace
-    const department = req.department
-    const userId = req.userId
-    const departmentId = department._id
-    const workspaceId = workspace._id
+export async function joinDepartment(req, res) {
+  try {
+    console.log('JOIN REQ API HIT');
+    const workspace = req.workspace;
+    const department = req.department;
+    const userId = req.userId;
 
-    const user = await workspaceMemberModel.findOne({userId , workspaceId})
+    const departmentId = department._id;
+    const workspaceId = workspace._id;
 
-    if(!user){
-        return res.status(403).json({
-            message : "You are not a member of this Workspace"
-        })
+    // 🔹 check workspace member
+    const workspaceMember = await workspaceMemberModel.findOne({
+      userId,
+      workspaceId,
+    }).populate("userId", "name");
+
+    if (!workspaceMember) {
+      return res.status(403).json({
+        message: "You are not a member of this workspace",
+      });
     }
 
-    if(user.role === 'admin'){
-        return res.status(403).json({
-            message : "Admin cannot join any department"
-        })
+    if (workspaceMember.role === "admin") {
+      return res.status(403).json({
+        message: "Admin cannot join any department",
+      });
     }
 
-    const departmentMember = await departmentMemberModel.findOne({userId , departmentId})
+    // 🔹 already member?
+    const existingMember = await departmentMemberModel.findOne({
+      userId,
+      departmentId,
+    });
 
-    if(departmentMember) {
-        return res.status(400).json({
-            message : "You are already a member of this department"
-        })
+    if (existingMember) {
+      return res.status(400).json({
+        message: "You are already a member of this department",
+      });
     }
 
-    const requested = await joinRequestModel.findOne({userId , departmentId , type : 'department' , status : 'pending'})
+    // 🔹 already requested?
+    const alreadyRequested = await joinRequestModel.findOne({
+      userId,
+      departmentId,
+      type: "department",
+      status: "pending",
+    });
 
-    if(requested) {
-        return res.status(400).json({
-            message : "You have already sent a request to this department"
-        })
+    if (alreadyRequested) {
+      return res.status(400).json({
+        message: "Request already sent",
+      });
     }
 
+    // 🔥 CREATE REQUEST (IMPORTANT FIX)
     const request = await joinRequestModel.create({
-        userId , 
-        departmentId , 
-        type : 'department',
-        status : 'pending'
-    })
+      userId,
+      workspaceId, // ✅ MUST ADD
+      departmentId,
+      type: "department",
+      status: "pending",
+    });
 
-    const manager = departmentMember.model.find({departmentId , role : 'manager'})
+    // 🔥 FIND MANAGER (FIXED)
+    const manager = await departmentMemberModel.findOne({
+      departmentId,
+      role: "manager",
+    });
 
-    await createNotification({
-        workspaceId : workspaceId,
-        departmentId : departmentId,
-        userId : manager._id,
-        type : "JOIN_REQUEST",
-        message : `${user.name} requested to join the department ${department.name}`
-    })
+    // 🔥 NOTIFICATION (ONLY IF MANAGER EXISTS)
+    if (manager) {
+      const userName = workspaceMember.userId?.name || "User";
 
-    io.to(manager._id.toString()).emit('join-request',{
-        department : departmentId
-    })
+      await createNotification({
+        workspaceId,
+        departmentId,
+        userId: manager.userId, // ✅ correct
+        type: "JOIN_REQUEST",
+        message: `${userName} requested to join ${department.name}`,
+      });
 
-    res.status(201).json({
-        message : "Request sent successfully",
-        request
-    })
-    }catch(error){
-        console.error(error)
-        res.status(500).json({
-            message : "Internal Server Error"
-        })
+      io.to(manager.userId.toString()).emit("join-request", {
+        departmentId,
+      });
     }
 
+    return res.status(201).json({
+      message: "Request sent successfully",
+      request,
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }
 
 export async function approveDepartmentJoinRequest (req,res) {
@@ -939,4 +990,88 @@ export async function departmentStats(req,res) {
         })
      }
 
+}
+
+
+export async function getAllDepartmentsOfThisWorkspace(req, res) {
+  try {
+    const userId = req.userId;
+    const workspace = req.workspace;
+    const workspaceId = workspace._id;
+
+    // 🔥 1. Check workspace membership
+    const workspaceMember = await workspaceMemberModel.findOne({
+      userId,
+      workspaceId,
+    });
+
+    if (!workspaceMember) {
+      return res.status(403).json({
+        message: "You are not a member of this workspace",
+      });
+    }
+
+    // 🔥 2. Get all departments
+    const departments = await departmentModel.find({ workspaceId });
+
+    const deptIds = departments.map((d) => d._id);
+
+    // 🔥 3. Get all department members (for count + manager + membership)
+    const departmentMembers = await departmentMemberModel
+      .find({
+        departmentId: { $in: deptIds },
+      })
+      .populate("userId", "_id name email profileImage");
+
+    // 🔥 4. Prepare maps
+    const memberCountMap = {};
+    const userMembershipSet = new Set();
+    const managerMap = {};
+
+    departmentMembers.forEach((dm) => {
+      const deptId = dm.departmentId.toString();
+
+      // ✅ member count
+      memberCountMap[deptId] = (memberCountMap[deptId] || 0) + 1;
+
+      // ✅ isMember
+      if (dm.userId._id.toString() === userId.toString()) {
+        userMembershipSet.add(deptId);
+      }
+
+      // ✅ manager extraction
+      if (dm.role === "manager") {
+        managerMap[deptId] = {
+          _id: dm.userId._id,
+          name: dm.userId.name,
+          email: dm.userId.email,
+          profileImage: dm.userId.profileImage,
+        };
+      }
+    });
+
+    // 🔥 5. Final response
+    const result = departments.map((dept) => {
+      const deptId = dept._id.toString();
+
+      return {
+        ...dept.toObject(),
+        memberCount: memberCountMap[deptId] || 0,
+        isMember: userMembershipSet.has(deptId),
+        manager: managerMap[deptId] || null,
+      };
+    });
+
+    return res.status(200).json({
+      message: "All departments fetched successfully",
+      departments: result,
+      currentUserRole: workspaceMember.role,
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }

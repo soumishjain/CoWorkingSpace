@@ -12,7 +12,8 @@ const DepartmentContainer = ({
   error,
   onAddMember,
   onCreateDepartment,
-  createDeptState
+  createDeptState,
+  role
 }) => {
 
   const navigate = useNavigate();
@@ -24,7 +25,6 @@ const DepartmentContainer = ({
   const formData = createDeptState?.formData || { name: "", description: "" };
   const setFormData = createDeptState?.setFormData || (() => {});
   const createLoading = createDeptState?.loading || false;
-  const createError = createDeptState?.error || "";
 
   return (
     <div className="mt-8">
@@ -45,37 +45,38 @@ const DepartmentContainer = ({
         {/* RIGHT */}
         <div className="flex items-center gap-3">
 
-          {/* 🔔 WORKSPACE NOTIFICATIONS */}
+          {/* 🔔 NOTIFICATIONS */}
           <button
             onClick={() => {
               if (!workspaceId) return;
-              navigate(`/dashboard/workspace/${workspaceId}/notifications`);
+              navigate(`/dashboard/notifications`);
             }}
             className="relative p-2 rounded-lg hover:bg-gray-100 transition"
           >
             <Bell size={20} />
-
-            {/* 🔴 static badge (baad me dynamic karna) */}
             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1 rounded-full">
               2
             </span>
           </button>
 
-          {/* CREATE */}
-          <button
-            onClick={() => setOpenModal(true)}
-            className="bg-green-500 text-white text-sm px-4 py-2 rounded-lg"
-          >
-            + Create Department
-          </button>
+          {/* ✅ ONLY ADMIN CAN SEE */}
+          {role === 'admin' && (
+            <>
+              <button
+                onClick={() => setOpenModal(true)}
+                className="bg-green-500 text-white text-sm px-4 py-2 rounded-lg"
+              >
+                + Create Department
+              </button>
 
-          {/* ADD MEMBER */}
-          <button
-            onClick={() => onAddMember && onAddMember()}
-            className="bg-[var(--color-primary)] text-white text-sm px-4 py-2 rounded-lg"
-          >
-            + Add Member
-          </button>
+              <button
+                onClick={() => onAddMember && onAddMember()}
+                className="bg-[var(--color-primary)] text-white text-sm px-4 py-2 rounded-lg"
+              >
+                + Add Member
+              </button>
+            </>
+          )}
 
         </div>
       </div>
@@ -108,7 +109,7 @@ const DepartmentContainer = ({
       )}
 
       {/* 🔥 MODAL */}
-      {openModal && (
+      {openModal && role === 'admin' && (
         <CreateDepartmentModal
           formData={formData}
           onChange={(e) =>

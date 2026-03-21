@@ -7,6 +7,8 @@ import departmentMemberModel from "../../models/departmentMember.models.js";
 import monthlyLeaderboardModel from "../../models/monthlyLeaderboard.models.js";
 import joinRequestModel from "../../models/joinRequest.models.js";
 import ImageKit from '@imagekit/nodejs' 
+import notificationModel from "../../models/notification.models.js";
+import { createNotification } from "../../utils/createNotification.js";
 
 const imagekit = new ImageKit({
   privateKey: process.env.IMAGE_KIT_PRIVATE_KEY,
@@ -292,126 +294,167 @@ console.error(error);
     }
 }
 
-export async function approveJoinRequest(req,res){
-    try{
-        const userId = req.userId
-    const {reqId} = req.params
+export async function approveJoinRequest(req, res) {
+  try {
+    const adminId = req.userId;
+    const { reqId } = req.params;
 
-    const isReqExist = await joinRequestModel.findOne({
-        _id : reqId,
-        type : "workspace",
-        status : "pending"
-    })
-
-    if(!isReqExist) {
-        return res.status(404).json({
-            message : "No join request found"
-        })
-    }
-
-    const workspaceId = isReqExist.workspaceId
-
-    const isUserAdmin = await workspaceMemberModel.findOne({
-        userId : userId, workspaceId , role : "admin"
-    })
-
-    if(!isUserAdmin) {
-        return res.status(403).json({
-            message : "You are not authorized to accept join request"
-        })
-    }
-
-    const reqUserId = isReqExist.userId
-
-    const alreadyMember = await workspaceMemberModel.findOne({
-        userId : reqUserId,
-        workspaceId
-    })
-
-    if(alreadyMember){
-        return res.status(400).json({
-            message : "User already a member"
-        })
-    }
-
-    await workspaceMemberModel.create({
-        userId : reqUserId , workspaceId , role : "member"
-    })
-
-    const generalDept = await departmentModel.findOne({
-        workspaceId,
-        name : "general"
-    })
-
-    if(generalDept){
-        await departmentMemberModel.create({
-            userId : reqUserId,
-            departmentId: generalDept._id,
-            role: "employee"
-        })
-    }
-
-    isReqExist.status = "approved"
-    await isReqExist.save()
-
-
-    res.status(200).json({
-        message : "Request approved successfully"
-    })
-    }catch(error){
-        console.error(error)
-        return res.status(500).json({
-            message : "Internal server error"
-        })
-    }
-
-}
-
-export async function rejectJoinRequest(req,res){
-    try{
-        const {reqId} = req.params
-        const userId = req.userId
-        const request = await joinRequestModel.findOne({
+    // 🔥 1. FIND REQUEST
+    const request = await joinRequestModel.findOne({
       _id: reqId,
       type: "workspace",
       status: "pending"
     });
-        if(!request){
-            return res.status(404).json({
-                message : "No pending join request found"
-            })
-        }
 
-        const workspaceId = request.workspaceId
-
-        const user = await workspaceMemberModel.findOne({
-            workspaceId : workspaceId , userId : userId
-        })
-
-        if(!user || user.role !== "admin"){
-            return res.status(403).json({
-                messaege : "You are not authorized to reject this request"
-            })
-        }
-
-        request.status = "rejected"
-        await request.save()
-
-        await joinRequestModel.findByIdAndDelete(request._id)
-
-        return res.status(200).json({
-            message : "Request rejected successfully"
-        })
-
-
-    }catch(error){
-        console.error(error)
-        res.status(500).json({
-            message : "Internal Server Error"
-        })
+    if (!request) {
+      return res.status(404).json({
+        message: "No join request found"
+      });
     }
-}
 
+    const workspaceId = request.workspaceId;
+    const reqUserId = request.userId;
+
+    // 🔥 2. CHECK ADMIN
+    const isAdmin = await workspaceMemberModel.findOne({
+      userId: adminId,
+      workspaceId,
+      role: "admin"
+    });
+
+    if (!isAdmin) {
+      return res.status(403).json({
+        message: "You are not authorized to approve this request"
+      });
+    }
+
+    // 🔥 3. CHECK IF ALREADY MEMBER
+    const alreadyMember = await workspaceMemberModel.findOne({
+      userId: reqUserId,
+      workspaceId
+    });
+
+    if (alreadyMember) {
+      return res.status(400).json({
+        message: "User already a member"
+      });
+    }
+
+    // 🔥 4. ADD TO WORKSPACE
+    await workspaceMemberModel.create({
+      userId: reqUserId,
+      workspaceId,
+      role: "member"
+    });
+
+    // 🔥 5. AUTO ADD TO GENERAL DEPARTMENT
+    const generalDept = await departmentModel.findOne({
+      workspaceId,
+      name: "general"
+    });
+
+    if (generalDept) {
+      await departmentMemberModel.create({
+        userId: reqUserId,
+        departmentId: generalDept._id,
+        role: "employee"
+      });
+    }
+
+    // 🔥 6. GET WORKSPACE NAME
+    const workspace = await workspaceModel.findById(workspaceId);
+    const workspaceName = workspace?.name || "workspace";
+
+    // 🔥 7. SEND NOTIFICATION
+    await createNotification({
+      workspaceId,
+      userId: reqUserId,
+      type: "JOIN_REQUEST_APPROVED",
+      message: `Your request to join ${workspaceName} has been approved`
+    });
+
+    // 🔥 8. UPDATE STATUS (optional)
+    request.status = "approved";
+    await request.save();
+
+    // 🔥 9. DELETE REQUEST (recommended)
+    await joinRequestModel.findByIdAndDelete(request._id);
+
+    return res.status(200).json({
+      message: "Request approved successfully"
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Internal server error"
+    });
+  }
+}
+export async function rejectJoinRequest(req, res) {
+  try {
+    const { reqId } = req.params;
+    const adminId = req.userId;
+
+    // 🔥 1. FIND REQUEST
+    const request = await joinRequestModel.findOne({
+      _id: reqId,
+      type: "workspace",
+      status: "pending"
+    });
+
+    if (!request) {
+      return res.status(404).json({
+        message: "No pending join request found"
+      });
+    }
+
+    const workspaceId = request.workspaceId;
+    const requestedUserId = request.userId;
+
+    // 🔥 2. CHECK ADMIN
+    const admin = await workspaceMemberModel.findOne({
+      workspaceId,
+      userId: adminId
+    });
+
+    if (!admin || admin.role !== "admin") {
+      return res.status(403).json({
+        message: "You are not authorized to reject this request"
+      });
+    }
+
+    // 🔥 3. GET WORKSPACE NAME (for message)
+    const workspace = await workspaceModel.findById(workspaceId);
+
+    const workspaceName = workspace?.name || "workspace";
+
+    // 🔥 4. UPDATE STATUS (optional but clean)
+    request.status = "rejected";
+    await request.save();
+
+    // 🔥 5. SEND NOTIFICATION TO USER
+    await createNotification({
+      workspaceId,
+      userId: requestedUserId,
+      type: "JOIN_REQUEST_REJECTED",
+      message: `Your request to join ${workspaceName} has been rejected`
+    });
+
+    // 🔥 6. DELETE REQUEST (optional)
+    await joinRequestModel.findByIdAndDelete(request._id);
+
+    return res.status(200).json({
+      message: "Request rejected successfully"
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Internal Server Error"
+    });
+  }
+}
 // getMyWorkspaces
 export async function getMyWorkspaces(req,res){
     try{

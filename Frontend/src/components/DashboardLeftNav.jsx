@@ -105,11 +105,6 @@ const DashboardLeftNav = () => {
         icon: <LayoutDashboard size={20} />,
       },
       {
-        name: "Notifications",
-        path: "/about",
-        icon: <Bell size={20} />,
-      },
-      {
         name: "Delete",
         path: "/dashboard/delete-workspace",
         icon: <TrashIcon size={20} />,
@@ -137,7 +132,9 @@ const DashboardLeftNav = () => {
     <>
       {/* Logo */}
       <div className="px-6 flex justify-center py-4 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-[var(--color-primary)]">
+        <h1 onClick={() => {
+          navigate('/dashboard')
+        }} className="hover:text-[var(--color-primary)]/80 cursor-pointer text-xl font-bold text-[var(--color-primary)]">
           CoworkSpace
         </h1>
       </div>

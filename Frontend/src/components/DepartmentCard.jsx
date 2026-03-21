@@ -16,7 +16,7 @@ const DepartmentCard = ({ department }) => {
       </p>
 
       <p className="text-sm text-gray-500 mt-2 line-clamp-2">
-        {department?.manager || "No Manager"}
+        {department?.manager?.name || "No Manager"}
       </p>
 
       {/* 🔥 Footer */}

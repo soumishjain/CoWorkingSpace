@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
 import SmartDepartmentContainer from "../components/SmartDepartmentContainer";
@@ -8,14 +8,14 @@ import { useDepartment } from "../hooks/useDepartment";
 import { useDepartmentActions } from "../hooks/useDepartmentActions";
 
 import { useAuth } from "../context/AuthContext";
+import { useWorkspaceStatsState } from "../state/useWorkspaceStatsState";
+import { useWorkspaceStats } from "../hooks/useWorkspaceStats";
 
 const AllDepartments = () => {
 
   const { workspaceId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-
-  const [role, setRole] = useState(""); // 🔥 IMPORTANT
 
   const departmentState = useDepartmentState();
   const { fetchDepartments } = useDepartment(departmentState);
@@ -25,17 +25,15 @@ const AllDepartments = () => {
     fetchDepartments
   );
 
+  const statsState = useWorkspaceStatsState();
+  const { fetchWorkspaceStats } = useWorkspaceStats(statsState);
+
   useEffect(() => {
     if (workspaceId) {
       fetchDepartments(workspaceId);
+      fetchWorkspaceStats(workspaceId);
     }
   }, [workspaceId]);
-
-  // 🔥 TEMP FIX (jab tak backend role nahi bhej raha)
-  useEffect(() => {
-    // 👇 yaha tu manually test kar sakta hai
-    setRole("admin"); // 🔥 CHANGE THIS to "member" to test
-  }, []);
 
   const handleOpenDepartment = (deptId) => {
     navigate(`/dashboard/workspace/${workspaceId}/department/${deptId}`);
@@ -55,13 +53,14 @@ const AllDepartments = () => {
         loading={departmentState.loading}
         error={departmentState.error}
         user={user}
-        role={role} // 🔥 PASSING ROLE
+        isAdmin={statsState.isAdmin}
         onJoin={(id) => actions.join(workspaceId, id)}
         onLeave={(id) => actions.leave(workspaceId, id)}
         onAssignManager={(deptId, userId) =>
           actions.setManager(workspaceId, deptId, userId)
         }
         onOpenDepartment={handleOpenDepartment}
+        workspaceId={workspaceId}
       />
 
     </div>

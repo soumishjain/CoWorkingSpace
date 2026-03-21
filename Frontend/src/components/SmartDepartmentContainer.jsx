@@ -4,13 +4,14 @@ import SmartDepartmentCard from "./SmartDepartmentCard";
 const SmartDepartmentContainer = ({
   departments,
   user,
-  role,
+  isAdmin,
   loading,
   error,
   onJoin,
   onLeave,
   onAssignManager,
   onOpenDepartment,
+  workspaceId
 }) => {
 
   if (loading) return <p>Loading...</p>;
@@ -19,16 +20,17 @@ const SmartDepartmentContainer = ({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 
-      {departments.map((dept) => (
+      {departments?.map((dept) => (
         <SmartDepartmentCard
           key={dept._id}
           department={dept}
-          role={role}
+          isAdmin={isAdmin}
           user={user}
           onJoin={onJoin}
           onLeave={onLeave}
           onAssignManager={onAssignManager}
           onOpenDepartment={onOpenDepartment}
+          workspaceId={workspaceId}
         />
       ))}
 

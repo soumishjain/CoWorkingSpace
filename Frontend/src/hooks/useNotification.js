@@ -1,38 +1,83 @@
 import {
   getNotifications,
-  getJoinRequests,
+  getAllRequests, // 🔥 NEW
 } from "../api/notification.api";
 
 import {
   approveRequest,
-  rejectRequest
-} from "../api/workspace.api"; // 🔥 IMPORTANT (tera case)
+  rejectRequest,
+} from "../api/workspace.api";
+
+import {
+  approveDepartmentRequest,
+  rejectDepartmentRequest,
+} from "../api/department.api";
 
 export const useNotification = (state) => {
-
   const {
     setNotifications,
-    setRequests,
     setRole,
     setLoading,
     setError,
   } = state;
 
-  // 🔥 FETCH ALL (USER + WORKSPACE)
-  const fetchWorkspaceNotifications = async (workspaceId) => {
+  /**
+   * 🔥 FORMAT HELPERS
+   */
+
+  const formatNotifications = (notifications = []) => {
+    return notifications.map((n) => ({
+      ...n,
+      type: "NOTIFICATION",
+    }));
+  };
+
+  const formatRequests = (requests = []) => {
+    return requests.map((r) => ({
+      ...r,
+      type: "REQUEST", // 🔥 unified
+      user: r.userId,
+    }));
+  };
+
+  /**
+   * 🔥 MERGE + SORT
+   */
+  const mergeAndSort = (notifications, requests) => {
+    const merged = [
+      ...formatNotifications(notifications),
+      ...formatRequests(requests),
+    ];
+
+    return merged.sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+  };
+
+  /**
+   * 🔥 MAIN FETCH (UNIFIED)
+   */
+  const fetchAllNotifications = async (workspaceId) => {
     try {
+      console.log("🔥 FETCH CALLED", workspaceId);
       setLoading(true);
       setError("");
 
-      // 🔹 User Notifications
-      const notif = await getNotifications();
-      setNotifications(notif.notifications || []);
+      const [notifRes, reqRes] = await Promise.all([
+        getNotifications(),
+        getAllRequests(workspaceId), // 🔥 ONE API
+      ]);
 
-      // 🔹 Workspace Requests + Role
-      const req = await getJoinRequests(workspaceId);
+      console.log("NOTIF: ",notifRes)
+      console.log("REQ: ",reqRes)
 
-      setRequests(req.requests || []);
-      setRole(req.role || "");
+      const notifications = notifRes.notification || [];
+      const requests = reqRes.requests || [];
+
+      const merged = mergeAndSort(notifications, requests);
+
+      setNotifications(merged);
+      setRole(reqRes.role || "");
 
     } catch (err) {
       setError(
@@ -45,45 +90,82 @@ export const useNotification = (state) => {
     }
   };
 
-  // ✅ APPROVE REQUEST
-  const handleApprove = async (requestId) => {
+  /**
+   * 🔥 USER ONLY
+   */
+  const fetchUserNotifications = async () => {
     try {
-      await approveRequest(requestId);
+      setLoading(true);
+      setError("");
 
-      // 🔥 Instant UI update
-      setRequests((prev) =>
-        prev.filter((r) => r._id !== requestId)
-      );
+      const notifRes = await getNotifications();
+      const notifications = notifRes.notification || [];
+
+      setNotifications(formatNotifications(notifications));
 
     } catch (err) {
-      setError(
-        typeof err === "string"
-          ? err
-          : err?.message || "Failed to approve"
-      );
+      setError(err?.message || "Failed to fetch notifications");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // ❌ REJECT REQUEST
-  const handleReject = async (requestId) => {
+  /**
+   * ✅ APPROVE (SMART)
+   */
+  const handleApprove = async (item) => {
     try {
-      await rejectRequest(requestId);
+      if (item.type === "REQUEST") {
+        // 🔥 workspace vs department
+        if (item.departmentId) {
+          await approveDepartmentRequest(
+            item.workspaceId,
+            item.departmentId,
+            item._id
+          );
+        } else {
+          await approveRequest(item._id);
+        }
+      }
 
-      setRequests((prev) =>
-        prev.filter((r) => r._id !== requestId)
+      setNotifications((prev) =>
+        prev.filter((n) => n._id !== item._id)
       );
 
     } catch (err) {
-      setError(
-        typeof err === "string"
-          ? err
-          : err?.message || "Failed to reject"
+      setError(err?.message || "Failed to approve");
+    }
+  };
+
+  /**
+   * ❌ REJECT (SMART)
+   */
+  const handleReject = async (item) => {
+    try {
+      if (item.type === "REQUEST") {
+        if (item.departmentId) {
+          await rejectDepartmentRequest(
+            item.workspaceId,
+            item.departmentId,
+            item._id
+          );
+        } else {
+          await rejectRequest(item._id);
+        }
+      }
+
+      setNotifications((prev) =>
+        prev.filter((n) => n._id !== item._id)
       );
+
+    } catch (err) {
+      setError(err?.message || "Failed to reject");
     }
   };
 
   return {
-    fetchWorkspaceNotifications,
+    fetchAllNotifications,
+    fetchUserNotifications,
     handleApprove,
     handleReject,
   };

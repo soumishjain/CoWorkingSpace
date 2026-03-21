@@ -29,8 +29,20 @@ const joinRequestSchema = new mongoose.Schema({
 },{timestamps : true})
 
 joinRequestSchema.index(
-    {userId : 1 , workspaceId : 1 , departmentId : 1}, {unique : true}
-)
+  { userId: 1, workspaceId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { type: "workspace" }
+  }
+);
+
+joinRequestSchema.index(
+  { userId: 1, departmentId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { type: "department" }
+  }
+);
 
 const joinRequestModel = mongoose.model("JoinRequest",joinRequestSchema)
 

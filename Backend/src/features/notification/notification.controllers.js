@@ -1,4 +1,7 @@
+import departmentMemberModel from "../../models/departmentMember.models.js"
+import joinRequestModel from "../../models/joinRequest.models.js"
 import notificationModel from "../../models/notification.models.js"
+import workspaceMemberModel from "../../models/workspaceMember.models.js"
 
 export async function getMyNotification(req,res){
     try{
@@ -96,4 +99,65 @@ export async function getUnreadNotificationCount(req,res){
             message : "Internsal Server Error"
         })
     }
+}
+export async function getMyRequests(req, res) {
+  try {
+    console.log("GET REQ API HIT")
+    const userId = req.userId;
+    const workspaceId = req.workspace._id;
+
+    const workspaceMember = await workspaceMemberModel.findOne({
+      userId,
+      workspaceId,
+    });
+
+    if (!workspaceMember) {
+      return res.status(403).json({
+        message: "Not a workspace member",
+      });
+    }
+
+    let requests = [];
+
+    // 🔥 ADMIN → ALL REQUESTS (IMPORTANT FIX)
+    if (workspaceMember.role === "admin") {
+      requests = await joinRequestModel
+        .find({
+          workspaceId, // ✅ MUST MATCH
+          status: "pending",
+        })
+        .populate("userId", "name email profileImage")
+        .populate("departmentId", "name");
+
+    } else {
+      // 🔥 MANAGER → only his departments
+      const managedDepartments = await departmentMemberModel.find({
+        userId,
+        role: "manager",
+      }).populate("departmentId")
+
+      const deptIds = managedDepartments.map((d) => d.departmentId);
+
+      requests = await joinRequestModel
+        .find({
+          departmentId: { $in: deptIds },
+          status: "pending",
+        })
+        .populate("userId", "name email profileImage")
+        .populate("departmentId", "name");
+    }
+
+    console.log("REQUESTS FOUND:", requests); // 🔥 DEBUG
+
+    return res.status(200).json({
+      requests,
+      role: workspaceMember.role,
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }

@@ -101,12 +101,74 @@ export const assignManager = async (
 ) => {
   try {
     const res = await axios.patch(
-      `/department/assign-manager/${departmentId}/${workspaceId}/${assignedUserId}`,
+      `/department/assign-manager/${workspaceId}/${departmentId}/${assignedUserId}`,
       {},
       { withCredentials: true }
     );
     return res.data;
   } catch (error) {
     throw error.response?.data?.message || "Failed to assign manager";
+  }
+};
+
+export const getAllPendingDepartmentRequests = async (
+  workspaceId ,
+  departmentId 
+) => {
+  try{
+    const res = await axios.get(
+      `/department/get-all-department-pending-requests/${workspaceId}/${departmentId}`,
+      {},
+      {withCredentials : true}
+    )
+    return res.data
+  }catch(error){
+    throw error.response?.data?.message || "Failed to fetch";
+  }
+}
+
+export const approveDepartmentRequest = async (workspaceId , departmentId, requestId) => {
+  try {
+    const res = await axios.patch(
+      `/department/join-department/approve/${workspaceId}/${departmentId}/${requestId}`,
+      { withCredentials: true }
+    );
+    return res.data;
+  } catch (err) {
+    throw err.response?.data?.message || "Failed to approve";
+  }
+};
+
+export const rejectDepartmentRequest = async (workspaceId , departmentId, requestId) => {
+  try {
+    const res = await axios.patch(
+      `/department/join-department/reject/${workspaceId}/${departmentId}/${requestId}`,
+      { withCredentials: true }
+    );
+    return res.data;
+  } catch (err) {
+    throw err.response?.data?.message || "Failed to approve";
+  }
+};
+
+export const getAllDepartmentMembers = async (workspaceId, departmentId) => {
+  try {
+    const res = await axios.get(
+      `/department/get-department-members/${workspaceId}/${departmentId}`,
+      { withCredentials: true }
+    );
+
+    // 🔥 transform data
+    const members = res.data.departmentMembers.map((m) => ({
+      _id: m.userId._id,
+      name: m.userId.name,
+      email: m.userId.email,
+      profileImage: m.userId.profileImage,
+    }));
+
+    return { members };
+
+  } catch (error) {
+    throw error.response?.data?.message || "Failed to fetch members";
   }
 };
