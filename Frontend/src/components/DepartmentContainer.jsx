@@ -1,35 +1,62 @@
 import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Bell } from "lucide-react";
-
+import { leaveWorkspace } from "../api/workspace.api";
+import ConfirmLeaveModal from "./ConfirmLeaveModal";
+import toast from 'react-hot-toast'
 import DepartmentCard from "./DepartmentCard";
 import DepartmentSkeleton from "./DepartmentSkeleton";
 import CreateDepartmentModal from "./CreateDepartmentModal";
+import RemoveMemberModal from "./RemoveMemberModal";
 
 const DepartmentContainer = ({
-  departments,
+  departments = [],
   loading,
   error,
-  onAddMember,
   onCreateDepartment,
   createDeptState,
-  role
+  role,
 }) => {
-
   const navigate = useNavigate();
   const { workspaceId } = useParams();
 
-  const [openModal, setOpenModal] = useState(false);
+  const [openCreateModal, setOpenCreateModal] = useState(false);
+  const [openRemoveModal, setOpenRemoveModal] = useState(false);
 
-  // 🔥 SAFE STATE
-  const formData = createDeptState?.formData || { name: "", description: "" };
+  const [openConfirmModal,setOpenConfirmModal] = useState(false)
+  const [leaveLoading, setLeaveLoading] = useState(false)
+
+
+  const formData = createDeptState?.formData || {
+    name: "",
+    description: "",
+  };
   const setFormData = createDeptState?.setFormData || (() => {});
   const createLoading = createDeptState?.loading || false;
+
+  const handleLeaveWorkspace = async () => {
+  try {
+    setLeaveLoading(true);
+
+    await leaveWorkspace(workspaceId);
+
+    toast.success("Left workspace");
+
+    navigate("/dashboard");
+  } catch (err) {
+    toast.error("Failed to leave");
+  } finally {
+    setLeaveLoading(false);
+    setOpenConfirmModal(false);
+  }
+};
+
+
 
   return (
     <div className="mt-8">
 
-      {/* 🔥 HEADER */}
+      {/* HEADER */}
       <div className="flex items-center justify-between mb-6">
 
         {/* LEFT */}
@@ -45,35 +72,40 @@ const DepartmentContainer = ({
         {/* RIGHT */}
         <div className="flex items-center gap-3">
 
-          {/* 🔔 NOTIFICATIONS */}
+          {/* NOTIFICATIONS */}
           <button
-            onClick={() => {
-              if (!workspaceId) return;
-              navigate(`/dashboard/notifications`);
-            }}
+            onClick={() => navigate(`/dashboard/notifications`)}
             className="relative p-2 rounded-lg hover:bg-gray-100 transition"
           >
             <Bell size={20} />
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1 rounded-full">
-              2
-            </span>
+            
           </button>
 
-          {/* ✅ ONLY ADMIN CAN SEE */}
-          {role === 'admin' && (
+          {/* 🔥 LEAVE WORKSPACE */}
+          {role === 'member' && (
+            <button
+              onClick={() => setOpenConfirmModal(true)}
+              className="bg-red-500 hover:bg-red-600 text-white text-sm px-4 py-2 rounded-lg transition"
+            >
+              Leave Workspace
+            </button>
+          )}
+
+          {/* ADMIN */}
+          {role === "admin" && (
             <>
               <button
-                onClick={() => setOpenModal(true)}
-                className="bg-green-500 text-white text-sm px-4 py-2 rounded-lg"
+                onClick={() => setOpenCreateModal(true)}
+                className="bg-green-500 hover:bg-green-600 text-white text-sm px-4 py-2 rounded-lg transition"
               >
                 + Create Department
               </button>
 
               <button
-                onClick={() => onAddMember && onAddMember()}
-                className="bg-[var(--color-primary)] text-white text-sm px-4 py-2 rounded-lg"
+                onClick={() => setOpenRemoveModal(true)}
+                className="bg-red-500 hover:bg-red-600 text-white text-sm px-4 py-2 rounded-lg transition"
               >
-                + Add Member
+                Remove Member
               </button>
             </>
           )}
@@ -81,10 +113,12 @@ const DepartmentContainer = ({
         </div>
       </div>
 
-      {/* 🔥 ERROR */}
-      {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+      {/* ERROR */}
+      {error && (
+        <p className="text-red-500 text-sm mb-4">{error}</p>
+      )}
 
-      {/* 🔥 LOADING */}
+      {/* LOADING */}
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -93,10 +127,10 @@ const DepartmentContainer = ({
         </div>
       )}
 
-      {/* 🔥 LIST */}
+      {/* LIST */}
       {!loading && !error && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {departments?.length > 0 ? (
+          {departments.length > 0 ? (
             departments.map((dept) => (
               <DepartmentCard key={dept._id} department={dept} />
             ))
@@ -108,8 +142,8 @@ const DepartmentContainer = ({
         </div>
       )}
 
-      {/* 🔥 MODAL */}
-      {openModal && role === 'admin' && (
+      {/* CREATE MODAL */}
+      {openCreateModal && role === "admin" && (
         <CreateDepartmentModal
           formData={formData}
           onChange={(e) =>
@@ -121,12 +155,28 @@ const DepartmentContainer = ({
           onSubmit={async (e) => {
             e.preventDefault();
             await onCreateDepartment();
-            setOpenModal(false);
+            setOpenCreateModal(false);
           }}
           loading={createLoading}
-          setOpen={setOpenModal}
+          setOpen={setOpenCreateModal}
         />
       )}
+
+      {/* REMOVE MODAL */}
+      {openRemoveModal && role === "admin" && (
+        <RemoveMemberModal
+          workspaceId={workspaceId}
+          onClose={() => setOpenRemoveModal(false)}
+        />
+      )}
+
+      {openConfirmModal && (
+  <ConfirmLeaveModal
+    onClose={() => setOpenConfirmModal(false)}
+    onConfirm={handleLeaveWorkspace}
+    loading={leaveLoading}
+  />
+)}
 
     </div>
   );

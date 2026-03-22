@@ -16,17 +16,16 @@ export const getNotifications = async () => {
 
 
 // 🔥 2. ALL REQUESTS (WORKSPACE + DEPARTMENT) ✅
-export const getAllRequests = async (workspaceId) => {
+export const getAllRequests = async () => {
   try {
-    if (!workspaceId) return { requests: [], role: "" };
-
     const res = await axios.get(
-      `/notifications/requests/${workspaceId}`, // 🔥 NEW SMART API
+      `/notifications/requests`, // ✅ NO workspaceId
       { withCredentials: true }
     );
-     console.log(res.data)
 
-    return res.data; // { requests: [...], role: "admin" }
+    console.log("REQ DATA:", res.data);
+
+    return res.data; // { requests: [...] }
 
   } catch (err) {
     throw err.response?.data?.message || "Failed to fetch requests";

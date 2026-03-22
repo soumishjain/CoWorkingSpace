@@ -73,20 +73,6 @@ const CreateWorkspaceModal = ({
             />
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-gray-700">
-              Join Password
-            </label>
-
-            <input
-              type="password"
-              name="joinPassword"
-              value={formData.joinPassword}
-              onChange={onChange}
-              className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-primary)] outline-none"
-            />
-          </div>
-
           {error && (
             <p className="text-red-500 text-sm">{error}</p>
           )}

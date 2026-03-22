@@ -1,6 +1,6 @@
 import {
   getNotifications,
-  getAllRequests, // 🔥 NEW
+  getAllRequests,
 } from "../api/notification.api";
 
 import {
@@ -35,7 +35,7 @@ export const useNotification = (state) => {
   const formatRequests = (requests = []) => {
     return requests.map((r) => ({
       ...r,
-      type: "REQUEST", // 🔥 unified
+      type: "REQUEST",
       user: r.userId,
     }));
   };
@@ -55,21 +55,22 @@ export const useNotification = (state) => {
   };
 
   /**
-   * 🔥 MAIN FETCH (UNIFIED)
+   * 🔥 MAIN FETCH (GLOBAL)
    */
-  const fetchAllNotifications = async (workspaceId) => {
+  const fetchAllNotifications = async () => {
     try {
-      console.log("🔥 FETCH CALLED", workspaceId);
+      console.log("🔥 GLOBAL FETCH CALLED");
+
       setLoading(true);
       setError("");
 
       const [notifRes, reqRes] = await Promise.all([
         getNotifications(),
-        getAllRequests(workspaceId), // 🔥 ONE API
+        getAllRequests(), // ✅ no workspaceId
       ]);
 
-      console.log("NOTIF: ",notifRes)
-      console.log("REQ: ",reqRes)
+      console.log("NOTIF:", notifRes);
+      console.log("REQ:", reqRes);
 
       const notifications = notifRes.notification || [];
       const requests = reqRes.requests || [];
@@ -77,7 +78,8 @@ export const useNotification = (state) => {
       const merged = mergeAndSort(notifications, requests);
 
       setNotifications(merged);
-      setRole(reqRes.role || "");
+
+      // 🔥 optional (agar backend role nahi bhej raha)
 
     } catch (err) {
       setError(
@@ -91,7 +93,7 @@ export const useNotification = (state) => {
   };
 
   /**
-   * 🔥 USER ONLY
+   * 🔥 ONLY USER NOTIFICATIONS
    */
   const fetchUserNotifications = async () => {
     try {
@@ -111,23 +113,23 @@ export const useNotification = (state) => {
   };
 
   /**
-   * ✅ APPROVE (SMART)
+   * ✅ APPROVE
    */
   const handleApprove = async (item) => {
     try {
       if (item.type === "REQUEST") {
-        // 🔥 workspace vs department
-        if (item.departmentId) {
-          await approveDepartmentRequest(
-            item.workspaceId,
-            item.departmentId,
-            item._id
-          );
-        } else {
-          await approveRequest(item._id);
-        }
-      }
+  if (item.departmentId) {
+    await approveDepartmentRequest(
+      item.workspaceId?._id || item.workspaceId,
+      item.departmentId?._id || item.departmentId,
+      item._id
+    );
+  } else {
+    await approveRequest(item._id);
+  }
+}
 
+      // 🔥 remove from UI
       setNotifications((prev) =>
         prev.filter((n) => n._id !== item._id)
       );
@@ -138,25 +140,24 @@ export const useNotification = (state) => {
   };
 
   /**
-   * ❌ REJECT (SMART)
+   * ❌ REJECT
    */
   const handleReject = async (item) => {
     try {
       if (item.type === "REQUEST") {
-        if (item.departmentId) {
-          await rejectDepartmentRequest(
-            item.workspaceId,
-            item.departmentId,
-            item._id
-          );
-        } else {
-          await rejectRequest(item._id);
-        }
-      }
-
+  if (item.departmentId) {
+    await rejectDepartmentRequest(
+      item.workspaceId?._id || item.workspaceId,
+      item.departmentId?._id || item.departmentId,
+      item._id
+    );
+  } else {
+    await rejectRequest(item._id);
+  }
       setNotifications((prev) =>
         prev.filter((n) => n._id !== item._id)
       );
+    }
 
     } catch (err) {
       setError(err?.message || "Failed to reject");

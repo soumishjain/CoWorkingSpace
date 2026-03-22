@@ -1,5 +1,4 @@
 import React, { useEffect } from "react";
-import { useParams } from "react-router-dom";
 import { Check, X, Bell } from "lucide-react";
 
 import { useNotificationState } from "../state/useNotificationState";
@@ -7,22 +6,20 @@ import { useNotification } from "../hooks/useNotification";
 import Loader from "../components/Loader";
 
 const NotificationsPage = () => {
-  const { workspaceId } = useParams();
 
   const state = useNotificationState();
   const {
-    fetchAllNotifications, // ✅ FIXED
+    fetchAllNotifications,
     handleApprove,
     handleReject,
   } = useNotification(state);
 
-  const { role } = state;
+  const { notifications, loading, error } = state;
 
+  // 🔥 GLOBAL FETCH (NO workspaceId)
   useEffect(() => {
-    if (workspaceId) {
-      fetchAllNotifications(workspaceId); // ✅ FIXED
-    }
-  }, [workspaceId]);
+    fetchAllNotifications();
+  }, []);
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -43,23 +40,23 @@ const NotificationsPage = () => {
       </div>
 
       {/* LOADING */}
-      {state.loading && <Loader />}
+      {loading && <Loader />}
 
       {/* ERROR */}
-      {state.error && (
+      {error && (
         <div className="bg-red-50 text-red-600 text-sm px-4 py-2 rounded-lg">
-          {state.error}
+          {error}
         </div>
       )}
 
       {/* LIST */}
-      {!state.loading && (
+      {!loading && (
         <div className="space-y-3">
 
-          {state.notifications.length > 0 ? (
-            state.notifications.map((item) => {
+          {notifications?.length > 0 ? (
+            notifications.map((item) => {
 
-              // 🔥 REQUEST CARD (workspace + department)
+              // 🔥 REQUEST CARD
               if (item.type === "REQUEST") {
                 return (
                   <div
@@ -96,27 +93,25 @@ const NotificationsPage = () => {
                     </div>
 
                     {/* ACTIONS */}
-                    {(role === "admin" || item.departmentId) && (
-                      <div className="flex gap-2">
+                    <div className="flex gap-2">
 
-                        <button
-                          onClick={() => handleApprove(item)} // ✅ FIXED
-                          className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-xs rounded-lg transition"
-                        >
-                          <Check size={14} />
-                          Approve
-                        </button>
+                      <button
+                        onClick={() => handleApprove(item)}
+                        className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 text-xs rounded-lg transition"
+                      >
+                        <Check size={14} />
+                        Approve
+                      </button>
 
-                        <button
-                          onClick={() => handleReject(item)} // ✅ FIXED
-                          className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 text-xs rounded-lg transition"
-                        >
-                          <X size={14} />
-                          Reject
-                        </button>
+                      <button
+                        onClick={() => handleReject(item)}
+                        className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 text-xs rounded-lg transition"
+                      >
+                        <X size={14} />
+                        Reject
+                      </button>
 
-                      </div>
-                    )}
+                    </div>
 
                   </div>
                 );

@@ -7,8 +7,8 @@ import departmentMemberModel from "../../models/departmentMember.models.js";
 import monthlyLeaderboardModel from "../../models/monthlyLeaderboard.models.js";
 import joinRequestModel from "../../models/joinRequest.models.js";
 import ImageKit from '@imagekit/nodejs' 
-import notificationModel from "../../models/notification.models.js";
 import { createNotification } from "../../utils/createNotification.js";
+import { createActivity } from "../../utils/createActivity.js";
 
 const imagekit = new ImageKit({
   privateKey: process.env.IMAGE_KIT_PRIVATE_KEY,
@@ -27,8 +27,8 @@ export async function createWorkspace(req,res){
         })
     }
 
-    let {name , description , joinPassword} = req.body;
-    if(!name || !joinPassword){
+    let {name , description} = req.body;
+    if(!name){
         return res.status(400).json({
             messsage : "Please fill All the Details"
         })
@@ -44,7 +44,6 @@ export async function createWorkspace(req,res){
         })
     }
 
-    const hash = await bcrypt.hash(joinPassword,10);
 
     let coverImageUrl;
 
@@ -59,7 +58,7 @@ export async function createWorkspace(req,res){
 
 
     const workspace = await workspaceModel.create({
-        name , description , coverImage : coverImageUrl, joinPassword : hash , createdBy : userId
+        name , description , coverImage : coverImageUrl, createdBy : userId
     })
 
     const generalDept = await departmentModel.create({
@@ -74,6 +73,16 @@ export async function createWorkspace(req,res){
         workspaceId : workspace._id,
         role : "admin"
     })
+
+    // after creating workspace & generalDept
+
+await createActivity({
+  workspaceId: workspace._id,
+  departmentId: null, // 🔥 workspace level
+  userId,
+  type: "WORKSPACE_CREATED",
+  message: `${user.name} created the workspace`,
+});
 
     res.status(201).json({
         messaege : "workspace created successfully",
@@ -248,22 +257,6 @@ export async function joinWorkspace(req,res) {
         })
     }
 
-    const { joinPassword } = req.body
-
-    if(!joinPassword) {
-        return res.status(400).json({
-            message : "Password Required"
-        })
-    }
-
-    const isMatch = await bcrypt.compare(joinPassword , workspace.joinPassword)
-
-    if(!isMatch){
-        return res.status(403).json({
-            message : "Invalid Credentials"
-        })
-    }
-
     const existingReq = await joinRequestModel.findOne({
         userId , workspaceId , departmentId : null
     })
@@ -303,12 +296,12 @@ export async function approveJoinRequest(req, res) {
     const request = await joinRequestModel.findOne({
       _id: reqId,
       type: "workspace",
-      status: "pending"
+      status: "pending",
     });
 
     if (!request) {
       return res.status(404).json({
-        message: "No join request found"
+        message: "No join request found",
       });
     }
 
@@ -319,24 +312,24 @@ export async function approveJoinRequest(req, res) {
     const isAdmin = await workspaceMemberModel.findOne({
       userId: adminId,
       workspaceId,
-      role: "admin"
+      role: "admin",
     });
 
     if (!isAdmin) {
       return res.status(403).json({
-        message: "You are not authorized to approve this request"
+        message: "Not authorized",
       });
     }
 
     // 🔥 3. CHECK IF ALREADY MEMBER
     const alreadyMember = await workspaceMemberModel.findOne({
       userId: reqUserId,
-      workspaceId
+      workspaceId,
     });
 
     if (alreadyMember) {
       return res.status(400).json({
-        message: "User already a member"
+        message: "User already a member",
       });
     }
 
@@ -344,50 +337,69 @@ export async function approveJoinRequest(req, res) {
     await workspaceMemberModel.create({
       userId: reqUserId,
       workspaceId,
-      role: "member"
+      role: "member",
     });
 
-    // 🔥 5. AUTO ADD TO GENERAL DEPARTMENT
+    // 🔥 5. GET GENERAL DEPARTMENT
     const generalDept = await departmentModel.findOne({
       workspaceId,
-      name: "general"
+      name: "general",
     });
 
+    let departmentId = null;
+
     if (generalDept) {
+      departmentId = generalDept._id;
+
+      // add to department
       await departmentMemberModel.create({
         userId: reqUserId,
-        departmentId: generalDept._id,
-        role: "employee"
+        departmentId,
+        role: "employee",
       });
     }
 
-    // 🔥 6. GET WORKSPACE NAME
-    const workspace = await workspaceModel.findById(workspaceId);
-    const workspaceName = workspace?.name || "workspace";
+    // 🔥 6. GET DATA FOR MESSAGE
+    const [workspace, user] = await Promise.all([
+      workspaceModel.findById(workspaceId),
+      userModel.findById(reqUserId),
+    ]);
 
-    // 🔥 7. SEND NOTIFICATION
+    const workspaceName = workspace?.name || "workspace";
+    const userName = user?.name || "Someone";
+
+    // 🔥 7. NOTIFICATION
     await createNotification({
       workspaceId,
       userId: reqUserId,
       type: "JOIN_REQUEST_APPROVED",
-      message: `Your request to join ${workspaceName} has been approved`
+      message: `Your request to join ${workspaceName} has been approved`,
     });
 
-    // 🔥 8. UPDATE STATUS (optional)
+    // 🔥 8. ACTIVITY (FIXED)
+   await createActivity({
+  workspaceId,
+  departmentId: null,
+  userId: reqUserId,
+  type: "MEMBER_JOINED",
+  message: `${userName} joined the workspace`,
+});
+
+    // 🔥 9. UPDATE STATUS
     request.status = "approved";
     await request.save();
 
-    // 🔥 9. DELETE REQUEST (recommended)
+    // 🔥 10. DELETE REQUEST
     await joinRequestModel.findByIdAndDelete(request._id);
 
     return res.status(200).json({
-      message: "Request approved successfully"
+      message: "Request approved successfully",
     });
 
   } catch (error) {
     console.error(error);
     return res.status(500).json({
-      message: "Internal server error"
+      message: "Internal server error",
     });
   }
 }
@@ -443,6 +455,14 @@ export async function rejectJoinRequest(req, res) {
 
     // 🔥 6. DELETE REQUEST (optional)
     await joinRequestModel.findByIdAndDelete(request._id);
+
+    await createActivity({
+  workspaceId,
+  departmentId: null,
+  userId: requestedUserId,
+  type: "JOIN_REQUEST_REJECTED",
+  message: `Join request was rejected`,
+});
 
     return res.status(200).json({
       message: "Request rejected successfully"
@@ -516,6 +536,17 @@ export async function leaveWorkspace(req,res){
     .select("_id")
 
     const departmentIds = departments.map(d => d._id)
+    // before delete
+
+const user = await userModel.findById(userId);
+
+await createActivity({
+  workspaceId,
+  departmentId: null,
+  userId,
+  type: "MEMBER_LEFT",
+  message: `${user.name} left the workspace`,
+});
 
     await departmentMemberModel.deleteMany({
         userId,
@@ -656,6 +687,15 @@ export async function removeMember(req,res){
         .select("_id")
 
         const departmentIds = departments.map(d => d._id)
+        const removedUser = await userModel.findById(removeUserId);
+
+await createActivity({
+  workspaceId,
+  departmentId: null,
+  userId: removeUserId,
+  type: "MEMBER_REMOVED",
+  message: `${removedUser.name} was removed from workspace`,
+});
 
         await departmentMemberModel.deleteMany({
             userId : removeUserId , 
@@ -717,6 +757,13 @@ export async  function changeMemberRole(req,res){
 
     user.role = 'admin'
     await user.save()
+    await createActivity({
+  workspaceId,
+  departmentId: null,
+  userId: targetUserId,
+  type: "ROLE_UPDATED",
+  message: `User promoted to admin`,
+});
 
     res.status(200).json({
         message : "User role changed successfully",
@@ -855,31 +902,30 @@ export async function searchWorkspaces(req, res) {
     const { query } = req.query;
     const userId = req.userId;
 
-    // 🔥 empty query safe
-    if (!query) {
-      return res.status(200).json({
-        workspaces: [],
-      });
+    let workspaces = [];
+
+    // 🔥 CASE 1: Empty query → RANDOM 10
+    if (!query || query.trim() === "") {
+      workspaces = await workspaceModel.aggregate([
+        { $sample: { size: 10 } }
+      ]);
+    } else {
+      // 🔥 CASE 2: Search
+      workspaces = await workspaceModel
+        .find({
+          name: { $regex: query, $options: "i" },
+        })
+        .limit(10);
     }
 
-    // 🔥 find workspaces (starts with)
-    const workspaces = await workspaceModel.find({
-      name: { $regex: `^${query}`, $options: "i" },
-    }).limit(10);
+    // 🔥 memberships
+    const memberships = await workspaceMemberModel.find({ userId });
+    const joinedIds = memberships.map((m) => m.workspaceId.toString());
 
-    // 🔥 joined workspaces
-    const memberships = await workspaceMemberModel.find({
-      userId,
-    });
-
-    const joinedIds = memberships.map((m) =>
-      m.workspaceId.toString()
-    );
-
-    // 🔥 pending join requests (IMPORTANT FIX)
+    // 🔥 requests
     const requests = await joinRequestModel.find({
       userId,
-      type: "workspace", // 🔥 MUST
+      type: "workspace",
       status: "pending",
     });
 
@@ -887,15 +933,15 @@ export async function searchWorkspaces(req, res) {
       r.workspaceId?.toString()
     );
 
-    // 🔥 FINAL RESULT
+    // 🔥 final result
     const results = workspaces.map((ws) => {
-      const obj = ws.toObject(); // safe
+      const obj = ws.toObject ? ws.toObject() : ws; // aggregate me direct object aata hai
 
       let status = "none";
 
-      if (joinedIds.includes(ws._id.toString())) {
+      if (joinedIds.includes(obj._id.toString())) {
         status = "joined";
-      } else if (requestedIds.includes(ws._id.toString())) {
+      } else if (requestedIds.includes(obj._id.toString())) {
         status = "requested";
       }
 
@@ -906,12 +952,12 @@ export async function searchWorkspaces(req, res) {
     });
 
     return res.status(200).json({
-      message: "Search successful",
+      message: "Success",
       workspaces: results,
     });
 
   } catch (error) {
-    console.error("SEARCH ERROR:", error); // 🔥 DEBUG
+    console.error("SEARCH ERROR:", error);
 
     return res.status(500).json({
       message: error.message || "Internal Server Error",

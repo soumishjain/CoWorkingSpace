@@ -8,45 +8,41 @@ const AssignManagerModal = ({
   onClose,
   onAssignManager,
 }) => {
-
   const [members, setMembers] = useState([]);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchMembers();
   }, []);
 
   const fetchMembers = async () => {
-    try {
-      setLoading(true);
-      const res = await getAllDepartmentMembers(workspaceId, departmentId);
-      setMembers(res.members || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    const res = await getAllDepartmentMembers(workspaceId, departmentId);
+    setMembers(res.members || []);
   };
 
-  const filteredMembers = members.filter((m) =>
-    m.name?.toLowerCase().includes(search.toLowerCase())
+  const filtered = members.filter((m) =>
+    m.name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center">
 
-      {/* MODAL */}
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-xl p-5">
+      <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-5">
 
         {/* HEADER */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Assign Manager
-          </h2>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Assign Manager
+            </h2>
+            <p className="text-xs text-gray-500">
+              Select a member to assign
+            </p>
+          </div>
+
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-sm"
+            className="text-gray-400 hover:text-gray-600 text-lg"
           >
             ✕
           </button>
@@ -54,34 +50,36 @@ const AssignManagerModal = ({
 
         {/* SEARCH */}
         <div className="relative mb-4">
-          <Search size={16} className="absolute left-3 top-2.5 text-gray-400" />
+          <Search
+            size={16}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+          />
           <input
-            type="text"
-            placeholder="Search members..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+            placeholder="Search members..."
+            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
           />
         </div>
 
         {/* LIST */}
-        <div className="max-h-64 overflow-y-auto space-y-2">
+        <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
 
-          {loading ? (
-            <p className="text-sm text-gray-500">Loading members...</p>
-          ) : filteredMembers.length === 0 ? (
-            <p className="text-sm text-gray-400">No members found</p>
+          {filtered.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">
+              No members found
+            </p>
           ) : (
-            filteredMembers.map((m) => (
+            filtered.map((m) => (
               <div
                 key={m._id}
-                className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition"
+                className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-gray-50 transition"
               >
 
-                {/* LEFT: avatar + name */}
+                {/* LEFT */}
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-600">
-                    {m.name?.charAt(0).toUpperCase()}
+                  <div className="w-9 h-9 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-semibold">
+                    {m.name.charAt(0).toUpperCase()}
                   </div>
 
                   <div>
@@ -94,13 +92,13 @@ const AssignManagerModal = ({
                   </div>
                 </div>
 
-                {/* RIGHT: button */}
+                {/* BUTTON */}
                 <button
                   onClick={() => {
                     onAssignManager(departmentId, m._id);
                     onClose();
                   }}
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 text-xs rounded-md transition"
+                  className="text-xs bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded-lg transition"
                 >
                   Assign
                 </button>
@@ -109,16 +107,6 @@ const AssignManagerModal = ({
             ))
           )}
 
-        </div>
-
-        {/* FOOTER */}
-        <div className="mt-4 text-right">
-          <button
-            onClick={onClose}
-            className="text-sm text-gray-500 hover:text-gray-700"
-          >
-            Cancel
-          </button>
         </div>
 
       </div>

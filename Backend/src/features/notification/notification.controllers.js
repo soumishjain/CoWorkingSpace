@@ -102,39 +102,43 @@ export async function getUnreadNotificationCount(req,res){
 }
 export async function getMyRequests(req, res) {
   try {
-    console.log("GET REQ API HIT")
+    console.log("🔥 GLOBAL REQ API HIT");
+
     const userId = req.userId;
-    const workspaceId = req.workspace._id;
 
-    const workspaceMember = await workspaceMemberModel.findOne({
-      userId,
-      workspaceId,
-    });
+    // 🔥 find all memberships (user kaha-kaha hai)
+    const memberships = await workspaceMemberModel.find({ userId });
 
-    if (!workspaceMember) {
-      return res.status(403).json({
-        message: "Not a workspace member",
+    if (!memberships.length) {
+      return res.status(200).json({
+        requests: [],
+        role: "",
       });
     }
 
+    const workspaceIds = memberships.map((m) => m.workspaceId);
+
+    // 🔥 check roles (important)
+    const isAdminAnywhere = memberships.some(m => m.role === "admin");
+
     let requests = [];
 
-    // 🔥 ADMIN → ALL REQUESTS (IMPORTANT FIX)
-    if (workspaceMember.role === "admin") {
+    // ✅ ADMIN → ALL requests from all workspaces
+    if (isAdminAnywhere) {
       requests = await joinRequestModel
         .find({
-          workspaceId, // ✅ MUST MATCH
+          workspaceId: { $in: workspaceIds },
           status: "pending",
         })
         .populate("userId", "name email profileImage")
         .populate("departmentId", "name");
-
-    } else {
-      // 🔥 MANAGER → only his departments
+    } 
+    // ✅ MANAGER → only their departments
+    else {
       const managedDepartments = await departmentMemberModel.find({
         userId,
         role: "manager",
-      }).populate("departmentId")
+      });
 
       const deptIds = managedDepartments.map((d) => d.departmentId);
 
@@ -147,11 +151,10 @@ export async function getMyRequests(req, res) {
         .populate("departmentId", "name");
     }
 
-    console.log("REQUESTS FOUND:", requests); // 🔥 DEBUG
+    console.log("✅ GLOBAL REQUESTS:", requests);
 
     return res.status(200).json({
       requests,
-      role: workspaceMember.role,
     });
 
   } catch (error) {

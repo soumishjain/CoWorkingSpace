@@ -28,7 +28,7 @@ export const AuthProvider = ({children}) => {
     },[])
 
     const logout = async () => {
-        await axios.post('/api/auth/logout', {}, {withCredentials: true})
+        await axios.post('/auth/logout', {}, {withCredentials: true})
         setUser(null)
     }
 

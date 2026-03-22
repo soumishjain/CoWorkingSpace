@@ -25,6 +25,8 @@ export async function createDepartment(req,res){
         })
     }
 
+
+
     const {name , description} = req.body
     const department = await departmentModel.create({
         name : name , 
@@ -32,6 +34,17 @@ export async function createDepartment(req,res){
         workspaceId : workspace._id ,
         createdBy : userId 
     })
+
+    const workspaceId = workspace._id
+    const departmentId = department._id
+
+    await createActivity({
+  workspaceId,
+  departmentId: null,
+  userId,
+  type: "DEPARTMENT_CREATED",
+  message: `${name} department created`
+})
 
     res.status(200).json({
         message : "Department created Successfully",
@@ -154,11 +167,6 @@ export async function addDepartmentManager(req, res) {
       message: `${userName} was assigned as department manager`,
     });
 
-    // 🔥 8. SOCKET (department room)
-    io.to(departmentId.toString()).emit("manager-assigned", {
-      departmentId,
-      managerId: assignedUserId,
-    });
 
     // 🔥 9. NOTIFICATION
     await createNotification({
@@ -239,12 +247,7 @@ export async function addMemberInDepartment(req,res){
         departmentId : department._id,
         userId : headId,
         type : "MEMBER_ADDED",
-        message : `added a member to department`
-    })
-
-    io.to(department._id.toString()).emit("member-added",{
-        departmentId : department._id,
-        userId : newUserId
+        message : `Member Added to Department`
     })
 
     await createNotification({
@@ -315,16 +318,12 @@ export async function deleteDepartment(req, res) {
     // 🔥 5. ACTIVITY LOG
     await createActivity({
       workspaceId,
-      departmentId,
+      departmentId: null,
       userId,
       type: "DEPARTMENT_DELETED",
       message: `${department.name} department was deleted`,
     });
 
-    // 🔥 6. SOCKET EVENT
-    io.to(workspaceId.toString()).emit("department-deleted", {
-      departmentId,
-    });
 
     // 🔥 7. RESPONSE
     return res.status(200).json({
@@ -368,14 +367,11 @@ export async function updateDepartment(req,res) {
         await createActivity({
         workspaceId : workspace._id,
         departmentId : department._id,
-        userId : headId,
+        userId,
         type : "DEPARTMENT_UPDATED",
         message : `department updated`
     })
 
-    io.to(department._id.toString()).emit("department-updated",{
-        departmentId : department._id,
-    })
 
         return res.status(200).json({
             message : "Department Updated Successfully",
@@ -540,16 +536,11 @@ export async function leaveDepartment(req, res) {
       workspaceId,
       departmentId,
       userId,
-      type: "MEMBER-LEFT",
+      type: "MEMBER_LEFT",
       message: `${userName} left the department`,
     });
 
-    // 🔥 7. SOCKET (department room)
-    io.to(departmentId.toString()).emit("member-left", {
-      departmentId,
-      userId,
-    });
-
+    // 🔥 7. SOCKET (department room
     // 🔥 8. NOTIFY MANAGER (if exists & not same user)
     if (manager && manager.userId.toString() !== userId.toString()) {
       await createNotification({
@@ -664,12 +655,7 @@ export async function removeMemberFromDepartment(req,res) {
         departmentId : department._id,
         userId : headId,
         type : "MEMBER_REMOVED",
-        message : `removed a member from department`
-    })
-
-    io.to(department._id.toString()).emit("member-removed",{
-        departmentId : department._id,
-        userId : removeUserId
+        message : `Member removed from department`
     })
 
     await createNotification({
@@ -781,11 +767,15 @@ export async function joinDepartment(req, res) {
         type: "JOIN_REQUEST",
         message: `${userName} requested to join ${department.name}`,
       });
-
-      io.to(manager.userId.toString()).emit("join-request", {
-        departmentId,
-      });
+      await createActivity({
+  workspaceId,
+  departmentId,
+  userId,
+  type: "JOIN_REQUEST_SENT",
+  message: `Requested to join department`
+})
     }
+
 
     return res.status(201).json({
       message: "Request sent successfully",
@@ -850,8 +840,12 @@ export async function approveDepartmentJoinRequest (req,res) {
     message : `Your request to join ${department.name} was approved`
 })
 
-io.to(request.userId.toString()).emit("join-request-approved",{
-    departmentId : department._id
+await createActivity({
+  workspaceId,
+  departmentId,
+  userId: request.userId,
+  type: "MEMBER_JOINED",
+  message: `User joined department`
 })
 
     res.status(200).json({
@@ -904,10 +898,13 @@ export async function rejectDepartmentJoinRequest(req,res){
     message : `Your request to join ${department.name} was rejected`
 })
 
-io.to(request.userId.toString()).emit("join-request-rejected",{
-    departmentId : department._id
+await createActivity({
+  workspaceId,
+  departmentId,
+  userId: request.userId,
+  type: "JOIN_REQUEST_REJECTED",
+  message: `Join request rejected`
 })
-
 
     res.status(200).json({
         message : "Join request rejected"

@@ -94,3 +94,28 @@ export const rejectRequest = async (requestId) => {
     throw err.response?.data?.message || "Failed to approve";
   }
 };
+export const searchWorkspaceMembers = async (workspaceId, query) => {
+  const res = await axios.get(
+    `/auth/search-members/${workspaceId}?query=${query}`,
+    { withCredentials: true }
+  );
+  return res.data;
+};
+
+export const removeMember = async (workspaceId, userId) => {
+  const res = await axios.post(
+    `/workspace/remove/${workspaceId}/${userId}`,
+    {},
+    { withCredentials: true }
+  );
+  return res.data;
+};
+
+export const leaveWorkspace = async (workspaceId) => {
+  const res = await axios.post(
+    `/workspace/leave/${workspaceId}`,
+    {},
+    {withCredentials : true}
+  )
+  return res.data
+}

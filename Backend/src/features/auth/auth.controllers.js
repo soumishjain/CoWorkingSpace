@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import { sendEmail } from "../../services/mail.services.js"
 import ImageKit from '@imagekit/nodejs' 
+import workspaceMemberModel from "../../models/workspaceMember.models.js"
 
 const imagekit = new ImageKit({
   privateKey: process.env.IMAGE_KIT_PRIVATE_KEY,
@@ -251,3 +252,44 @@ export async function getMe(req,res) {
    });
     }
 }
+
+export const searchWorkspaceMembers = async (req, res) => {
+  try {
+    const { workspaceId } = req.params;
+    const { query = "" } = req.query; // 🔥 default empty
+
+    // 🔥 find members + populate user
+    const members = await workspaceMemberModel.find({
+      workspaceId,
+    }).populate({
+      path: "userId",
+      select: "name email profileImage",
+    });
+
+    // 🔥 filter (case insensitive)
+    const filtered = members.filter((m) =>
+      m.userId?.name
+        ?.toLowerCase()
+        .includes(query.toLowerCase())
+    );
+
+    // 🔥 send clean data + role
+    const users = filtered.map((m) => ({
+      _id: m.userId._id,
+      name: m.userId.name,
+      email: m.userId.email,
+      profileImage: m.userId.profileImage,
+      role: m.role, // 🔥 IMPORTANT (admin tag ke liye)
+    }));
+
+    return res.status(200).json({
+      users,
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Failed to search members",
+    });
+  }
+};

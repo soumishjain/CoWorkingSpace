@@ -98,10 +98,7 @@ const CardContainer = () => {
           >
             <Bell size={20} />
 
-            {/* 🔴 static badge (baad me dynamic kar lena) */}
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1 rounded-full">
-              3
-            </span>
+           
           </button>
 
           {/* 🔥 JOIN BUTTON */}

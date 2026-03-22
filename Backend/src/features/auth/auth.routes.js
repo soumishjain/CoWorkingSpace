@@ -1,5 +1,5 @@
 import express from 'express'
-import { getMe, loginUser, logoutUser, registerUser, verifyEmail } from './auth.controllers.js'
+import { getMe, loginUser, logoutUser, registerUser, searchWorkspaceMembers, verifyEmail } from './auth.controllers.js'
 import { identifyUser } from '../../middleware/auth.middleware.js'
 import multer from 'multer'
 
@@ -12,5 +12,6 @@ authRouter.post('/login',loginUser)
 authRouter.post('/logout',logoutUser)
 authRouter.get('/verify-email',verifyEmail)
 authRouter.get('/getme' ,identifyUser, getMe)
+authRouter.get('/search-members/:workspaceId',identifyUser,searchWorkspaceMembers)
 
 export default authRouter

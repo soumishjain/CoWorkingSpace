@@ -4,11 +4,12 @@ import app from './src/app.js'
 
 const server = http.createServer(app)
 
-export const io = new Server(server , {
-    cors : {
-        origin : '*'
-    }
-})
+export const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173", // 🔥 exact frontend URL
+    credentials: true,
+  },
+});
 
 process.on("uncaughtException" , (err) => {
     console.error("uncaught Exception", err)

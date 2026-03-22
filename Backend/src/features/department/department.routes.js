@@ -24,9 +24,9 @@ departmentRouter.post('/leave/:workspaceId/:departmentId',identifyUser,validateW
 
 departmentRouter.post('/join-department/:workspaceId/:departmentId',identifyUser,validateWorkspace,validateDepartment,joinDepartment)
 
-departmentRouter.post('/join-department/reject/:workspaceId/:departmentId/:reqId',identifyUser,validateWorkspace,validateDepartment,rejectDepartmentJoinRequest)
+departmentRouter.patch('/join-department/reject/:workspaceId/:departmentId/:reqId',identifyUser,validateWorkspace,validateDepartment,rejectDepartmentJoinRequest)
 
-departmentRouter.post('/join-department/approve/:workspaceId/:departmentId/:reqId',identifyUser,validateWorkspace,validateDepartment,approveDepartmentJoinRequest)
+departmentRouter.patch('/join-department/approve/:workspaceId/:departmentId/:reqId',identifyUser,validateWorkspace,validateDepartment,approveDepartmentJoinRequest)
 
 departmentRouter.get('/get-departments-of-this-workspace/:workspaceId',identifyUser,validateWorkspace,getAllDepartmentsOfThisWorkspace)
 

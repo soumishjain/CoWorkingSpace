@@ -9,6 +9,6 @@ notificationRouter.get('/',identifyUser,getMyNotification)
 notificationRouter.patch('/:notificationId',identifyUser,markNotification)
 notificationRouter.get('/unread-count',identifyUser,getUnreadNotificationCount)
 notificationRouter.patch('/mark-all-read',identifyUser,markAllNotificationAsRead)
-notificationRouter.get('/requests/:workspaceId',identifyUser,validateWorkspace,getMyRequests)
+notificationRouter.get('/requests',identifyUser,getMyRequests)
 
 export default notificationRouter
