@@ -14,6 +14,7 @@ import aiRouter from './features/ai/ai.routes.js'
 import { apiLimiter } from './middleware/rateLimit.middleware.js'
 import { globalErrorHandler } from './middleware/error.middleware.js'
 import cors from 'cors'
+import leaderboardRouter from './features/leaderboard/leaderboard.routes.js'
 const app = express()
 
 connectToDb()
@@ -36,5 +37,6 @@ app.use('/api/subtask',subtaskRouter)
 app.use('/api/activity',activityRouter)
 app.use('/api/notifications',notificationRouter)
 app.use('/api/ai',aiRouter)
+app.use('/api/leaderboard',leaderboardRouter)
 
 export default  app

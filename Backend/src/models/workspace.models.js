@@ -6,7 +6,7 @@ const workspaceSchema = new mongoose.Schema({
         required : true,
         trim : true,
         lowercase : true,
-        unique : true
+        unique: true
     },
     description : {
         type : String,

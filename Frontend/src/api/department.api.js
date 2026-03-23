@@ -158,17 +158,19 @@ export const getAllDepartmentMembers = async (workspaceId, departmentId) => {
       { withCredentials: true }
     );
 
-    // 🔥 transform data
-    const members = res.data.departmentMembers.map((m) => ({
-      _id: m.userId._id,
-      name: m.userId.name,
-      email: m.userId.email,
-      profileImage: m.userId.profileImage,
+    console.log("RAW API:", res.data);
+
+    const members = (res.data.safeMembers || []).map((m) => ({
+      _id: m?.userId?._id,
+      name: m?.userId?.name,
+      email: m?.userId?.email,
+      profileImage: m?.userId?.profileImage,
     }));
 
     return { members };
 
   } catch (error) {
-    throw error.response?.data?.message || "Failed to fetch members";
+    console.error("API ERROR:", error);
+    throw error;
   }
 };

@@ -67,6 +67,10 @@ const AppRoutes = () => {
           element={<ActivityPage />}
         />
 
+        <Route
+          path='workspace/:workspaceId/department/:departmentId/activity'
+          element={<ActivityPage />}
+        />
 
         {/* ❌ DELETE DEPARTMENT */}
         <Route

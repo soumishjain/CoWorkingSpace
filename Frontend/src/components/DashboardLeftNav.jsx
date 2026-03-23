@@ -8,9 +8,13 @@ import {
 } from "react-router-dom";
 import {
   LayoutDashboard,
-  Settings,
+  Trophy,
+  ListTodo,
+  UserCheck,
+  MessageCircle,
+  Activity,
+  Users,
   LogOut,
-  Bell,
   Menu,
   TrashIcon,
   BuildingIcon,
@@ -49,26 +53,38 @@ const DashboardLeftNav = () => {
 
   // 🔥 NAV ITEMS
   const navItems = useMemo(() => {
+    // ✅ DEPARTMENT LEVEL (Leaderboard-first)
     if (departmentId) {
       return [
         {
-          name: "Dashboard",
+          name: "Leaderboard",
           path: `/dashboard/workspace/${workspaceId}/department/${departmentId}`,
-          icon: <LayoutDashboard size={20} />,
-        },
-        {
-          name: "Members",
-          path: `/dashboard/workspace/${workspaceId}/department/${departmentId}/members`,
-          icon: <Bell size={20} />,
+          icon: <Trophy size={20} />,
         },
         {
           name: "Tasks",
           path: `/dashboard/workspace/${workspaceId}/department/${departmentId}/tasks`,
-          icon: <Settings size={20} />,
+          icon: <ListTodo size={20} />,
+        },
+        {
+          name: "My Work",
+          path: `/dashboard/workspace/${workspaceId}/department/${departmentId}/my-work`,
+          icon: <UserCheck size={20} />,
+        },
+        {
+          name: "Chat",
+          path: `/dashboard/workspace/${workspaceId}/department/${departmentId}/chat`,
+          icon: <MessageCircle size={20} />,
+        },
+        {
+          name: "Activity",
+          path: `/dashboard/workspace/${workspaceId}/department/${departmentId}/activity`,
+          icon: <Activity size={20} />,
         },
       ];
     }
 
+    // ✅ WORKSPACE LEVEL
     if (workspaceId) {
       return [
         {
@@ -84,7 +100,7 @@ const DashboardLeftNav = () => {
         {
           name: "Activity Log",
           path: `/dashboard/workspace/${workspaceId}/activity`,
-          icon: <Bell size={20} />,
+          icon: <Activity size={20} />,
         },
         ...(isAdmin
           ? [
@@ -98,23 +114,29 @@ const DashboardLeftNav = () => {
       ];
     }
 
+    // ✅ GLOBAL LEVEL
     return [
-      {
-        name: "Dashboard",
-        path: "/dashboard",
-        icon: <LayoutDashboard size={20} />,
-      },
-      {
-        name: "Delete",
-        path: "/dashboard/delete-workspace",
-        icon: <TrashIcon size={20} />,
-      },
-      {
-        name: "Settings",
-        path: "/settings",
-        icon: <Settings size={20} />,
-      },
-    ];
+  {
+    name: "Dashboard",
+    path: "/dashboard",
+    icon: <LayoutDashboard size={20} />,
+  },
+  {
+    name: "Explore",
+    path: "/dashboard/explore",
+    icon: <Trophy size={20} />,
+  },
+  {
+    name: "Delete",
+    path: "/dashboard/delete-workspace",
+    icon: <TrashIcon size={20} />,
+  },
+  {
+    name: "Settings",
+    path: "/settings",
+    icon: <UserCheck size={20} />,
+  },
+];
   }, [workspaceId, departmentId, isAdmin]);
 
   // 🔥 LOGOUT
@@ -132,9 +154,10 @@ const DashboardLeftNav = () => {
     <>
       {/* Logo */}
       <div className="px-6 flex justify-center py-4 border-b border-gray-200">
-        <h1 onClick={() => {
-          navigate('/dashboard')
-        }} className="hover:text-[var(--color-primary)]/80 cursor-pointer text-xl font-bold text-[var(--color-primary)]">
+        <h1
+          onClick={() => navigate("/dashboard")}
+          className="cursor-pointer text-xl font-bold text-[var(--color-primary)]"
+        >
           CoworkSpace
         </h1>
       </div>
@@ -147,13 +170,13 @@ const DashboardLeftNav = () => {
           alt="avatar"
         />
 
-        <h2 className="mt-3 font-semibold text-lg text-[var(--color-text)]">
+        <h2 className="mt-3 font-semibold text-lg">
           {user?.name}
         </h2>
 
         <p className="text-sm text-gray-500">
           {departmentId
-            ? "Department"
+            ? "Department Member"
             : workspaceId
             ? isAdmin
               ? "Admin"
@@ -164,29 +187,30 @@ const DashboardLeftNav = () => {
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-6">
-        <ul className="space-y-2">
-          {navItems.map((item) => (
-            <li key={item.name}>
-              <NavLink
-                to={item.path}
-                onClick={() => setOpen(false)}
-                className={() => {
-                  const isActive = location.pathname === item.path;
-
-                  return `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium ${
-                    isActive
-                      ? "bg-[var(--color-primary)] text-white"
-                      : "text-gray-600 hover:bg-gray-100"
-                  }`;
-                }}
-              >
-                {item.icon}
-                {item.name}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-      </nav>
+  <ul className="space-y-2">
+    {navItems.map((item) => (
+      <li key={item.name}>
+        <NavLink
+          to={item.path}
+          end={
+            true
+          } // 👈 ONLY dashboard exact match
+          onClick={() => setOpen(false)}
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition ${
+              isActive
+                ? "bg-[var(--color-primary)] text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`
+          }
+        >
+          {item.icon}
+          {item.name}
+        </NavLink>
+      </li>
+    ))}
+  </ul>
+</nav>
 
       {/* Bottom */}
       <div className="p-4 border-t border-gray-200 space-y-3">

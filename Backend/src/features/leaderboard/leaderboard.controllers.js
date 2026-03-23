@@ -1,6 +1,7 @@
 import mongoose from "mongoose"
-import departmentMemberModel from "../../models/departmentMember.models"
-import workspaceMemberModel from "../../models/workspaceMember.models"
+import departmentMemberModel from "../../models/departmentMember.models.js"
+import workspaceMemberModel from "../../models/workspaceMember.models.js"
+import monthlyLeaderboardModel from "../../models/monthlyLeaderboard.models.js"
 
 export async function getDepartmentLeaderBoard(req,res) {
     try{
@@ -30,8 +31,11 @@ export async function getDepartmentLeaderBoard(req,res) {
             {
                 $sort :{
                     currentMonthPoints : -1,
-                    $limit : 50
                 }
+            },
+            {
+                    $limit : 50
+
             },
             {
                 $lookup : {
@@ -99,7 +103,6 @@ export async function getTopPerformers(req,res){
             {
                 $sort : {
                     currentMonthPoints : -1,
-                    $limit : 50
                 }
             },
             {
@@ -143,72 +146,76 @@ export async function getTopPerformers(req,res){
     }
 }
 
-export async function getMyRank(req,res) {
-    try{
-        
-        const userId = req.userId
-        const department = req.department
-        const departmentId = department._id
+export async function getMyRank(req, res) {
+  try {
+    const userId = req.userId;
+    const departmentId = req.department._id;
+    const workspaceId = req.workspace._id;
 
-        const user = await departmentMemberModel.findOne({userId , departmentId})
+    // 🔥 check roles
+    const user = await departmentMemberModel.findOne({ userId, departmentId });
+    const admin = await workspaceMemberModel.findOne({
+      userId,
+      workspaceId,
+      role: "admin",
+    });
 
-        if(!user){
-            return res.status(403).json({
-                message : "Not Authorized"
-            })
-        }
-
-        if(user.role === 'manager') {
-            return res.status(403).json({
-                message : "Manager dont have any rank"
-            })
-        }
-
-        if(!user){
-            return res.status(403).json({
-                message : "Not authorized"
-            })
-        }
-
-        const leaderboard = await departmentMemberModel.aggregate([
-            {
-                $match : {
-                    departmentId : new mongoose.Types.ObjectId(departmentId),
-                    role : 'employee'
-                }
-            },
-            {
-                $sort : {
-                    currentMonthPoints : -1,
-                }
-            }
-        ])
-
-        const index = leaderboard.findIndex(
-            member => member.userId.toString() === userId
-        )
-
-        if(index === -1){
-            return res.status(404).json({
-                message : "user not found in leaderboard"
-            })
-        }
-
-        const myData = leaderboard[index]
-
-        return res.status(200).json({
-            rank : index + 1,
-            points : myData.currentMonthPoints,
-            totalMembers : leaderboard.length
-        })
-
+    // ❌ block only if neither
+    if (!user && !admin) {
+      return res.status(403).json({
+        message: "Not Authorized",
+      });
     }
-    catch(error){
-        console.error(error)
-        return res.status(500).json({
-            message : "Internal Server Error"
-        })
+
+    // 🔥 leaderboard only employees
+    const leaderboard = await departmentMemberModel.aggregate([
+      {
+        $match: {
+          departmentId: new mongoose.Types.ObjectId(departmentId),
+          role: "employee",
+        },
+      },
+      {
+        $sort: { currentMonthPoints: -1 },
+      },
+    ]);
+
+    // 🔥 if user is NOT employee (admin/manager)
+    if (!user || user.role !== "employee") {
+      return res.status(200).json({
+        rank: null,
+        points: 0,
+        totalMembers: leaderboard.length,
+        message: "Not competing in leaderboard",
+      });
     }
+
+    // 🔥 find rank
+    const index = leaderboard.findIndex(
+      (m) => m.userId.toString() === userId
+    );
+
+    if (index === -1) {
+      return res.status(200).json({
+        rank: null,
+        points: user.currentMonthPoints || 0,
+        totalMembers: leaderboard.length,
+      });
+    }
+
+    const myData = leaderboard[index];
+
+    return res.status(200).json({
+      rank: index + 1,
+      points: myData.currentMonthPoints,
+      totalMembers: leaderboard.length,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }
 
 export async function getLeaderboardStats(req , res) {
@@ -292,7 +299,7 @@ export async function getMyPosition(req,res) {
     let nextRankPoints = null
     let pointsNeeded = null
     if(index > 0){
-        const nexUser = leaderboard[index-1]
+        const nextUser = leaderboard[index-1]
 
         nextRankPoints = nextUser.currentMonthPoints
         pointsNeeded = nextUser.currentMonthPoints - myData.currentMonthPoints
@@ -311,4 +318,59 @@ export async function getMyPosition(req,res) {
             message : "Internal Server Error"
         })
     }
+}
+
+export async function getPreviousMonthWinner(req, res) {
+  try {
+    const departmentId = req.department._id;
+    const workspaceId = req.workspace._id;
+
+    const now = new Date();
+
+    // 🔥 last month calculate
+    let month = now.getMonth(); // current month -1 automatically
+    let year = now.getFullYear();
+
+    if (month === 0) {
+      month = 12;
+      year -= 1;
+    }
+
+    // 🔥 find last month leaderboard
+    const leaderboard = await monthlyLeaderboardModel.findOne({
+      departmentId,
+      workspaceId,
+      month,
+      year,
+    }).populate("rankings.userId", "name email profileImage");
+
+    if (!leaderboard || leaderboard.rankings.length === 0) {
+      return res.status(200).json({
+        winner: null,
+      });
+    }
+
+    // 🔥 top performer = rank 1
+    const top = leaderboard.rankings.find((r) => r.rank === 1);
+
+    if (!top) {
+      return res.status(200).json({
+        winner: null,
+      });
+    }
+
+    return res.status(200).json({
+      winner: {
+        name: top.userId.name,
+        email: top.userId.email,
+        profileImage: top.userId.profileImage,
+        points: top.points,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }

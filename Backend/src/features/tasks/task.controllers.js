@@ -272,127 +272,143 @@ export async function getAllTasks(req,res) {
    }
 }
 
-export async function approveTask(req,res) {
 
-    try{
-        const {taskId} = req.params
-    const userId = req.userId
+export async function approveTask(req, res) {
+  const session = await mongoose.startSession();
 
-    const task = await taskModel.findById(taskId)
+  try {
+    const { taskId } = req.params;
+    const userId = req.userId;
 
-    if(!task){
-        return res.status(404).json({
-            message : "Task Not Found"
-        })
+    const task = await taskModel.findById(taskId);
+
+    if (!task) {
+      return res.status(404).json({
+        message: "Task Not Found",
+      });
     }
 
-    const departmentId = task.departmentId
+    const departmentId = task.departmentId;
 
-    const departmentManager = await departmentMemberModel.findOne({userId , departmentId , role : 'manager'})
+    const departmentManager = await departmentMemberModel.findOne({
+      userId,
+      departmentId,
+      role: "manager",
+    });
 
-    if(!departmentManager) {
-        return res.status(403).json({
-            message : "Not Authorized"
-        })
+    if (!departmentManager) {
+      return res.status(403).json({
+        message: "Not Authorized",
+      });
     }
 
-    if(task.status !== 'awaiting-approval') {
-        return res.status(400).json({
-            message : "Task is not awaiting approval"
-        })
+    if (task.status !== "awaiting-approval") {
+      return res.status(400).json({
+        message: "Task is not awaiting approval",
+      });
     }
 
-    const subtasks = await subtaskModel.find({taskId})
+    const subtasks = await subtaskModel.find({ taskId });
 
-    if(subtasks.length === 0) {
-        return res.status(400).json({
-            message : "Task has no subtask"
-        })
+    if (subtasks.length === 0) {
+      return res.status(400).json({
+        message: "Task has no subtask",
+      });
     }
 
-    const incomplete = subtasks.find(s => s.status !== 'completed')
+    const incomplete = subtasks.find(
+      (s) => s.status !== "completed"
+    );
 
-    if(incomplete) {
-        return res.status(400).json({
-            message : "All subtasks must me completed before approval"
-        })
+    if (incomplete) {
+      return res.status(400).json({
+        message: "All subtasks must be completed before approval",
+      });
     }
 
-    const session = await mongoose.startSession()
-
+    // 🔥 TRANSACTION
     await session.withTransaction(async () => {
+      for (const subtask of subtasks) {
+        if (!subtask.completedBy) continue;
 
-        for(const subtask of subtasks) {
-            if(!subtask.completedBy) continue
+        const member = await departmentMemberModel.findOne({
+          userId: subtask.completedBy,
+          departmentId,
+        }).session(session);
 
-            const member = await departmentMemberModel.findOne({
-                userId : subtask.completedBy,
-                departmentId,
-            }).session(session)
-
-            if(member) {
-                member.currentMonthPoints += subtask.points
-                await member.save({session})
-            }
+        if (member) {
+          member.currentMonthPoints += subtask.points;
+          await member.save({ session });
         }
+      }
 
-        task.status = 'completed'
-        task.progress = 100
-        task.approvedBy = userId
-        task.approvedAt = new Date()
+      task.status = "completed";
+      task.progress = 100;
+      task.approvedBy = userId;
+      task.approvedAt = new Date();
 
-        await task.save({session})
-    })
+      await task.save({ session });
+    });
 
-    session.endSession()
+    await session.endSession();
 
+    // 🔥 ACTIVITY
     await createActivity({
-        workspaceId : task.workspaceId,
-        departmentId,
-        userId,
-        type : "TASK_APPROVED",
-        message : `approve task ${task.title}`
-    })
+      workspaceId: task.workspaceId,
+      departmentId,
+      userId,
+      type: "TASK_APPROVED",
+      message: `approved task ${task.title}`,
+    });
 
+    // 🔥 REALTIME LEADERBOARD UPDATE (IMPORTANT 🔥)
+    io.to(departmentId.toString()).emit("leaderboard-updated", {
+      departmentId,
+    });
+
+    // 🔥 TASK EVENT
     io.to(departmentId.toString()).emit("task-approved", {
-        taskId : task._id,
-        approvedBy : userId
-    })
+      taskId: task._id,
+      approvedBy: userId,
+    });
 
-    // notify assigned members
-await Promise.all(
-    task.assignedMembers.map(memberId => 
+    // 🔥 NOTIFICATIONS
+    await Promise.all(
+      task.assignedMembers.map((memberId) =>
         createNotification({
-            workspaceId : task.workspaceId,
-            departmentId : departmentId,
-            userId : memberId,
-            type : "TASK_APPROVED",
-            message : `Task "${task.title}" has been approved`
+          workspaceId: task.workspaceId,
+          departmentId,
+          userId: memberId,
+          type: "TASK_APPROVED",
+          message: `Task "${task.title}" has been approved`,
         })
-    )
-)
+      )
+    );
 
-task.assignedMembers.forEach(memberId => {
-    io.to(memberId.toString()).emit("notification", {
-        type : "TASK_APPROVED",
-        taskId : task._id,
-        title : task.title
-    })
-})
-    
+    // 🔥 SOCKET NOTIFY USERS
+    task.assignedMembers.forEach((memberId) => {
+      io.to(memberId.toString()).emit("notification", {
+        type: "TASK_APPROVED",
+        taskId: task._id,
+        title: task.title,
+      });
+    });
 
     return res.status(200).json({
-        message : "task approved successfully"
-    })
-    }catch(error){
-        console.error(error)
-        res.status(500).json({
-            message : "Internal Server Error"
-        })
-    }
+      message: "Task approved successfully",
+    });
+  } catch (error) {
+    console.error(error);
 
+    await session.abortTransaction(); // 🔥 safety
+
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  } finally {
+    session.endSession();
+  }
 }
-
 export async function rejectTask(req,res) {
     
     try{

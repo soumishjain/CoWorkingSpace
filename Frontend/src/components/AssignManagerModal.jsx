@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getAllDepartmentMembers } from "../api/department.api";
-import { Search } from "lucide-react";
+import { Search, Loader2 } from "lucide-react";
 
 const AssignManagerModal = ({
   workspaceId,
@@ -10,39 +10,58 @@ const AssignManagerModal = ({
 }) => {
   const [members, setMembers] = useState([]);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (!workspaceId || !departmentId) return;
     fetchMembers();
-  }, []);
+  }, [workspaceId, departmentId]);
 
   const fetchMembers = async () => {
-    const res = await getAllDepartmentMembers(workspaceId, departmentId);
-    setMembers(res.members || []);
+    setLoading(true);
+    try {
+      const res = await getAllDepartmentMembers(
+        workspaceId,
+        departmentId
+      );
+      setMembers(res.members || []);
+    } catch (error) {
+      console.error("FETCH ERROR:", error);
+      setMembers([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filtered = members.filter((m) =>
-    m.name.toLowerCase().includes(search.toLowerCase())
+    (m.name || "").toLowerCase().includes(search.toLowerCase())
   );
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center">
+  console.log("MODAL DATA:", {
+  workspaceId,
+  departmentId,
+});
 
-      <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-5">
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center px-4">
+
+      {/* MODAL */}
+      <div className="w-full max-w-lg bg-white/90 backdrop-blur-xl border border-gray-200 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] p-6">
 
         {/* HEADER */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-start justify-between mb-5">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">
               Assign Manager
             </h2>
-            <p className="text-xs text-gray-500">
-              Select a member to assign
+            <p className="text-sm text-gray-500 mt-1">
+              Choose a team member to promote
             </p>
           </div>
 
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-lg"
+            className="text-gray-400 hover:text-gray-700 transition"
           >
             ✕
           </button>
@@ -58,35 +77,56 @@ const AssignManagerModal = ({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search members..."
-            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition"
           />
         </div>
 
         {/* LIST */}
-        <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+        <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
 
-          {filtered.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-4">
+          {/* LOADING */}
+          {loading && (
+            <div className="flex justify-center py-6">
+              <Loader2 className="animate-spin text-gray-400" size={20} />
+            </div>
+          )}
+
+          {/* EMPTY */}
+          {!loading && filtered.length === 0 && (
+            <p className="text-center text-sm text-gray-400 py-6">
               No members found
             </p>
-          ) : (
+          )}
+
+          {/* MEMBERS */}
+          {!loading &&
             filtered.map((m) => (
               <div
                 key={m._id}
-                className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-gray-50 transition"
+                className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition group"
               >
-
                 {/* LEFT */}
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-semibold">
-                    {m.name.charAt(0).toUpperCase()}
-                  </div>
 
+                  {/* AVATAR */}
+                  {m.profileImage ? (
+                    <img
+                      src={m.profileImage}
+                      alt="avatar"
+                      className="w-10 h-10 rounded-full object-cover border"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-semibold text-sm">
+                      {(m.name || "?")[0].toUpperCase()}
+                    </div>
+                  )}
+
+                  {/* INFO */}
                   <div>
-                    <p className="text-sm font-medium text-gray-800">
+                    <p className="text-sm font-medium text-gray-900">
                       {m.name}
                     </p>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-gray-500">
                       {m.email}
                     </p>
                   </div>
@@ -95,18 +135,20 @@ const AssignManagerModal = ({
                 {/* BUTTON */}
                 <button
                   onClick={() => {
+                    console.log("ASSIGN CLICK:", {
+  workspaceId,
+  departmentId,
+  userId: m._id
+});
                     onAssignManager(departmentId, m._id);
                     onClose();
                   }}
-                  className="text-xs bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded-lg transition"
+                  className="text-xs px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-medium shadow-sm hover:opacity-90 active:scale-95 transition"
                 >
                   Assign
                 </button>
-
               </div>
-            ))
-          )}
-
+            ))}
         </div>
 
       </div>

@@ -119,3 +119,11 @@ export const leaveWorkspace = async (workspaceId) => {
   )
   return res.data
 }
+
+// 🔥 Fetch Workspace Members
+export const fetchWorkspaceMembers = (workspaceId) => {
+  return axios.get(
+    `/workspace/get-workspace-members/${workspaceId}`,
+    { withCredentials: true }
+  );
+};

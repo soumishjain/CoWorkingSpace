@@ -595,10 +595,12 @@ export async function getAllDepartmentMembers(req,res){
 
     const departmentMembers = await departmentMemberModel.find({departmentId}).populate("userId" , "name email profileImage")
 
+    const safeMembers = departmentMembers.filter(m => m.userId)
+
     res.status(200).json({
         message : "All department Members fetched successfully",
-        total : departmentMembers.length,
-        departmentMembers
+        total : safeMembers.length,
+        safeMembers
     })
     }catch(error){
         console.error(error)

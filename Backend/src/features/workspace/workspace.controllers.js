@@ -40,7 +40,7 @@ export async function createWorkspace(req,res){
 
     if(isNameAlreadyExists){
         return res.status(409).json({
-            messaege : "Workspace with this name already exists"
+            message : "Workspace with this name already exists"
         })
     }
 

@@ -4,11 +4,12 @@ export const useActivityState = create((set) => ({
   activities: [],
   page: 1,
   hasMore: true,
-  loading: false,
+  loading: false, // 🔥 important
 
   setActivities: (data) =>
     set((state) => ({
-      activities: typeof data === "function" ? data(state.activities) : data,
+      activities:
+        typeof data === "function" ? data(state.activities) : data,
     })),
 
   appendActivities: (data) =>
@@ -30,6 +31,6 @@ export const useActivityState = create((set) => ({
       activities: [],
       page: 1,
       hasMore: true,
-      loading: false,
+      loading: false, // 🔥 important
     }),
 }));

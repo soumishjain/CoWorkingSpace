@@ -1,11 +1,10 @@
 import { fetchActivities } from "../api/activity.api";
-import { socket } from "../socket"; // 🔥 make sure socket export ho
+import { socket } from "../socket";
 
 export const useActivity = (state, workspaceId, departmentId) => {
 
   const loadActivities = async () => {
-    if (!workspaceId) return; // 🔥 workspace required
-
+    if (!workspaceId) return;
     if (!state.hasMore || state.loading) return;
 
     state.setLoading(true);
@@ -28,41 +27,37 @@ export const useActivity = (state, workspaceId, departmentId) => {
 
     } catch (err) {
       console.error("ACTIVITY ERROR:", err);
+    }finally{
+
+      state.setLoading(false);
     }
 
-    state.setLoading(false);
   };
 
-
-  // 🔥 SOCKET LISTENER
+  // 🔥 SOCKET INIT
   const initSocket = () => {
-    if (!workspaceId) return;
-
-    // 🔥 join workspace room
     socket.emit("join-workspace", workspaceId);
 
     if (departmentId) {
       socket.emit("join-department", departmentId);
     }
 
-    // 🔥 workspace activity
-    socket.on("new-activity", (activity) => {
-      state.setActivities((prev) => [activity, ...prev]);
-    });
+    const handleActivity = (activity) => {
+      state.setActivities((prev) => {
+        if (prev.some((a) => a._id === activity._id)) return prev;
+        return [activity, ...prev];
+      });
+    };
 
-    // 🔥 department activity (optional)
-    socket.on("new-department-activity", (activity) => {
-      state.setActivities((prev) => [activity, ...prev]);
-    });
+    socket.on("new-activity", handleActivity);
+    socket.on("new-department-activity", handleActivity);
   };
-
 
   // 🔥 CLEANUP
   const cleanupSocket = () => {
     socket.off("new-activity");
     socket.off("new-department-activity");
   };
-
 
   return {
     loadActivities,
