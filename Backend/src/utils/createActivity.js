@@ -1,5 +1,5 @@
+import { getIO } from "../lib/socket.js";
 import activityModel from "../models/activity.models.js";
-import { io } from "../../server.js";
 
 export async function createActivity({
   workspaceId,
@@ -25,7 +25,7 @@ export async function createActivity({
     );
 
     // 🔥 3. EMIT WORKSPACE LEVEL (GLOBAL FEED)
-    io.to(workspaceId.toString()).emit("new-activity", populatedActivity);
+    getIO.to(workspaceId.toString()).emit("new-activity", populatedActivity);
 
     // 🔥 4. EMIT DEPARTMENT LEVEL (OPTIONAL)
     if (departmentId) {

@@ -4,8 +4,8 @@ import subtaskModel from "../../models/subtask.models.js";
 import taskModel from "../../models/task.models.js";
 import workspaceMemberModel from "../../models/workspaceMember.models.js";
 import { createActivity } from "../../utils/createActivity.js";
-import { io } from "../../../server.js";
 import { createNotification } from "../../utils/createNotification.js";
+import { getIO } from "../../lib/socket.js";
 
 export async function createTask(req,res) {
 
@@ -13,6 +13,8 @@ export async function createTask(req,res) {
         const userId = req.userId;
     const workspace = req.workspace ;
     const department = req.department;
+const io = getIO()
+    
 
 
     const {title , description , priority , deadline , assignedMembers, subtasks} = req.body
@@ -281,6 +283,8 @@ export async function approveTask(req, res) {
     const userId = req.userId;
 
     const task = await taskModel.findById(taskId);
+const io = getIO()
+
 
     if (!task) {
       return res.status(404).json({
@@ -415,6 +419,8 @@ export async function rejectTask(req,res) {
         const {taskId} = req.params
     const {feedback} = req.body
     const userId = req.userId
+const io = getIO()
+
 
     const task = await taskModel.findById(taskId)
 
@@ -476,6 +482,7 @@ export async function rejectTask(req,res) {
         })
     )
 )
+
 
 task.assignedMembers.forEach(memberId => {
     io.to(memberId.toString()).emit("notification", {

@@ -98,7 +98,6 @@ export async function registerUser(req,res){
 
 }
 
-
 export async function verifyEmail(req,res){
     try{
         const {token} = req.query;

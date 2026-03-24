@@ -17,6 +17,7 @@ import DeleteDepartment from './pages/DeleteDepartment'
 import NotificationsPage from './pages/NotificationPage'
 
 import { WorkspaceProvider } from './context/WorkspaceContext'
+import ChatPage from './pages/ChatPage'
 
 const AppRoutes = () => {
   return (
@@ -76,6 +77,11 @@ const AppRoutes = () => {
         <Route
           path='workspace/:workspaceId/delete-department'
           element={<DeleteDepartment />}
+        />
+
+        <Route
+          path='workspace/:workspaceId/department/:departmentId/chat'
+          element={<ChatPage />}
         />
 
       </Route>

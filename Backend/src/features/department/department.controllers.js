@@ -9,7 +9,7 @@ import subtaskModel from "../../models/subtask.models.js";
 import monthlyLeaderboardModel from "../../models/monthlyLeaderboard.models.js";
 import { createActivity } from "../../utils/createActivity.js";
 import { createNotification } from "../../utils/createNotification.js";
-import { io } from "../../../server.js";
+import { getIO } from "../../lib/socket.js";
 
 export async function createDepartment(req,res){
     try{
@@ -177,6 +177,8 @@ export async function addDepartmentManager(req, res) {
       message: "Congratulations! You are now the department manager",
     });
 
+    const io = getIO()
+
     io.to(assignedUserId.toString()).emit("manager-assigned", {
       departmentId,
     });
@@ -257,6 +259,8 @@ export async function addMemberInDepartment(req,res){
         type : "MEMBER_ADDED",
         message : `you have been added in the department`
     })
+
+    const io = getIO()
 
     io.to(newUserId.toString()).emoit("member-added",{
         departmentId : department._id,
@@ -551,6 +555,8 @@ export async function leaveDepartment(req, res) {
         message: `${userName} left the department`,
       });
 
+      const io = getIO()
+
       io.to(manager.userId.toString()).emit("member-left", {
         departmentId,
       });
@@ -616,6 +622,7 @@ export async function getAllDepartmentMembers(req,res){
 // * removeMemeberFromDepartment
 export async function removeMemberFromDepartment(req,res) {
     try{
+      const io = getIO()
         const headId = req.userId
     const workspace = req.workspace
     const department = req.department

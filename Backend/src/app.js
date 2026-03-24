@@ -15,6 +15,7 @@ import { apiLimiter } from './middleware/rateLimit.middleware.js'
 import { globalErrorHandler } from './middleware/error.middleware.js'
 import cors from 'cors'
 import leaderboardRouter from './features/leaderboard/leaderboard.routes.js'
+import chatRouter from './features/chat/chat.routes.js'
 const app = express()
 
 connectToDb()
@@ -38,5 +39,6 @@ app.use('/api/activity',activityRouter)
 app.use('/api/notifications',notificationRouter)
 app.use('/api/ai',aiRouter)
 app.use('/api/leaderboard',leaderboardRouter)
+app.use('/api/chat',chatRouter)
 
 export default  app

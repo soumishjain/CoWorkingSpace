@@ -1,7 +1,7 @@
+import { getIO } from "../../lib/socket.js"
 import departmentMemberModel from "../../models/departmentMember.models.js"
 import subtaskModel from "../../models/subtask.models.js"
 import taskModel from "../../models/task.models.js"
-import {io} from '../../../server.js'
 import { createActivity } from "../../utils/createActivity.js"
 
 export async function getSubtasksOfTasks(req,res){
@@ -113,6 +113,8 @@ export async function claimSubtask(req,res) {
         message : `claimed subtask ${subtask.title}`
     })
 
+    const io = getIO()
+
     io.to(departmentId.toString()).emit("subtask-claimed",{
         subtaskId : subtask._id,
         userId,
@@ -136,6 +138,7 @@ export async function completeSubtask(req,res) {
     try{
         const {subtaskId} = req.params
     const userId = req.userId
+    const io = getIO()
 
     const subtask = await subtaskModel.findById(subtaskId)
 
