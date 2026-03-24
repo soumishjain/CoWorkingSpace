@@ -14,6 +14,7 @@ const {setUser} = useAuth()
             const data = await loginUser(formData)
 
             console.log("Login Success : " , data)
+            localStorage.setItem("token",data.token)
             setUser(data.user)
             navigate('/dashboard')
 

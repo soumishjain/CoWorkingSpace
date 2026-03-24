@@ -1,46 +1,36 @@
 import jwt from "jsonwebtoken";
-import cookie from "cookie";
-
-import departmentMemberModel from "../src/models/departmentMember.models.js";
-import messageModel from "../src/models/message.models.js";
+import departmentMemberModel from "../models/departmentMember.models.js";
+import messageModel from "../models/message.models.js";
+import departmentModel from "../models/department.models.js";
+import workspaceMemberModel from "../models/workspaceMember.models.js";
 
 export const initSocket = (io) => {
 
-  // ===== 🔐 AUTH MIDDLEWARE (COOKIE BASED) =====
+  console.log("🔥 INIT SOCKET CALLED");
+  console.log("SECRET IN SOCKET: ", process.env.JWT_SECRET)
+
+  // ===== 🔐 AUTH MIDDLEWARE (AUTH TOKEN BASED) =====
 io.use((socket, next) => {
   try {
-    const cookieHeader = socket.handshake.headers?.cookie;
-
-    console.log("🍪 RAW COOKIE:", cookieHeader);
-
-    if (!cookieHeader) {
-      console.log("❌ NO COOKIE HEADER");
-      return next(new Error("Unauthorized"));
-    }
-
-    const cookie = require("cookie");
-    const cookies = cookie.parse(cookieHeader);
-
-    console.log("🍪 PARSED COOKIES:", cookies);
-
-    const token = cookies.token;
+    const token = socket.handshake.auth?.token;
 
     console.log("🔑 TOKEN:", token);
+    console.log("🔐 SECRET:", process.env.JWT_SECRET);
 
     if (!token) {
-      console.log("❌ TOKEN NOT FOUND");
-      return next(new Error("Unauthorized"));
+      console.log("❌ NO TOKEN");
+      return next(new Error("No token"));
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     console.log("✅ DECODED:", decoded);
 
-    socket.userId = decoded.userId;
+    socket.userId = decoded.id;
 
     next();
   } catch (err) {
-    console.log("❌ AUTH ERROR:", err.message);
+    console.log("❌ JWT ERROR:", err.message); // 🔥 MOST IMPORTANT
     next(new Error("Unauthorized"));
   }
 });
@@ -49,15 +39,13 @@ io.use((socket, next) => {
 
   // ===== 🔌 CONNECTION =====
   io.on("connection", (socket) => {
-    console.log("🟢 Connected:", socket.userId);
+    console.log("🟢 CONNECTED USER:", socket.userId);
 
     // ===== 🧠 JOIN DEPARTMENT =====
-    socket.on("join_department", async (payload) => {
+    socket.on("join_department", async ({ departmentId }) => {
       try {
-        const departmentId = payload?.departmentId;
-
         if (!departmentId) {
-          console.log("❌ NO DEPARTMENT ID (JOIN)");
+          console.log("❌ NO DEPARTMENT ID");
           return;
         }
 
@@ -66,26 +54,29 @@ io.use((socket, next) => {
           departmentId,
         });
 
-        if (!member) {
-          console.log("❌ JOIN FAILED - NOT MEMBER");
+        const department = await departmentModel.findById(departmentId)
+
+        const workspaceId = department.workspaceId
+
+        const admin = await workspaceMemberModel.findOne({workspaceId,userId: socket.userId, role : 'admin'})
+
+        if (!admin && !member) {
+          console.log("❌ NOT A MEMBER");
           return;
         }
 
         socket.join(departmentId.toString());
 
-        console.log("✅ JOIN SUCCESS:", departmentId);
-
-      } catch (e) {
-        console.error("join_department error:", e);
+        console.log("✅ JOINED:", departmentId);
+      } catch (err) {
+        console.error("JOIN ERROR:", err);
       }
     });
 
 
 
     // ===== 🚪 LEAVE =====
-    socket.on("leave_department", (payload) => {
-      const departmentId = payload?.departmentId;
-
+    socket.on("leave_department", ({ departmentId }) => {
       if (!departmentId) return;
 
       socket.leave(departmentId.toString());
@@ -96,61 +87,70 @@ io.use((socket, next) => {
 
 
     // ===== 💬 SEND MESSAGE =====
-    socket.on("send_message", async (payload) => {
-      try {
-        console.log("🔥 EVENT HIT:", payload);
+socket.on("send_message", async ({ content, departmentId }) => {
+  try {
+    if (!content || !departmentId) return;
+    if (!content.trim()) return;
 
-        const content = payload?.content;
-        const departmentId = payload?.departmentId;
+    const department = await departmentModel.findById(departmentId);
+    const workspaceId = department.workspaceId;
 
-        if (!content || !departmentId) {
-          console.log("❌ INVALID PAYLOAD");
-          return;
-        }
-
-        if (content.trim().length === 0) return;
-
-        // 🔐 check membership
-        const member = await departmentMemberModel.findOne({
-          userId: socket.userId,
-          departmentId,
-        });
-
-        if (!member) {
-          console.log("❌ SEND FAILED - NOT MEMBER");
-          return;
-        }
-
-        // 💾 save message
-        const message = await messageModel.create({
-          content: content.trim(),
-          departmentId,
-          senderId: socket.userId,
-        });
-
-        // 🔥 populate sender
-        const populatedMessage = await messageModel
-          .findById(message._id)
-          .populate("senderId", "name profileImage");
-
-        // 📡 emit to room
-        io.to(departmentId.toString()).emit(
-          "receive_message",
-          populatedMessage
-        );
-
-        console.log("✅ MESSAGE SENT:", populatedMessage.content);
-
-      } catch (e) {
-        console.error("❌ send_message error:", e);
-      }
+    // 🔥 check admin (workspace level)
+    const admin = await workspaceMemberModel.findOne({
+      workspaceId,
+      userId: socket.userId,
+      role: "admin",
     });
 
+    // 🔥 check department member (manager bhi yahi hoga)
+    const member = await departmentMemberModel.findOne({
+      userId: socket.userId,
+      departmentId,
+    });
+
+    if (!admin && !member) {
+      console.log("❌ NOT AUTHORIZED");
+      return;
+    }
+
+    // 🔥 role decide karo
+    let role = "member";
+
+    if (admin) {
+      role = "admin";
+    } else if (member?.role === "manager") {
+      role = "manager";
+    }
+
+    console.log(role)
+
+    const message = await messageModel.create({
+      content: content.trim(),
+      departmentId,
+      senderId: socket.userId,
+    });
+
+    const populated = await messageModel
+      .findById(message._id)
+      .populate("senderId", "name profileImage");
+
+    // 🔥 yaha attach kar role manually
+    const messageWithRole = {
+      ...populated.toObject(),
+      role,
+    };
+
+    io.to(departmentId.toString()).emit("receive_message", messageWithRole);
+
+  } catch (err) {
+    console.error("SEND ERROR:", err);
+  }
+});
 
 
     // ===== ❌ DISCONNECT =====
     socket.on("disconnect", () => {
-      console.log("🔴 Disconnected:", socket.userId);
+      console.log("🔴 DISCONNECTED:", socket.userId);
     });
   });
 };

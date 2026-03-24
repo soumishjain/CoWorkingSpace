@@ -9,7 +9,6 @@ export async function createActivity({
   message,
 }) {
   try {
-    // 🔥 1. CREATE ACTIVITY
     const activity = await activityModel.create({
       workspaceId,
       departmentId,
@@ -18,16 +17,20 @@ export async function createActivity({
       message,
     });
 
-    // 🔥 2. POPULATE USER (frontend ke liye useful)
     const populatedActivity = await activity.populate(
       "userId",
       "name profileImage"
     );
 
-    // 🔥 3. EMIT WORKSPACE LEVEL (GLOBAL FEED)
-    getIO.to(workspaceId.toString()).emit("new-activity", populatedActivity);
+    const io = getIO(); // 🔥 important
 
-    // 🔥 4. EMIT DEPARTMENT LEVEL (OPTIONAL)
+    // 🔥 WORKSPACE LEVEL
+    io.to(workspaceId.toString()).emit(
+      "new-activity",
+      populatedActivity
+    );
+
+    // 🔥 DEPARTMENT LEVEL
     if (departmentId) {
       io.to(departmentId.toString()).emit(
         "new-department-activity",

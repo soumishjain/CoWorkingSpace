@@ -1,10 +1,13 @@
+import 'dotenv/config'
 import http from "http";
 import { Server } from "socket.io";
 import app from "./src/app.js";
 
 // 👇 ye tera socket middleware file hai
-import { initSocket } from "./src/config/sockets/chat.socket.js";
+import { initSocket } from "./src/sockets/chat.socket.js";
 import { setIO } from "./src/lib/socket.js";
+
+console.log("🔐 JWT SECRET:", process.env.JWT_SECRET);
 
 const server = http.createServer(app);
 

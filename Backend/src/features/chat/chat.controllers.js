@@ -9,6 +9,10 @@ export async function getOldMessage(req, res) {
     const userId = req.userId;
     const { departmentId } = req.params;
 
+    // 🔥 pagination params
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 30;
+
     if (!departmentId) {
       return res.status(400).json({
         message: "Department ID is required",
@@ -51,16 +55,67 @@ export async function getOldMessage(req, res) {
       });
     }
 
-    // 📥 FETCH MESSAGES + POPULATE
+    // 🔥 FETCH WITH PAGINATION
     const messages = await messageModel
       .find({ departmentId })
-      .sort({ createdAt: 1 })
+      .sort({ createdAt: -1 }) // 🔥 newest first
+      .skip((page - 1) * limit) // 🔥 pagination
+      .limit(limit)
       .populate("senderId", "name profileImage");
 
-    // ✅ IMPORTANT: "data" return karo (frontend ke liye)
+    // 🔥 collect userIds
+    const userIds = messages.map((msg) =>
+      msg.senderId._id.toString()
+    );
+
+    // 🔥 batch fetch roles
+    const workspaceAdmins = await workspaceMemberModel.find({
+      workspaceId,
+      role: "admin",
+      userId: { $in: userIds },
+    });
+
+    const departmentMembers = await departmentMemberModel.find({
+      departmentId,
+      userId: { $in: userIds },
+    });
+
+    // 🔥 maps
+    const adminSet = new Set(
+      workspaceAdmins.map((a) => a.userId.toString())
+    );
+
+    const memberMap = new Map();
+    departmentMembers.forEach((m) => {
+      memberMap.set(m.userId.toString(), m.role);
+    });
+
+    // 🔥 attach roles
+    const messagesWithRole = messages.map((msg) => {
+      const uid = msg.senderId._id.toString();
+
+      let role = "member";
+
+      if (adminSet.has(uid)) {
+        role = "admin";
+      } else if (memberMap.get(uid) === "manager") {
+        role = "manager";
+      }
+
+      return {
+        ...msg.toObject(),
+        role,
+      };
+    });
+
+    // 🔥 IMPORTANT: reverse before sending
+    // frontend ko ascending chahiye for chat UI
+    messagesWithRole.reverse();
+
     return res.status(200).json({
       success: true,
-      data: messages,
+      data: messagesWithRole,
+      hasMore: messages.length === limit, // 🔥 pagination helper
     });
 
   } catch (err) {

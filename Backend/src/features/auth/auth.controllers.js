@@ -181,6 +181,7 @@ export async function loginUser(req,res){
         id : user._id
     },process.env.JWT_SECRET,{expiresIn : '1d'})
 
+
      res.cookie("token", token, {
       httpOnly: true,
       secure: false,
@@ -190,6 +191,7 @@ export async function loginUser(req,res){
 
     return res.status(200).json({
       message: "Login successful",
+      token,
       user: {
         name: user.name,
         username : user.username,
