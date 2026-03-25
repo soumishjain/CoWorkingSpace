@@ -15,49 +15,70 @@ const DepartmentCard = ({ department }) => {
   return (
     <div
       onClick={handleOpenDepartment}
-      className="group relative bg-white/70 backdrop-blur-md border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden"
+      className="group relative bg-white border border-gray-200 rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex"
     >
-      {/* 🔥 Glow Effect */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition duration-300 bg-gradient-to-br from-indigo-100/40 to-purple-100/40" />
 
-      {/* 🔥 Content */}
-      <div className="relative z-10">
-        {/* Top */}
-        <div className="flex items-start justify-between">
-          <h3 className="text-lg font-semibold text-gray-900 group-hover:text-[var(--color-primary)] transition">
-            {department?.name}
-          </h3>
+      {/* 🔥 LEFT COLOR PANEL */}
+      <div className="w-1.5 bg-gradient-to-b from-indigo-500 via-purple-500 to-blue-500" />
+
+      {/* 🔥 MAIN */}
+      <div className="flex-1 p-5">
+
+        {/* HEADER */}
+        <div className="flex justify-between items-start">
+
+          <div>
+            <h3 className="text-base font-semibold text-gray-900 group-hover:text-indigo-600 transition">
+              {department?.name}
+            </h3>
+
+            <p className="text-xs text-gray-400 mt-0.5">
+              Department
+            </p>
+          </div>
 
           <ArrowUpRight
-            size={18}
-            className="text-gray-400 group-hover:text-[var(--color-primary)] transition"
+            size={16}
+            className="text-gray-300 group-hover:text-indigo-500 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-all"
           />
+
         </div>
 
-        {/* Description */}
-        <p className="text-sm text-gray-500 mt-2 leading-relaxed line-clamp-2">
+        {/* DESCRIPTION */}
+        <p className="text-sm text-gray-500 mt-3 leading-relaxed line-clamp-2">
           {department?.description || "No description available"}
         </p>
 
-        {/* Manager */}
-        <div className="flex items-center gap-2 mt-4 text-sm text-gray-600">
-          <Users size={16} />
-          <span className="font-medium">
-            {department?.manager?.name || "No Manager"}
-          </span>
+        {/* BOTTOM */}
+        <div className="flex items-center justify-between mt-5">
+
+          {/* MANAGER */}
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600">
+              {department?.manager?.name?.[0] || "?"}
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-400">Manager</p>
+              <p className="text-sm font-medium text-gray-700">
+                {department?.manager?.name || "Not assigned"}
+              </p>
+            </div>
+          </div>
+
+          {/* MEMBERS */}
+          <div className="flex items-center gap-1 text-xs text-gray-500">
+            <Users size={14} />
+            <span>{department?.memberCount || 0}</span>
+          </div>
+
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between mt-6">
-          <span className="text-xs px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 font-medium">
-            Department
-          </span>
-
-          <span className="text-sm font-medium text-gray-400 group-hover:text-[var(--color-primary)] transition">
-            Open
-          </span>
-        </div>
       </div>
+
+      {/* 🔥 HOVER LIGHT */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition duration-500 bg-gradient-to-r from-indigo-500/5 via-purple-500/5 to-blue-500/5 pointer-events-none" />
+
     </div>
   );
 };

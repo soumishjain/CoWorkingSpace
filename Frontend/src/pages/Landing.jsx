@@ -4,6 +4,7 @@ import Footer from "../components/Footer";
 import Hero from "../components/Hero";
 import Navbar from "../components/Navbar";
 import Showcase from "../components/Showcase";
+import FadeIn from "../components/FadeIn";
 
 export default function Landing() {
   return (
@@ -12,20 +13,30 @@ export default function Landing() {
       {/* Navbar */}
       <Navbar />
 
-      {/* Hero Section */}
-      <Hero />
+      {/* Hero */}
+      <FadeIn>
+        <Hero />
+      </FadeIn>
 
       {/* Features */}
-      <Features />
+      <FadeIn delay={0.1}>
+        <Features />
+      </FadeIn>
 
-      {/* Workspace Showcase */}
-      <Showcase />
+      {/* Showcase */}
+      <FadeIn delay={0.2}>
+        <Showcase />
+      </FadeIn>
 
       {/* CTA */}
-      <CTA />
+      <FadeIn delay={0.1}>
+        <CTA />
+      </FadeIn>
 
       {/* Footer */}
-      <Footer />
+      <FadeIn delay={0.05}>
+        <Footer />
+      </FadeIn>
 
     </div>
   );

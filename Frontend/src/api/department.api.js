@@ -158,19 +158,34 @@ export const getAllDepartmentMembers = async (workspaceId, departmentId) => {
       { withCredentials: true }
     );
 
-    console.log("RAW API:", res.data);
+    console.log("🔥 RAW API:", res.data);
 
-    const members = (res.data.safeMembers || []).map((m) => ({
-      _id: m?.userId?._id,
-      name: m?.userId?.name,
-      email: m?.userId?.email,
-      profileImage: m?.userId?.profileImage,
-    }));
+    // 🔥 check safeMembers directly
+    console.log("🔥 SAFE MEMBERS:", res.data.safeMembers);
+
+    const members = (res.data.safeMembers || []).map((m, index) => {
+      console.log(`👤 MEMBER ${index}:`, m);
+
+      return {
+        _id: m?.userId?._id,
+        name: m?.userId?.name,
+        email: m?.userId?.email,
+        profileImage: m?.userId?.profileImage,
+        role: m?.role,
+        isManager: m?.role === "manager",
+
+        // 🔥 CRITICAL DEBUG
+        pendingTasks: m?.pendingTasks ?? 0,
+      };
+    });
+
+    // 🔥 final output check
+    console.log("✅ FINAL MEMBERS:", members);
 
     return { members };
 
   } catch (error) {
-    console.error("API ERROR:", error);
+    console.error("❌ API ERROR:", error);
     throw error;
   }
 };

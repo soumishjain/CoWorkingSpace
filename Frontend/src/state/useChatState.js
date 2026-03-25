@@ -4,54 +4,40 @@ export const useChatState = () => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // ================== SET ALL ==================
+  // ✅ MERGE INSTEAD OF REPLACE
   const setAllMessages = useCallback((msgs) => {
-    setMessages(Array.isArray(msgs) ? msgs : []);
+    if (!Array.isArray(msgs)) return;
+
+    setMessages((prev) => {
+      const ids = new Set(prev.map((m) => m._id));
+      const filtered = msgs.filter((m) => !ids.has(m._id));
+      return [...filtered, ...prev];
+    });
   }, []);
 
-  // ================== ADD ONE (DUP SAFE) ==================
+  // ✅ ADD SINGLE MESSAGE
   const addMessage = useCallback((msg) => {
     if (!msg || !msg._id) return;
 
     setMessages((prev) => {
-      const exists = prev.some((m) => m._id === msg._id);
-      if (exists) return prev;
-
+      if (prev.some((m) => m._id === msg._id)) return prev;
       return [...prev, msg];
     });
   }, []);
 
-  // ================== CLEAR ==================
   const clearMessages = useCallback(() => {
     setMessages([]);
   }, []);
 
-  // ================== OPTIONAL: UPDATE MESSAGE ==================
-  const updateMessage = useCallback((updatedMsg) => {
-    if (!updatedMsg || !updatedMsg._id) return;
-
-    setMessages((prev) =>
-      prev.map((m) =>
-        m._id === updatedMsg._id ? updatedMsg : m
-      )
-    );
-  }, []);
-
-  // ================== SAFE LOADING ==================
   const startLoading = useCallback(() => setLoading(true), []);
   const stopLoading = useCallback(() => setLoading(false), []);
 
   return {
     messages,
     loading,
-
-    // setters
     setAllMessages,
     addMessage,
     clearMessages,
-    updateMessage,
-
-    // loading controls
     startLoading,
     stopLoading,
   };

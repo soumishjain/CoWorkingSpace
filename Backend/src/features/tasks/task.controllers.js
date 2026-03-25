@@ -226,54 +226,81 @@ export async function getSingleTask(req,res) {
     }
 }
 
-export async function getAllTasks(req,res) {
-   try{
-     const userId = req.userId
-    const department = req.department
-    const workspace = req.workspace
-    const departmentId = department._id
-    const workspaceId = workspace._id
+export async function getAllTasks(req, res) {
+  try {
+    const userId = req.userId;
+    const department = req.department;
+    const workspace = req.workspace;
 
-    const departmentManager = await departmentMemberModel.findOne({userId , 
-        departmentId , role : 'manager'
-    })
+    const departmentId = department._id;
+    const workspaceId = workspace._id;
+
+    // 🔥 ROLE CHECK
+    const departmentManager = await departmentMemberModel.findOne({
+      userId,
+      departmentId,
+      role: "manager",
+    });
 
     const workspaceAdmin = await workspaceMemberModel.findOne({
-        userId , 
-        workspaceId ,
-        role : 'admin'
-    })
+      userId,
+      workspaceId,
+      role: "admin",
+    });
 
+    let role = "member";
+    let tasks = [];
 
-    let tasks;
+    // 🔥 MANAGER / ADMIN
+    if (departmentManager || workspaceAdmin) {
+      role = departmentManager ? "manager" : "admin";
 
-    if(departmentManager || workspaceAdmin) {
-        tasks = await taskModel.find({departmentId})
-        .populate("assignedMembers" , "name email profileImage")
-        .sort({createdAt : -1})
+      tasks = await taskModel
+        .find({ departmentId })
+        .populate("assignedMembers", "_id name email profileImage")
+        .sort({ createdAt: -1 });
+    } 
+    // 🔥 MEMBER
+    else {
+      tasks = await taskModel
+        .find({
+          departmentId,
+          assignedMembers: {
+            $in: [new mongoose.Types.ObjectId(userId)],
+          },
+        })
+        .populate("assignedMembers", "_id name email profileImage")
+        .sort({ createdAt: -1 });
     }
 
-    else{
-        tasks = await taskModel.find({
-            departmentId,
-            assignedMembers : { $in : [new mongoose.Types.ObjectId(userId)] }
-        }).populate("assignedMembers" , "name email profileImage")
-        .sort({createdAt : -1})
-    }
+    // 🔥 ADD isAssignedToMe FLAG (VERY IMPORTANT)
+    const formattedTasks = tasks.map((task) => {
+      const isAssignedToMe = task.assignedMembers.some(
+        (member) => member._id.toString() === userId.toString()
+      );
+
+      return {
+        ...task.toObject(),
+        isAssignedToMe,
+      };
+    });
 
     return res.status(200).json({
-        message : "Tasks fetched successfully",
-        total : tasks.length,
-        tasks
-    })
-   }catch(error){
-    console.error(error)
-    res.status(500).json({
-        message : "Internal server error"
-    })
-   }
-}
+      success: true,
+      message: "Tasks fetched successfully",
+      total: formattedTasks.length,
+      role,
+      tasks: formattedTasks,
+    });
 
+  } catch (error) {
+    console.error("GET TASK ERROR:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+}
 
 export async function approveTask(req, res) {
   const session = await mongoose.startSession();

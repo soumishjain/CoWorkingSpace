@@ -5,30 +5,68 @@ const TopGreeting = () => {
   const { user } = useAuth();
 
   return (
-    <div className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-6 py-5 shadow-sm">
+    <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white px-6 py-6 shadow-sm">
 
-      {/* Greeting */}
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight text-gray-900">
-          Hi, <span className="text-[var(--color-primary)]">{user?.name}</span> 👋
-        </h2>
+      {/* 🔥 SUBTLE GLOW (less aggressive) */}
+      <div className="absolute -top-16 -left-16 w-60 h-60 bg-indigo-100 rounded-full blur-3xl opacity-40" />
+      <div className="absolute -bottom-16 -right-16 w-60 h-60 bg-purple-100 rounded-full blur-3xl opacity-40" />
 
-        <p className="text-sm text-gray-500 mt-1 font-light">
-          Welcome back to your workspace dashboard
-        </p>
-      </div>
+      {/* CONTENT */}
+      <div className="relative flex items-center justify-between">
 
-      {/* Avatar */}
-      <div className="flex items-center gap-4">
+        {/* LEFT */}
+        <div>
 
-        <div className="text-right hidden sm:block">
-          <p className="text-sm font-medium text-gray-800">{user?.name}</p>
-          <p className="text-xs text-gray-400">Workspace Member</p>
+          <h2 className="text-xl font-semibold text-gray-900 tracking-tight">
+            Welcome back,{" "}
+            <span className="text-indigo-600">
+              {user?.name}
+            </span>
+          </h2>
+
+          <p className="text-sm text-gray-500 mt-1">
+            Let’s build something great today.
+          </p>
+
+          {/* 🔥 MINI INFO (cleaned) */}
+          <div className="flex gap-4 mt-3 text-xs text-gray-400">
+
+            <div className="flex items-center gap-1">
+              📅 {new Date().toLocaleDateString()}
+            </div>
+
+          </div>
+
         </div>
 
-        
-      </div>
+        {/* RIGHT */}
+        <div className="flex items-center gap-3">
 
+          {/* TEXT */}
+          <div className="text-right hidden sm:block">
+            <p className="text-sm font-medium text-gray-800">
+              {user?.name}
+            </p>
+            <p className="text-xs text-gray-400">
+              Workspace Member
+            </p>
+          </div>
+
+          {/* 🔥 AVATAR (less flashy, more clean) */}
+          <div className="relative">
+            <div className="p-[1.5px] rounded-xl bg-indigo-100">
+              <img
+                src={user?.profileImage}
+                className="w-11 h-11 rounded-xl object-cover bg-white"
+              />
+            </div>
+
+            <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
+          </div>
+
+        </div>
+
+      </div>
     </div>
   );
 };

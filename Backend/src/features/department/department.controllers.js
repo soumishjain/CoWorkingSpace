@@ -574,49 +574,98 @@ export async function leaveDepartment(req, res) {
     });
   }
 }
+
+
+
 // * getAllDepartmentMembers
-export async function getAllDepartmentMembers(req,res){
-    try{
-        const userId = req.userId
-    const workspace = req.workspace
-    const department = req.department
-    const departmentId = department._id
-    const workspaceId = workspace._id
+export async function getAllDepartmentMembers(req, res) {
+  try {
+    const userId = req.userId;
+    const workspace = req.workspace;
+    const department = req.department;
 
-    const workspaceMember = await workspaceMemberModel.findOne({userId , workspaceId})
+    const departmentId = department._id;
+    const workspaceId = workspace._id;
 
-    if(!workspaceMember){
-        return res.status(403).json({
-            message : "You are not the member of this workspace"
-        })
+    // 🔥 1. Check workspace membership
+    const workspaceMember = await workspaceMemberModel.findOne({
+      userId,
+      workspaceId,
+    });
+
+    if (!workspaceMember) {
+      return res.status(403).json({
+        message: "You are not a member of this workspace",
+      });
     }
 
-    const departmentMember = await departmentMemberModel.findOne({userId , departmentId})
+    // 🔥 2. Check department membership
+    const departmentMember = await departmentMemberModel.findOne({
+      userId,
+      departmentId,
+    });
 
-    if(!departmentMember && workspaceMember.role !== 'admin') {
-        return res.status(403).json({
-            message : "You are not a member of this department"
-        })
+    if (!departmentMember && workspaceMember.role !== "admin") {
+      return res.status(403).json({
+        message: "You are not a member of this department",
+      });
     }
 
-    const departmentMembers = await departmentMemberModel.find({departmentId}).populate("userId" , "name email profileImage")
+    // 🔥 3. Get department members
+    const departmentMembers = await departmentMemberModel
+      .find({ departmentId })
+      .populate("userId", "_id name email profileImage");
 
-    const safeMembers = departmentMembers.filter(m => m.userId)
+    // 🔥 4. Get tasks (NOT completed)
+    const tasks = await taskModel.find({
+      departmentId,
+      status: { $in: ["pending", "in-progress", "awaiting-approval"] },
+    });
 
-    res.status(200).json({
-        message : "All department Members fetched successfully",
-        total : safeMembers.length,
-        safeMembers
-    })
-    }catch(error){
-        console.error(error)
-        return res.status(500).json({
-            message : "Internal Server Error"
-        })
-    }
+    // 🔥 5. Create pending task map
+    const pendingTaskCountMap = {};
 
-    
+    tasks.forEach((task) => {
+      if (!task.assignedMembers?.length) return;
 
+      task.assignedMembers.forEach((memberId) => {
+        const id = memberId.toString();
+        pendingTaskCountMap[id] =
+          (pendingTaskCountMap[id] || 0) + 1;
+      });
+    });
+
+    // 🔥 6. Final safeMembers with count
+    const safeMembers = departmentMembers
+      .filter((dm) => dm.userId)
+      .map((dm) => {
+        const user = dm.userId;
+        const id = user._id.toString();
+
+        return {
+          userId: {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            profileImage: user.profileImage,
+          },
+          role: dm.role,
+          pendingTasks: pendingTaskCountMap[id] || 0, // 🔥 MAIN FIX
+        };
+      });
+
+    return res.status(200).json({
+      message: "All department members fetched successfully",
+      total: safeMembers.length,
+      safeMembers,
+    });
+
+  } catch (error) {
+    console.error("GET MEMBERS ERROR:", error);
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }
 
 // * removeMemeberFromDepartment
@@ -998,7 +1047,6 @@ export async function departmentStats(req,res) {
 
 }
 
-
 export async function getAllDepartmentsOfThisWorkspace(req, res) {
   try {
     const userId = req.userId;
@@ -1022,7 +1070,7 @@ export async function getAllDepartmentsOfThisWorkspace(req, res) {
 
     const deptIds = departments.map((d) => d._id);
 
-    // 🔥 3. Get all department members (for count + manager + membership)
+    // 🔥 3. Get all department members
     const departmentMembers = await departmentMemberModel
       .find({
         departmentId: { $in: deptIds },
@@ -1033,6 +1081,7 @@ export async function getAllDepartmentsOfThisWorkspace(req, res) {
     const memberCountMap = {};
     const userMembershipSet = new Set();
     const managerMap = {};
+    const userRoleMap = {}; // 👈 NEW
 
     departmentMembers.forEach((dm) => {
       const deptId = dm.departmentId.toString();
@@ -1040,12 +1089,13 @@ export async function getAllDepartmentsOfThisWorkspace(req, res) {
       // ✅ member count
       memberCountMap[deptId] = (memberCountMap[deptId] || 0) + 1;
 
-      // ✅ isMember
+      // ✅ isMember + role
       if (dm.userId._id.toString() === userId.toString()) {
         userMembershipSet.add(deptId);
+        userRoleMap[deptId] = dm.role; // 👈 store role
       }
 
-      // ✅ manager extraction
+      // ✅ manager
       if (dm.role === "manager") {
         managerMap[deptId] = {
           _id: dm.userId._id,
@@ -1065,17 +1115,18 @@ export async function getAllDepartmentsOfThisWorkspace(req, res) {
         memberCount: memberCountMap[deptId] || 0,
         isMember: userMembershipSet.has(deptId),
         manager: managerMap[deptId] || null,
+        role: userRoleMap[deptId] || null, // 👈 FINAL ADD
       };
     });
 
     return res.status(200).json({
       message: "All departments fetched successfully",
       departments: result,
-      currentUserRole: workspaceMember.role,
+      currentUserRole: workspaceMember.role, // workspace level role
     });
 
   } catch (error) {
-    console.error(error);
+    console.error("GET DEPARTMENTS ERROR:", error);
     return res.status(500).json({
       message: "Internal Server Error",
     });

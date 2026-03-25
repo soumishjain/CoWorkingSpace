@@ -1,38 +1,59 @@
 import { useNavigate } from "react-router-dom";
 
 export default function Navbar() {
-    const navigate = useNavigate()
+  const navigate = useNavigate();
+
   return (
-    <nav className="w-full border-b border-gray-200">
+    <nav className="w-full sticky top-0 z-50 backdrop-blur-md bg-white/70 border-b border-gray-200">
+
       <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
 
-        {/* Logo */}
-        <h1 className="text-xl font-bold text-[var(--color-primary)]">
-          CoworkSpace
-        </h1>
+        {/* 🔥 LOGO */}
+        <div
+          onClick={() => navigate("/")}
+          className="flex items-center gap-2 cursor-pointer"
+        >
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow">
+            C
+          </div>
 
-        {/* Links */}
-        <div className="flex items-center gap-6 text-sm">
-          <a href="#" className="hover:text-[var(--color-primary)]">Features</a>
-          <a href="#" className="hover:text-[var(--color-primary)]">Pricing</a>
-          <a href="#" className="hover:text-[var(--color-primary)]">About</a>
+          <span className="text-lg font-semibold text-gray-900 tracking-tight">
+            CoworkSpace
+          </span>
         </div>
 
-        {/* Buttons */}
-        <div className="flex gap-3">
+        {/* 🔥 LINKS */}
+        <div className="hidden md:flex items-center gap-8 text-sm text-gray-600">
+          <button className="hover:text-gray-900 transition">
+            Features
+          </button>
+          <button className="hover:text-gray-900 transition">
+            Pricing
+          </button>
+          <button className="hover:text-gray-900 transition">
+            About
+          </button>
+        </div>
+
+        {/* 🔥 ACTIONS */}
+        <div className="flex items-center gap-3">
+
+          {/* LOGIN */}
           <button
-          onClick={() => {
-            navigate('/login')
-          }} 
-          className="px-4 transition-all duration-200 cursor pointer hover:bg-[var(--color-primary)] hover:border-0 hover:text-white cursor-pointer py-2 rounded-lg border">
+            onClick={() => navigate("/login")}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition"
+          >
             Login
           </button>
 
-          <button onClick={() => {
-            navigate('/dashboard')
-          }}  className="px-4 py-2 rounded-lg bg-[var(--color-primary)] text-white hover:bg-[var(--color-secondary)]">
+          {/* CTA */}
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-[var(--color-primary)] hover:opacity-90 transition shadow-sm hover:shadow-md"
+          >
             Get Started
           </button>
+
         </div>
 
       </div>

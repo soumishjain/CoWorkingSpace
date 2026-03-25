@@ -68,7 +68,7 @@ const DashboardLeftNav = () => {
         },
         {
           name: "My Work",
-          path: `/dashboard/workspace/${workspaceId}/department/${departmentId}/my-work`,
+          path: `/dashboard/workspace/${workspaceId}/department/${departmentId}/my-tasks`,
           icon: <UserCheck size={20} />,
         },
         {
@@ -150,84 +150,105 @@ const DashboardLeftNav = () => {
     }
   };
 
-  const SidebarContent = () => (
-    <>
-      {/* Logo */}
-      <div className="px-6 flex justify-center py-4 border-b border-gray-200">
-        <h1
-          onClick={() => navigate("/dashboard")}
-          className="cursor-pointer text-xl font-bold text-[var(--color-primary)]"
-        >
+const SidebarContent = () => (
+  <div className="h-full flex flex-col bg-white/70 backdrop-blur-2xl border-r border-gray-200">
+
+    {/* 🔥 LOGO */}
+    <div className="px-6 py-5">
+      <h1
+        onClick={() => navigate("/dashboard")}
+        className="cursor-pointer text-xl font-bold tracking-tight"
+      >
+        <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">
           CoworkSpace
-        </h1>
+        </span>
+      </h1>
+    </div>
+
+    {/* 🔥 PROFILE */}
+    <div className="px-4">
+      <div className="bg-white border border-gray-200 rounded-2xl px-4 py-4 shadow-sm">
+
+        <div className="flex items-center gap-3">
+
+          <div className="relative">
+            <img
+              src={user?.profileImage}
+              className="w-12 h-12 rounded-xl object-cover border border-gray-200"
+            />
+            <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></span>
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <h2 className="text-sm font-semibold text-gray-900 truncate">
+              {user?.name}
+            </h2>
+            <p className="text-xs text-gray-500 truncate">
+              {user?.email}
+            </p>
+          </div>
+
+        </div>
       </div>
+    </div>
 
-      {/* Profile */}
-      <div className="flex flex-col items-center py-8 border-b border-gray-200">
-        <img
-          className="h-20 w-20 rounded-full object-cover border-2 border-[var(--color-primary)]"
-          src={user?.profileImage}
-          alt="avatar"
-        />
+    {/* 🔥 DIVIDER */}
+    <div className="mx-4 my-4 h-px bg-gray-200" />
 
-        <h2 className="mt-3 font-semibold text-lg">
-          {user?.name}
-        </h2>
+    {/* 🔥 NAV SECTION */}
+    <div className="flex-1 px-3">
 
-        <p className="text-sm text-gray-500">
-          {departmentId
-            ? "Department Member"
-            : workspaceId
-            ? isAdmin
-              ? "Admin"
-              : "Member"
-            : "User"}
-        </p>
-      </div>
+      <p className="px-3 mb-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+        Menu
+      </p>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-4 py-6">
-  <ul className="space-y-2">
-    {navItems.map((item) => (
-      <li key={item.name}>
-        <NavLink
-          to={item.path}
-          end={
-            true
-          } // 👈 ONLY dashboard exact match
-          onClick={() => setOpen(false)}
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition ${
-              isActive
-                ? "bg-[var(--color-primary)] text-white"
-                : "text-gray-600 hover:bg-gray-100"
-            }`
-          }
-        >
-          {item.icon}
-          {item.name}
-        </NavLink>
-      </li>
-    ))}
-  </ul>
-</nav>
+      <ul className="space-y-1">
 
-      {/* Bottom */}
-      <div className="p-4 border-t border-gray-200 space-y-3">
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50"
-        >
-          <LogOut size={20} />
-          Logout
-        </button>
+        {navItems.map((item) => (
+          <li key={item.name}>
+            <NavLink
+              to={item.path}
+              end
+              onClick={() => setOpen(false)}
+              className={({ isActive }) =>
+                `group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  isActive
+                    ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`
+              }
+            >
+              <span className="group-hover:scale-110 transition">
+                {item.icon}
+              </span>
 
-        <p className="text-xs text-gray-400 text-center">
-          © 2026 CoWorking
-        </p>
-      </div>
-    </>
-  );
+              {item.name}
+            </NavLink>
+          </li>
+        ))}
+
+      </ul>
+
+    </div>
+
+    {/* 🔥 BOTTOM FIXED */}
+    <div className="mt-auto p-4 border-t border-gray-200 space-y-3">
+
+      <button
+        onClick={handleLogout}
+        className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 transition"
+      >
+        <LogOut size={18} />
+        Logout
+      </button>
+
+      <p className="text-[11px] text-gray-400 text-center">
+        © 2026 CoworkSpace
+      </p>
+    </div>
+
+  </div>
+);
 
   return (
     <div className="flex h-screen">

@@ -403,6 +403,7 @@ export async function approveJoinRequest(req, res) {
     });
   }
 }
+
 export async function rejectJoinRequest(req, res) {
   try {
     const { reqId } = req.params;

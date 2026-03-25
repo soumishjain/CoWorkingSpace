@@ -1,5 +1,4 @@
 export default function Showcase() {
-
   const items = [
     {
       title: "Workspace Analytics",
@@ -16,91 +15,68 @@ export default function Showcase() {
       desc: "A unified dashboard to control and monitor your entire workspace.",
       icon: "🧠"
     }
-  ]
+  ];
 
   return (
-    <section className="bg-gray-50 py-24">
+    <section className="max-w-6xl mx-auto px-6 py-28">
 
-      <div className="max-w-7xl mx-auto px-6">
+      {/* 🔥 HEADER (BIG + CLEAN) */}
+      <div className="mb-20">
 
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold">
-            Everything you need to manage your workspace
-          </h2>
+        <h2 className="text-5xl font-semibold tracking-tight text-gray-900 leading-tight max-w-3xl">
+          A better way to manage your workspace
+        </h2>
 
-          <p className="text-gray-500 mt-4">
-            Powerful tools designed for modern teams
-          </p>
-        </div>
+        <p className="mt-6 text-gray-500 text-lg max-w-xl">
+          Designed to simplify collaboration and give you complete control over your team and tasks.
+        </p>
 
-        <div className="grid md:grid-cols-3 gap-8">
+      </div>
 
-          {items.map((item,i)=>(
-            <div
-              key={i}
-              className="
-              group
-              relative
-              bg-white
-              p-8
-              rounded-2xl
-              border border-gray-200
-              shadow-sm
-              hover:shadow-xl
-              transition
-              duration-300
-              cursor-pointer
-              "
-            >
+      {/* 🔥 LIST STYLE (NOT CARDS) */}
+      <div className="divide-y divide-gray-200">
 
-              {/* Icon */}
-              <div className="
-              w-14
-              h-14
-              flex
-              items-center
-              justify-center
-              rounded-xl
-              text-2xl
-              bg-[var(--color-primary)]/10
-              text-[var(--color-primary)]
-              group-hover:scale-110
-              transition
-              ">
+        {items.map((item, i) => (
+          <div
+            key={i}
+            className="group flex items-start justify-between py-10 hover:bg-gray-50/60 transition px-4 -mx-4 rounded-xl"
+          >
+
+            {/* LEFT */}
+            <div className="flex items-start gap-6 max-w-xl">
+
+              {/* ICON */}
+              <div className="text-3xl">
                 {item.icon}
               </div>
 
-              {/* Title */}
-              <h3 className="text-xl font-semibold mt-6">
-                {item.title}
-              </h3>
+              {/* TEXT */}
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900 group-hover:text-indigo-600 transition">
+                  {item.title}
+                </h3>
 
-              {/* Description */}
-              <p className="text-gray-500 mt-3 leading-relaxed">
-                {item.desc}
-              </p>
-
-              {/* Bottom hover line */}
-              <div className="
-              absolute
-              bottom-0
-              left-0
-              w-0
-              h-[3px]
-              bg-[var(--color-primary)]
-              group-hover:w-full
-              transition-all
-              duration-300
-              rounded-b-2xl
-              " />
+                <p className="text-gray-500 mt-2 leading-relaxed">
+                  {item.desc}
+                </p>
+              </div>
 
             </div>
-          ))}
 
-        </div>
+            {/* RIGHT VISUAL */}
+            <div className="hidden md:block">
+
+              <div className="w-40 h-24 bg-white border rounded-xl shadow-sm group-hover:shadow-md transition flex items-center justify-center text-xs text-gray-400">
+                Preview
+              </div>
+
+            </div>
+
+          </div>
+        ))}
 
       </div>
 
     </section>
-  )
+  );
 }

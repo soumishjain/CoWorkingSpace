@@ -134,84 +134,100 @@ export async function claimSubtask(req,res) {
 
 }
 
-export async function completeSubtask(req,res) {
-    try{
-        const {subtaskId} = req.params
-    const userId = req.userId
-    const io = getIO()
+export async function completeSubtask(req, res) {
+  try {
+    const { subtaskId } = req.params;
+    const userId = req.userId;
+    const io = getIO();
 
-    const subtask = await subtaskModel.findById(subtaskId)
+    const subtask = await subtaskModel.findById(subtaskId);
 
-    if(!subtask){
-        return res.status(404).json({
-            message : "Subtask not found"
-        })
+    if (!subtask) {
+      return res.status(404).json({
+        message: "Subtask not found",
+      });
     }
 
-    if(!subtask.assignedTo || subtask.assignedTo?.toString() !== userId){
-        return res.status(403).json({
-            message : "You did not claim this subtask"
-        })
+    if (!subtask.assignedTo || subtask.assignedTo.toString() !== userId) {
+      return res.status(403).json({
+        message: "You did not claim this subtask",
+      });
     }
 
-    if(subtask.status === 'completed') {
-        return res.status(400).json({
-            message : "Subtask already completed"
-        })
+    if (subtask.status === "completed") {
+      return res.status(400).json({
+        message: "Subtask already completed",
+      });
     }
 
-    const task = await taskModel.findById(subtask.taskId)
-    if(!task){
-        return res.status(404).json({
-            message : "Task not found"
-        })
+    const task = await taskModel.findById(subtask.taskId);
+
+    if (!task) {
+      return res.status(404).json({
+        message: "Task not found",
+      });
     }
-    const taskId = subtask.taskId
 
-    subtask.status = 'completed'
-    subtask.completedAt = new Date()
-    subtask.completedBy = userId
+    const taskId = subtask.taskId;
 
-    await subtask.save()
+    // ✅ COMPLETE SUBTASK
+    subtask.status = "completed";
+    subtask.completedAt = new Date();
+    subtask.completedBy = userId;
 
-    const departmentId = task.departmentId
+    await subtask.save();
 
-    await createActivity({
-        workspaceId : task.workspaceId,
-        departmentId,
-        userId,
-        type : "SUBTASK_COMPLETED",
-        message : `complete subtask ${subtask.title}`
-    })
-
-    io.to(departmentId.toString()).emit('subtask-completed', {
-        subtaskId : subtask._id,
-        userId,
-        taskId
-    })
-
-    const progress = (task.completedSubtasks / task.totalSubtasks ) * 90;
-
-    task.progress = Math.floor(progress)
+    // 🔥 STEP 1: increment FIRST
     task.completedSubtasks += 1;
 
-    if(task.completedSubtasks === task.totalSubtasks){
-        task.status = 'awaiting-approval'
-        task.progress = 90
+    // 🔥 STEP 2: calculate progress (0–90 scale)
+    if (task.totalSubtasks > 0) {
+      const progress =
+        (task.completedSubtasks / task.totalSubtasks) * 90;
+
+      task.progress = Math.floor(progress);
+    } else {
+      task.progress = 0;
     }
 
-    await task.save()
+    // 🔥 STEP 3: if all done → awaiting approval
+    if (task.completedSubtasks === task.totalSubtasks) {
+      task.status = "awaiting-approval";
+      task.progress = 90; // cap
+    }
+
+    await task.save();
+
+    const departmentId = task.departmentId;
+
+    await createActivity({
+      workspaceId: task.workspaceId,
+      departmentId,
+      userId,
+      type: "SUBTASK_COMPLETED",
+      message: `completed subtask ${subtask.title}`,
+    });
+
+    // 🔥 SOCKET EVENTS
+    io.to(departmentId.toString()).emit("subtask-completed", {
+      subtaskId: subtask._id,
+      userId,
+      taskId,
+    });
+
+    io.to(departmentId.toString()).emit("task-updated", task);
 
     return res.status(200).json({
-        message : "Subtask completed Successfully"
-    })
-    }catch(error){
-        console.error(error)
-        return res.status(500).json({
-            message : "Internal Server Error"
-        })
-    }
+      message: "Subtask completed Successfully",
+      task,
+    });
 
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }
 
 export async function getMyPendingSubtasks(req,res) {

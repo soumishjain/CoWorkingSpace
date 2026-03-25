@@ -44,6 +44,7 @@ io.use((socket, next) => {
     // ===== 🧠 JOIN DEPARTMENT =====
     socket.on("join_department", async ({ departmentId }) => {
       try {
+        console.log("joinDepartment: ", departmentId)
         if (!departmentId) {
           console.log("❌ NO DEPARTMENT ID");
           return;

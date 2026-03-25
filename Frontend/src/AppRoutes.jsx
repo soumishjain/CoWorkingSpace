@@ -18,6 +18,9 @@ import NotificationsPage from './pages/NotificationPage'
 
 import { WorkspaceProvider } from './context/WorkspaceContext'
 import ChatPage from './pages/ChatPage'
+import MyTasksPage from './pages/MyTasksPage'
+import TaskDetailsPage from './pages/TaskDetailPage'
+import TaskPage from './pages/TaskPage'
 
 const AppRoutes = () => {
   return (
@@ -61,6 +64,24 @@ const AppRoutes = () => {
           path='workspace/:workspaceId/department/:departmentId'
           element={<Department />}
         />
+
+        // 🧩 TASKS (Assigned)
+<Route
+  path="workspace/:workspaceId/department/:departmentId/tasks"
+  element={<TaskPage />}
+/>
+
+// 🧩 TASK DETAILS (Subtasks)
+<Route
+  path="workspace/:workspaceId/department/:departmentId/tasks/task/:taskId"
+  element={<TaskDetailsPage />}
+/>
+
+// 🧩 MY TASKS (claimed subtasks)
+<Route
+  path="workspace/:workspaceId/department/:departmentId/my-tasks"
+  element={<MyTasksPage />}
+/>
 
         {/* 📊 ACTIVITY */}
         <Route

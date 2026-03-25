@@ -15,22 +15,17 @@ import { useCreateWorkspaceState } from "../state/useCreateWorkspaceState";
 import { useCreateWorkspace } from "../hooks/useCrateWorkspace";
 
 const CardContainer = () => {
-
-  // 🔥 Navigation
   const navigate = useNavigate();
   const { workspaceId } = useParams();
 
-  // 🔥 Modals
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const [openJoinModal, setOpenJoinModal] = useState(false);
 
-  // 🔥 Workspace State
   const workspaceState = useWorkspaceState();
   const { fetchWorkspaces } = useWorkspace(workspaceState);
 
   const { workspaces, loading, error } = workspaceState;
 
-  // 🔥 Create Workspace State
   const createState = useCreateWorkspaceState();
 
   const {
@@ -46,14 +41,12 @@ const CardContainer = () => {
     fetchWorkspaces
   );
 
-  // 🔥 Fetch Workspaces
   useEffect(() => {
     if (workspaceId) {
       fetchWorkspaces(workspaceId);
     }
   }, [workspaceId]);
 
-  // 🔥 Handle Input
   const handleChange = (e) => {
     const { name, value, files } = e.target;
 
@@ -63,56 +56,50 @@ const CardContainer = () => {
     }));
   };
 
-  // 🔥 Submit Create
   const handleSubmit = (e) => {
     e.preventDefault();
     submitWorkspace();
   };
 
   return (
-    <div className="mt-8">
+    <div className="mt-10">
 
       {/* 🔥 HEADER */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
 
         {/* LEFT */}
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">
-            Your Workspaces
+          <h2 className="text-2xl font-semibold text-gray-900 tracking-tight">
+            Workspaces
           </h2>
-
-          <p className="text-sm text-gray-500">
-            Manage and access your workspaces
+          <p className="text-sm text-gray-500 mt-1">
+            Access and manage your workspace environments
           </p>
         </div>
 
         {/* RIGHT */}
         <div className="flex items-center gap-3">
 
-          {/* 🔔 NOTIFICATIONS */}
+          {/* 🔔 NOTIFICATION */}
           <button
-            onClick={() =>
-              navigate(`/dashboard/notifications`)
-            }
-            className="relative p-2 rounded-lg hover:bg-gray-100 transition"
+            onClick={() => navigate(`/dashboard/notifications`)}
+            className="relative p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition shadow-sm"
           >
-            <Bell size={20} />
-
-           
+            <Bell size={18} />
           </button>
 
-          {/* 🔥 JOIN BUTTON */}
+          {/* JOIN */}
           <button
             onClick={() => setOpenJoinModal(true)}
-            className="bg-gray-100 text-gray-800 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-200 transition"
+            className="px-4 py-2 rounded-xl text-sm font-medium border border-gray-200 bg-white hover:bg-gray-50 transition shadow-sm"
           >
-            + Join Workspace
+            Join
           </button>
 
-          {/* 🔥 CREATE BUTTON */}
+          {/* CREATE */}
           <button
             onClick={() => setOpenCreateModal(true)}
-            className="bg-[var(--color-primary)] text-white text-sm font-medium px-4 py-2 rounded-lg hover:opacity-90 transition"
+            className="px-4 py-2 rounded-xl text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-md"
           >
             + New Workspace
           </button>
@@ -134,23 +121,33 @@ const CardContainer = () => {
         </div>
       )}
 
-      {/* 🔥 WORKSPACES */}
-      {!loading && !error && (
+      {/* 🔥 EMPTY STATE */}
+      {!loading && !error && workspaces?.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-20 border border-dashed border-gray-200 rounded-2xl bg-gray-50">
+
+          <p className="text-sm text-gray-500 mb-3">
+            No workspaces yet
+          </p>
+
+          <button
+            onClick={() => setOpenCreateModal(true)}
+            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition"
+          >
+            Create your first workspace
+          </button>
+
+        </div>
+      )}
+
+      {/* 🔥 WORKSPACES GRID */}
+      {!loading && !error && workspaces?.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-
-          {workspaces?.length > 0 ? (
-            workspaces.map((workspace) => (
-              <WorkspaceCards
-                key={workspace._id}
-                workspace={workspace}
-              />
-            ))
-          ) : (
-            <p className="text-gray-500 text-sm">
-              No workspaces found
-            </p>
-          )}
-
+          {workspaces.map((workspace) => (
+            <WorkspaceCards
+              key={workspace._id}
+              workspace={workspace}
+            />
+          ))}
         </div>
       )}
 
