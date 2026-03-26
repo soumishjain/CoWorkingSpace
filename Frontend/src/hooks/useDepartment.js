@@ -5,6 +5,7 @@ import {
   leaveDepartment,
   deleteDepartment,
   assignManager,
+  getMyDepartments
 } from "../api/department.api";
 
 export const useDepartment = (state) => {
@@ -23,6 +24,23 @@ export const useDepartment = (state) => {
       setError("");
 
       const data = await getAllDepartments(workspaceId);
+
+      setDepartments(data?.departments || []);
+      setRole(data?.currentUserRole || "member"); // 🔥 ADD THIS
+
+    } catch (err) {
+      setError(err || "Failed to fetch departments");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+    const fetchMyDepartments = async (workspaceId) => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const data = await getMyDepartments(workspaceId);
 
       setDepartments(data?.departments || []);
       setRole(data?.currentUserRole || "member"); // 🔥 ADD THIS
@@ -125,5 +143,6 @@ export const useDepartment = (state) => {
     handleLeaveDepartment,
     handleAssignManager,
     handleDeleteDepartment,
+    fetchMyDepartments
   };
 };

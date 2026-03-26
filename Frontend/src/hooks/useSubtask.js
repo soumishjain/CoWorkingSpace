@@ -26,48 +26,64 @@ export const useSubtask = (taskId, departmentId) => {
 
   // ================== FETCH SUBTASKS ==================
   const fetchSubtasks = useCallback(async () => {
-    if (!taskId) return;
+    if (!taskId || !departmentId) return; // 🔥 IMPORTANT
 
-    startLoading();
+    try {
+      startLoading();
 
-    const res = await getSubtasksAPI(taskId);
+      const res = await getSubtasksAPI(taskId);
 
-    if (res?.subtasks) {
-      setAllSubtasks(res.subtasks);
+      if (res?.subtasks) {
+        setAllSubtasks(res.subtasks);
+      }
+    } catch (err) {
+      console.error("FETCH SUBTASK ERROR:", err);
+    } finally {
+      stopLoading(); // 🔥 ALWAYS
     }
-
-    stopLoading();
-  }, [taskId]);
+  }, [taskId, departmentId]);
 
   // ================== MY SUBTASKS ==================
   const fetchMySubtasks = useCallback(async () => {
-    const res = await getMyPendingSubtasksAPI();
+    try {
+      const res = await getMyPendingSubtasksAPI();
 
-    if (res?.subtasks) {
-      setMySubtasksData(res.subtasks);
+      if (res?.subtasks) {
+        setMySubtasksData(res.subtasks);
+      }
+    } catch (err) {
+      console.error("MY SUBTASK ERROR:", err);
     }
   }, []);
 
   // ================== CLAIM ==================
   const claimSubtask = async (subtaskId) => {
-    const res = await claimSubtaskAPI(subtaskId);
+    try {
+      const res = await claimSubtaskAPI(subtaskId);
 
-    if (res?.message) {
-      claimSubtaskLocal(subtaskId, userId);
+      if (res?.message) {
+        claimSubtaskLocal(subtaskId, userId);
+      }
+
+      return res;
+    } catch (err) {
+      console.error("CLAIM ERROR:", err);
     }
-
-    return res;
   };
 
   // ================== COMPLETE ==================
   const completeSubtask = async (subtaskId) => {
-    const res = await completeSubtaskAPI(subtaskId);
+    try {
+      const res = await completeSubtaskAPI(subtaskId);
 
-    if (res?.message) {
-      completeSubtaskLocal(subtaskId);
+      if (res?.message) {
+        completeSubtaskLocal(subtaskId);
+      }
+
+      return res;
+    } catch (err) {
+      console.error("COMPLETE ERROR:", err);
     }
-
-    return res;
   };
 
   // ================== SOCKET ==================
@@ -75,28 +91,36 @@ export const useSubtask = (taskId, departmentId) => {
     if (!departmentId) return;
 
     connectSocket();
-
     socket.emit("join_department", { departmentId });
 
-    socket.on("subtask-claimed", ({ subtaskId, userId }) => {
+    const handleClaim = ({ subtaskId, userId }) => {
       claimSubtaskLocal(subtaskId, userId);
-    });
+    };
 
-    socket.on("subtask-completed", ({ subtaskId }) => {
+    const handleComplete = ({ subtaskId }) => {
       completeSubtaskLocal(subtaskId);
-    });
+    };
+
+    // 🔥 CLEAN FIRST (important)
+    socket.off("subtask-claimed");
+    socket.off("subtask-completed");
+
+    socket.on("subtask-claimed", handleClaim);
+    socket.on("subtask-completed", handleComplete);
 
     return () => {
-      socket.off("subtask-claimed");
-      socket.off("subtask-completed");
+      socket.off("subtask-claimed", handleClaim);
+      socket.off("subtask-completed", handleComplete);
     };
   }, [departmentId]);
 
   // ================== INIT ==================
   useEffect(() => {
+    if (!taskId || !departmentId) return; // 🔥 FIX
+
     fetchSubtasks();
     fetchMySubtasks();
-  }, [taskId]);
+  }, [taskId, departmentId, fetchSubtasks, fetchMySubtasks]);
 
   return {
     subtasks,

@@ -1,6 +1,7 @@
 import {
   getNotifications,
   getAllRequests,
+  getUnreadNotificationCount,
 } from "../api/notification.api";
 
 import {
@@ -19,12 +20,12 @@ export const useNotification = (state) => {
     setRole,
     setLoading,
     setError,
+    setUnreadCount, // 🔥 NEW
   } = state;
 
   /**
    * 🔥 FORMAT HELPERS
    */
-
   const formatNotifications = (notifications = []) => {
     return notifications.map((n) => ({
       ...n,
@@ -55,22 +56,29 @@ export const useNotification = (state) => {
   };
 
   /**
-   * 🔥 MAIN FETCH (GLOBAL)
+   * 🔥 FETCH COUNT
+   */
+  const fetchUnreadCount = async () => {
+    try {
+      const res = await getUnreadNotificationCount();
+      setUnreadCount(res.count || 0);
+    } catch (err) {
+      console.error("Count fetch failed", err);
+    }
+  };
+
+  /**
+   * 🔥 MAIN FETCH
    */
   const fetchAllNotifications = async () => {
     try {
-      console.log("🔥 GLOBAL FETCH CALLED");
-
       setLoading(true);
       setError("");
 
       const [notifRes, reqRes] = await Promise.all([
         getNotifications(),
-        getAllRequests(), // ✅ no workspaceId
+        getAllRequests(),
       ]);
-
-      console.log("NOTIF:", notifRes);
-      console.log("REQ:", reqRes);
 
       const notifications = notifRes.notification || [];
       const requests = reqRes.requests || [];
@@ -79,7 +87,8 @@ export const useNotification = (state) => {
 
       setNotifications(merged);
 
-      // 🔥 optional (agar backend role nahi bhej raha)
+      // 🔥 ALSO FETCH COUNT
+      fetchUnreadCount();
 
     } catch (err) {
       setError(
@@ -105,6 +114,8 @@ export const useNotification = (state) => {
 
       setNotifications(formatNotifications(notifications));
 
+      fetchUnreadCount();
+
     } catch (err) {
       setError(err?.message || "Failed to fetch notifications");
     } finally {
@@ -118,21 +129,24 @@ export const useNotification = (state) => {
   const handleApprove = async (item) => {
     try {
       if (item.type === "REQUEST") {
-  if (item.departmentId) {
-    await approveDepartmentRequest(
-      item.workspaceId?._id || item.workspaceId,
-      item.departmentId?._id || item.departmentId,
-      item._id
-    );
-  } else {
-    await approveRequest(item._id);
-  }
-}
+        if (item.departmentId) {
+          await approveDepartmentRequest(
+            item.workspaceId?._id || item.workspaceId,
+            item.departmentId?._id || item.departmentId,
+            item._id
+          );
+        } else {
+          await approveRequest(item._id);
+        }
+      }
 
-      // 🔥 remove from UI
+      // 🔥 REMOVE FROM UI
       setNotifications((prev) =>
         prev.filter((n) => n._id !== item._id)
       );
+
+      // 🔥 UPDATE COUNT (reduce)
+      setUnreadCount((prev) => Math.max(prev - 1, 0));
 
     } catch (err) {
       setError(err?.message || "Failed to approve");
@@ -145,19 +159,23 @@ export const useNotification = (state) => {
   const handleReject = async (item) => {
     try {
       if (item.type === "REQUEST") {
-  if (item.departmentId) {
-    await rejectDepartmentRequest(
-      item.workspaceId?._id || item.workspaceId,
-      item.departmentId?._id || item.departmentId,
-      item._id
-    );
-  } else {
-    await rejectRequest(item._id);
-  }
-      setNotifications((prev) =>
-        prev.filter((n) => n._id !== item._id)
-      );
-    }
+        if (item.departmentId) {
+          await rejectDepartmentRequest(
+            item.workspaceId?._id || item.workspaceId,
+            item.departmentId?._id || item.departmentId,
+            item._id
+          );
+        } else {
+          await rejectRequest(item._id);
+        }
+
+        setNotifications((prev) =>
+          prev.filter((n) => n._id !== item._id)
+        );
+
+        // 🔥 UPDATE COUNT
+        setUnreadCount((prev) => Math.max(prev - 1, 0));
+      }
 
     } catch (err) {
       setError(err?.message || "Failed to reject");
@@ -169,5 +187,6 @@ export const useNotification = (state) => {
     fetchUserNotifications,
     handleApprove,
     handleReject,
+    fetchUnreadCount, // 🔥 expose for manual use
   };
 };

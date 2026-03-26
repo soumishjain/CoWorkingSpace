@@ -15,11 +15,11 @@ export const getNotifications = async () => {
 };
 
 
-// 🔥 2. ALL REQUESTS (WORKSPACE + DEPARTMENT) ✅
+// 🔥 2. ALL REQUESTS (WORKSPACE + DEPARTMENT)
 export const getAllRequests = async () => {
   try {
     const res = await axios.get(
-      `/notifications/requests`, // ✅ NO workspaceId
+      `/notifications/requests`,
       { withCredentials: true }
     );
 
@@ -33,13 +33,29 @@ export const getAllRequests = async () => {
 };
 
 
-// 🔥 3. UNIFIED FUNCTION (FINAL)
-export const getAllNotificationsUnified = async (workspaceId) => {
+// 🔥 3. 🔔 UNREAD COUNT (NEW FUNCTION)
+export const getUnreadNotificationCount = async () => {
+  try {
+    const res = await axios.get(
+      "/notifications/unread-count",
+      { withCredentials: true }
+    );
+
+    return res.data; // { count: number }
+
+  } catch (err) {
+    throw err.response?.data?.message || "Failed to fetch unread count";
+  }
+};
+
+
+// 🔥 4. UNIFIED FUNCTION
+export const getAllNotificationsUnified = async () => {
   try {
 
     const [notifRes, reqRes] = await Promise.all([
       getNotifications(),
-      getAllRequests(workspaceId),
+      getAllRequests(),
     ]);
 
     const notifications = notifRes.notification || [];
@@ -55,7 +71,7 @@ export const getAllNotificationsUnified = async (workspaceId) => {
         isRequest: false,
       })),
 
-      // 📩 ALL REQUESTS (workspace + department handled by backend)
+      // 📩 REQUESTS
       ...requests.map((r) => ({
         ...r,
         type: "REQUEST",
@@ -63,7 +79,7 @@ export const getAllNotificationsUnified = async (workspaceId) => {
       })),
     ];
 
-    // 🔥 SORT (latest first)
+    // 🔥 SORT
     merged.sort(
       (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
     );

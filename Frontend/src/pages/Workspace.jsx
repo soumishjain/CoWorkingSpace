@@ -22,7 +22,7 @@ const Workspace = () => {
   const navigate = useNavigate();
 
   const departmentState = useDepartmentState();
-  const { fetchDepartments } = useDepartment(departmentState);
+  const { fetchMyDepartments } = useDepartment(departmentState);
 
   const statsState = useWorkspaceStatsState();
   const { fetchWorkspaceStats } = useWorkspaceStats(statsState);
@@ -34,12 +34,12 @@ const Workspace = () => {
   const { handleCreateDepartment } = useCreateDepartment(
     createDeptState,
     workspaceId,
-    () => fetchDepartments(workspaceId)
+    () => fetchMyDepartments(workspaceId)
   );
 
   useEffect(() => {
     if (workspaceId) {
-      fetchDepartments(workspaceId);
+      fetchMyDepartments(workspaceId);
       fetchWorkspaceStats(workspaceId);
     }
   }, [workspaceId]);

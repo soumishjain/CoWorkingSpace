@@ -127,3 +127,11 @@ export const fetchWorkspaceMembers = (workspaceId) => {
     { withCredentials: true }
   );
 };
+
+export const fetchAllWorkspace = () => {
+  return axios.get(
+    `/workspace/get-all-workspace`, {
+      withCredentials : true
+    }
+  )
+}

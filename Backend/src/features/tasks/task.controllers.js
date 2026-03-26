@@ -242,11 +242,16 @@ export async function getAllTasks(req, res) {
       role: "manager",
     });
 
+    console.log("workspaceId:", workspaceId);
+console.log("type:", typeof workspaceId);
+
     const workspaceAdmin = await workspaceMemberModel.findOne({
       userId,
-      workspaceId,
+      workspaceId : workspace._id,
       role: "admin",
     });
+
+    console.log("ADMIN CHECK:", workspaceAdmin);
 
     let role = "member";
     let tasks = [];
@@ -440,93 +445,98 @@ const io = getIO()
     session.endSession();
   }
 }
-export async function rejectTask(req,res) {
-    
-    try{
-        const {taskId} = req.params
-    const {feedback} = req.body
-    const userId = req.userId
-const io = getIO()
 
 
-    const task = await taskModel.findById(taskId)
+export async function rejectTask(req, res) {
+  try {
+    const { taskId } = req.params;
+    const { feedback } = req.body;
+    const userId = req.userId;
+    const io = getIO();
 
-    if(!task) {
-        return res.status(404).json({
-            message : "Task not Found"
-        })
+    const task = await taskModel.findById(taskId);
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not Found" });
     }
 
     const manager = await departmentMemberModel.findOne({
-        userId,
-        departmentId : task.departmentId,
-        role : 'manager'
-    })
+      userId,
+      departmentId: task.departmentId,
+      role: "manager",
+    });
 
-
-    if(!manager) {
-        return res.status(403).json({
-            message : "Not Authorized"
-        })
+    if (!manager) {
+      return res.status(403).json({ message: "Not Authorized" });
     }
 
-    if(task.status !== 'awaiting-approval') {
-        return res.status(400).json({
-            message : "Task is not awaiting approval"
-        })
+    if (task.status !== "awaiting-approval") {
+      return res.status(400).json({
+        message: "Task is not awaiting approval",
+      });
     }
 
-    task.status = 'in-progress'
-    task.progress = 0
-    task.approvalFeedback = feedback || "Task needs improvement"
+    // 🔥 UPDATE TASK
+    task.status = "in-progress";
+    task.progress = 0;
+    task.approvalFeedback = feedback?.trim() || "Task needs improvement";
     task.completedSubtasks = 0;
 
-    await subtaskModel.find({taskId}).updateMany({status : "pending" , completedAt : null , completedBy : null})
+    // 🔥 RESET SUBTASKS
+    await subtaskModel.updateMany(
+      { taskId },
+      {
+        status: "pending",
+        completedAt: null,
+        completedBy: null,
+      }
+    );
 
-    await task.save()
+    await task.save();
 
+    // 🔥 ACTIVITY
     await createActivity({
-        workspaceId : task.workspaceId,
-        departmentId : task.departmentId,
-        userId,
-        type : 'TASK_REJECTED',
-        message : `rejected task ${task.title}`
-    })
+      workspaceId: task.workspaceId,
+      departmentId: task.departmentId,
+      userId,
+      type: "TASK_REJECTED",
+      message: `rejected task ${task.title}`,
+    });
 
-    io.to(task.departmentId.toString()).emit("task-rejected",{
-        taskId : task._id,
-        feedback : task.approvalFeedback
-    })
+    // 🔥 SOCKET (SEND FULL TASK)
+    io.to(task.departmentId.toString()).emit("task-rejected", task);
 
+    // 🔥 NOTIFICATIONS
     await Promise.all(
-    task.assignedMembers.map(memberId => 
+      (task.assignedMembers || []).map((memberId) =>
         createNotification({
-            workspaceId : task.workspaceId,
-            departmentId : task.departmentId,
-            userId : memberId,
-            type : "TASK_REJECTED",
-            message : `Task "${task.title}" was rejected. Feedback: ${task.approvalFeedback}`
+          workspaceId: task.workspaceId,
+          departmentId: task.departmentId,
+          userId: memberId,
+          type: "TASK_REJECTED",
+          message: `Task "${task.title}" was rejected. Feedback: ${task.approvalFeedback}`,
         })
-    )
-)
+      )
+    );
 
-
-task.assignedMembers.forEach(memberId => {
-    io.to(memberId.toString()).emit("notification", {
-        type : "TASK_REJECTED",
-        taskId : task._id,
-        feedback : task.approvalFeedback
-    })
-})
+    // 🔥 REALTIME NOTIFICATION
+    (task.assignedMembers || []).forEach((memberId) => {
+      io.to(memberId.toString()).emit("notification", {
+        type: "TASK_REJECTED",
+        taskId: task._id,
+        feedback: task.approvalFeedback,
+      });
+    });
 
     return res.status(200).json({
-        message : "Task rejected with feedback"
-    })
-    }catch(error){
-        console.error(error)
-        return res.status(500).json({
-            message : "Internal server error"
-        })
-    }
+      message: "Task rejected with feedback",
+      task,
+    });
 
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
 }

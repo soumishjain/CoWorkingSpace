@@ -14,12 +14,18 @@ import { useWorkspace } from "../hooks/useWorkspace";
 import { useCreateWorkspaceState } from "../state/useCreateWorkspaceState";
 import { useCreateWorkspace } from "../hooks/useCrateWorkspace";
 
+// 🔥 IMPORT COUNT API
+import { getUnreadNotificationCount } from "../api/notification.api";
+
 const CardContainer = () => {
   const navigate = useNavigate();
   const { workspaceId } = useParams();
 
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const [openJoinModal, setOpenJoinModal] = useState(false);
+
+  // 🔥 NEW STATE
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const workspaceState = useWorkspaceState();
   const { fetchWorkspaces } = useWorkspace(workspaceState);
@@ -41,11 +47,26 @@ const CardContainer = () => {
     fetchWorkspaces
   );
 
+  // 🔥 FETCH WORKSPACES
   useEffect(() => {
     if (workspaceId) {
       fetchWorkspaces(workspaceId);
     }
   }, [workspaceId]);
+
+  // 🔥 FETCH NOTIFICATION COUNT
+  useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        const res = await getUnreadNotificationCount();
+        setUnreadCount(res.count || 0);
+      } catch (err) {
+        console.error("Notification count error:", err);
+      }
+    };
+
+    fetchCount();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
@@ -80,12 +101,19 @@ const CardContainer = () => {
         {/* RIGHT */}
         <div className="flex items-center gap-3">
 
-          {/* 🔔 NOTIFICATION */}
+          {/* 🔔 NOTIFICATION WITH COUNT */}
           <button
             onClick={() => navigate(`/dashboard/notifications`)}
             className="relative p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition shadow-sm"
           >
             <Bell size={18} />
+
+            {/* 🔥 BADGE */}
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1.5 py-[1px] rounded-full">
+                {unreadCount}
+              </span>
+            )}
           </button>
 
           {/* JOIN */}
@@ -121,10 +149,9 @@ const CardContainer = () => {
         </div>
       )}
 
-      {/* 🔥 EMPTY STATE */}
+      {/* 🔥 EMPTY */}
       {!loading && !error && workspaces?.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 border border-dashed border-gray-200 rounded-2xl bg-gray-50">
-
           <p className="text-sm text-gray-500 mb-3">
             No workspaces yet
           </p>
@@ -135,11 +162,10 @@ const CardContainer = () => {
           >
             Create your first workspace
           </button>
-
         </div>
       )}
 
-      {/* 🔥 WORKSPACES GRID */}
+      {/* 🔥 GRID */}
       {!loading && !error && workspaces?.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {workspaces.map((workspace) => (
@@ -151,7 +177,7 @@ const CardContainer = () => {
         </div>
       )}
 
-      {/* 🔥 CREATE MODAL */}
+      {/* 🔥 MODALS */}
       {openCreateModal && (
         <CreateWorkspaceModal
           formData={formData}
@@ -163,7 +189,6 @@ const CardContainer = () => {
         />
       )}
 
-      {/* 🔥 JOIN MODAL */}
       {openJoinModal && (
         <JoinWorkspaceModal
           setOpen={setOpenJoinModal}

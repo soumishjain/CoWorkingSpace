@@ -1,5 +1,12 @@
 import { useCallback, useEffect } from "react";
-import { createTaskAPI,approveTaskAPI, deleteTaskAPI, getAllTasksAPI, rejectTaskAPI } from "../api/task.api";
+import {
+  createTaskAPI,
+  approveTaskAPI,
+  deleteTaskAPI,
+  getAllTasksAPI,
+  rejectTaskAPI,
+} from "../api/task.api";
+
 import { useTaskState } from "../state/useTaskState";
 import { connectSocket, socket } from "../socket";
 
@@ -17,7 +24,7 @@ export const useTask = (workspaceId, departmentId) => {
     stopLoading,
   } = useTaskState();
 
-  // ================== FETCH TASKS ==================
+  // ================== FETCH ==================
   const fetchTasks = useCallback(async () => {
     if (!workspaceId || !departmentId) return;
 
@@ -33,56 +40,72 @@ export const useTask = (workspaceId, departmentId) => {
     } catch (err) {
       console.error("FETCH TASK ERROR:", err);
     } finally {
-      stopLoading(); // 🔥 ALWAYS STOP
+      stopLoading();
     }
-  }, [workspaceId, departmentId, setAllTasks, setUserRole]);
+  }, [workspaceId, departmentId]);
 
   // ================== CREATE ==================
   const createTask = async (data) => {
-    const res = await createTaskAPI({
-      workspaceId,
-      departmentId,
-      data,
-    });
+    try {
+      const res = await createTaskAPI({
+        workspaceId,
+        departmentId,
+        data,
+      });
 
-    if (res?.task) {
-      addTask(res.task);
+      if (res?.task) addTask(res.task);
+
+      return res;
+    } catch (err) {
+      console.error("CREATE TASK ERROR:", err);
     }
-
-    return res;
   };
 
   // ================== DELETE ==================
   const deleteTask = async (taskId) => {
-    const res = await deleteTaskAPI(taskId);
+    try {
+      const res = await deleteTaskAPI(taskId);
 
-    if (res?.success) {
-      removeTask(taskId);
+      if (res?.success) removeTask(taskId);
+
+      return res;
+    } catch (err) {
+      console.error("DELETE TASK ERROR:", err);
     }
-
-    return res;
   };
 
   // ================== APPROVE ==================
   const approveTask = async (taskId) => {
-    const res = await approveTaskAPI(taskId);
+    try {
+      const res = await approveTaskAPI(taskId);
 
-    if (res?.task) {
-      updateTask(res.task);
+      if (res?.task) updateTask(res.task);
+
+      return res;
+    } catch (err) {
+      console.error("APPROVE ERROR:", err);
     }
-
-    return res;
   };
 
   // ================== REJECT ==================
   const rejectTask = async (taskId, feedback) => {
-    const res = await rejectTaskAPI({ taskId, feedback });
+    try {
+      const res = await rejectTaskAPI({ taskId, feedback });
 
-    if (res?.task) {
-      updateTask(res.task);
+      if (res?.task) {
+        updateTask(res.task);
+      } else {
+        // 🔥 fallback (socket handle karega)
+        updateTask({
+          _id: taskId,
+          status: "in-progress",
+        });
+      }
+
+      return res;
+    } catch (err) {
+      console.error("REJECT ERROR:", err);
     }
-
-    return res;
   };
 
   // ================== SOCKET ==================
@@ -92,22 +115,26 @@ export const useTask = (workspaceId, departmentId) => {
     connectSocket();
     socket.emit("join_department", { departmentId });
 
-    // 🔥 HANDLERS (define once)
-    const handleCreate = (task) => {
-      addTask(task);
+    // 🔥 HANDLERS
+    const handleCreate = (task) => addTask(task);
+
+    const handleApprove = (task) => updateTask(task);
+
+    const handleReject = (data) => {
+      // 🔥 backend sirf taskId bhej raha hai
+      updateTask({
+        _id: data.taskId,
+        status: "in-progress",
+      });
     };
 
-    const handleApprove = (task) => {
-      updateTask(task);
-    };
+    const handleDelete = ({ taskId }) => removeTask(taskId);
 
-    const handleReject = (task) => {
-      updateTask(task);
-    };
-
-    const handleDelete = ({ taskId }) => {
-      removeTask(taskId);
-    };
+    // 🔥 CLEAN FIRST (important)
+    socket.off("task-created");
+    socket.off("task-approved");
+    socket.off("task-rejected");
+    socket.off("task-deleted");
 
     // 🔥 ATTACH
     socket.on("task-created", handleCreate);
@@ -121,7 +148,7 @@ export const useTask = (workspaceId, departmentId) => {
       socket.off("task-rejected", handleReject);
       socket.off("task-deleted", handleDelete);
     };
-  }, [departmentId]); // 🔥 REMOVE function deps
+  }, [departmentId]);
 
   // ================== INIT ==================
   useEffect(() => {

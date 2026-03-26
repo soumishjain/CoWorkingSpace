@@ -435,50 +435,74 @@ export async function getThisDepartment(req,res) {
 }
 
 // * getMyDepartments
-export async function getMyDepartments(req,res) {
-    try{
-        const userId = req.userId
-    const workspace = req.workspace
-    const workspaceId = workspace._id
+export async function getMyDepartments(req, res) {
+  try {
+    const userId = req.userId;
+    const workspace = req.workspace;
+    const workspaceId = workspace._id;
 
     const user = await workspaceMemberModel.findOne({ workspaceId, userId });
 
-if (!user) {
-    return res.status(403).json({
-        message: "User not in workspace"
-    });
-}
-
-if (user.role === "admin") {
-    const departments = await departmentModel.find({ workspaceId });
-
-    return res.status(200).json({
-        message: "All departments (admin access)",
-        departments
-    });
-}
-
-const myDepartments = await departmentMemberModel.find({ userId })
-.populate({
-    path: "departmentId",
-    match: { workspaceId },
-    select: "name description createdBy"
-});
-
-const filtered = myDepartments.filter(d => d.departmentId !== null);
-
-return res.status(200).json({
-    message: "User departments fetched",
-    departments: filtered.map(d => d.departmentId)
-});
-
-    }catch(error){
-        console.error(error)
-        res.status(500).json({
-            message : "Internal Server Error"
-        })
+    if (!user) {
+      return res.status(403).json({
+        message: "User not in workspace",
+      });
     }
 
+    let departments = [];
+
+    // 🔥 ADMIN → ALL DEPARTMENTS
+    if (user.role === "admin") {
+      departments = await departmentModel.find({ workspaceId });
+    } else {
+      const myDepartments = await departmentMemberModel
+        .find({ userId })
+        .populate({
+          path: "departmentId",
+          match: { workspaceId },
+        });
+
+      departments = myDepartments
+        .filter((d) => d.departmentId !== null)
+        .map((d) => d.departmentId);
+    }
+
+    // 🔥 ENRICH DATA (IMPORTANT PART)
+    const enrichedDepartments = await Promise.all(
+      departments.map(async (dept) => {
+
+        // 👉 get manager
+        const manager = await departmentMemberModel
+          .findOne({
+            departmentId: dept._id,
+            role: "manager",
+          })
+          .populate("userId", "name profileImage");
+
+        // 👉 count members
+        const memberCount = await departmentMemberModel.countDocuments({
+          departmentId: dept._id,
+        });
+
+        return {
+          ...dept.toObject(),
+          manager: manager?.userId || null,
+          memberCount,
+        };
+      })
+    );
+
+    return res.status(200).json({
+      message: "Departments fetched",
+      departments: enrichedDepartments,
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }
 
 // *leaveDepartment

@@ -21,6 +21,7 @@ import ChatPage from './pages/ChatPage'
 import MyTasksPage from './pages/MyTasksPage'
 import TaskDetailsPage from './pages/TaskDetailPage'
 import TaskPage from './pages/TaskPage'
+import ExplorePage from './pages/ExplorePage'
 
 const AppRoutes = () => {
   return (
@@ -57,6 +58,11 @@ const AppRoutes = () => {
         <Route
           path='workspace/:workspaceId/departments'
           element={<AllDepartments />}
+        />
+
+        <Route
+          path='explore'
+          element={<ExplorePage />}
         />
 
         {/* 🔴 DEPARTMENT */}

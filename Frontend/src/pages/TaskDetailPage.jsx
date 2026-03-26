@@ -4,19 +4,33 @@ import { useTask } from "../hooks/useTask";
 import SubtaskItem from "../components/SubtaskItem";
 import CircularProgress from "../components/CircularProgress";
 
-// 🔥 BIGGER CIRCULAR PROGRESS
-
 const TaskDetailsPage = () => {
   const { taskId, departmentId, workspaceId } = useParams();
 
-  const { subtasks, claimSubtask, completeSubtask } =
-    useSubtask(taskId, departmentId);
+  // 🔥 GET TASK + ROLE FIRST
+  const { tasks, role, loading } = useTask(workspaceId, departmentId);
 
-  const { tasks } = useTask(workspaceId, departmentId);
+  // 🔥 WAIT FOR ROLE BEFORE SUBTASK
+  const {
+    subtasks,
+    claimSubtask,
+    completeSubtask,
+  } = useSubtask(
+    role ? taskId : null,        // 🔥 IMPORTANT FIX
+    role ? departmentId : null   // 🔥 IMPORTANT FIX
+  );
+
+  console.log("ROLE:", role);
+  console.log("SUBTASKS: ", subtasks)
+
+  // 🔥 LOADING GUARD
+  if (loading || !role) {
+    return <p className="p-6">Loading...</p>;
+  }
 
   const task = tasks.find((t) => t._id === taskId);
 
-  if (!task) return <p className="p-6">Loading...</p>;
+  if (!task) return <p className="p-6">Task not found</p>;
 
   const getPriorityStyle = () => {
     if (task.priority === "high")
@@ -29,23 +43,19 @@ const TaskDetailsPage = () => {
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
 
-      {/* 🔥 BIG HEADER CARD */}
-      <div className="bg-white border border-gray-200 rounded-3xl p-8 shadow-sm flex justify-between gap-8 items-center">
+      {/* 🔥 HEADER */}
+      <div className="bg-white border border-gray-200 rounded-3xl p-8 shadow-sm flex flex-col md:flex-row justify-between gap-8 items-start md:items-center">
 
-        {/* LEFT SIDE */}
         <div className="flex-1">
 
-          {/* TITLE */}
           <h1 className="text-2xl uppercase font-semibold text-gray-800 mb-3">
             {task.title}
           </h1>
 
-          {/* DESCRIPTION */}
           <p className="text-gray-500 text-sm mb-6 max-w-2xl">
             {task.description || "No description provided"}
           </p>
 
-          {/* META */}
           <div className="flex flex-wrap gap-3 text-sm">
 
             <span className={`px-4 py-1.5 rounded-full ${getPriorityStyle()}`}>
@@ -57,7 +67,10 @@ const TaskDetailsPage = () => {
             </span>
 
             <span className="bg-gray-100 px-4 py-1.5 rounded-full">
-              📅 {new Date(task.deadline).toLocaleDateString()}
+              📅{" "}
+              {task.deadline
+                ? new Date(task.deadline).toLocaleDateString()
+                : "No deadline"}
             </span>
 
             <span className="bg-gray-100 px-4 py-1.5 rounded-full capitalize">
@@ -72,36 +85,42 @@ const TaskDetailsPage = () => {
                 key={user._id}
                 src={user.profileImage || "https://i.pravatar.cc/40"}
                 className="w-9 h-9 rounded-full border-2 border-white shadow"
+                alt="member"
               />
             ))}
           </div>
         </div>
 
-        {/* RIGHT SIDE → BIG PROGRESS */}
+        {/* 🔥 PROGRESS */}
         <div className="flex flex-col items-center justify-center min-w-[140px]">
-          <CircularProgress value={task.progress} />
+          <CircularProgress value={task.progress ?? 0} />
           <span className="text-sm text-gray-500 mt-2">
             Progress
           </span>
         </div>
       </div>
 
-      {/* SUBTASKS */}
+      {/* 🔥 SUBTASKS */}
       <div>
         <h2 className="text-md font-semibold text-gray-700 mb-4">
           Subtasks
         </h2>
 
-        <div className="space-y-3">
-          {subtasks.map((subtask) => (
-            <SubtaskItem
-              key={subtask._id}
-              subtask={subtask}
-              onClaim={claimSubtask}
-              onComplete={completeSubtask}
-            />
-          ))}
-        </div>
+        {subtasks.length === 0 ? (
+          <p className="text-gray-400 text-sm">No subtasks yet</p>
+        ) : (
+          <div className="space-y-3">
+            {subtasks.map((subtask) => (
+              <SubtaskItem
+                key={subtask._id}
+                subtask={subtask}
+                onClaim={claimSubtask}
+                onComplete={completeSubtask}
+                userRole={role}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

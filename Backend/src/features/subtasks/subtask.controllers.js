@@ -2,6 +2,7 @@ import { getIO } from "../../lib/socket.js"
 import departmentMemberModel from "../../models/departmentMember.models.js"
 import subtaskModel from "../../models/subtask.models.js"
 import taskModel from "../../models/task.models.js"
+import workspaceMemberModel from "../../models/workspaceMember.models.js"
 import { createActivity } from "../../utils/createActivity.js"
 
 export async function getSubtasksOfTasks(req,res){
@@ -19,13 +20,23 @@ export async function getSubtasksOfTasks(req,res){
 
     const userId = req.userId
 
-    const user = await departmentMemberModel.findOne({userId , departmentId})
 
-    if(!user) {
-        return res.status(403).json({
-            message : "not Authorized"
-        })
-    }
+const user = await departmentMemberModel.findOne({
+  userId,
+  departmentId,
+});
+
+const isAdmin = await workspaceMemberModel.findOne({
+  userId,
+  workspaceId: task.workspaceId,
+  role: "admin",
+});
+
+if (!user && !isAdmin) {
+  return res.status(403).json({
+    message: "not Authorized",
+  });
+}
 
     const subtasks = await subtaskModel.find({taskId})
     .populate("assignedTo" , "name email profileImage")

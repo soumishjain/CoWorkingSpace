@@ -15,6 +15,20 @@ export const getAllDepartments = async (workspaceId) => {
   }
 };
 
+export const getMyDepartments = async (workspaceId) => {
+  try {
+    const res = await axios.get(
+      `/department/get-my-departments/${workspaceId}`,
+      { withCredentials: true }
+    );
+
+    return res.data;
+
+  } catch (error) {
+    throw error.response?.data?.message || "Failed to fetch departments";
+  }
+};
+
 // 🔥 2. Create Department
 export const createDepartment = async (workspaceId, data) => {
   try {

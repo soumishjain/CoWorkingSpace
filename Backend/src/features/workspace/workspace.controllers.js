@@ -9,6 +9,7 @@ import joinRequestModel from "../../models/joinRequest.models.js";
 import ImageKit from '@imagekit/nodejs' 
 import { createNotification } from "../../utils/createNotification.js";
 import { createActivity } from "../../utils/createActivity.js";
+import mongoose from "mongoose";
 
 const imagekit = new ImageKit({
   privateKey: process.env.IMAGE_KIT_PRIVATE_KEY,
@@ -102,25 +103,52 @@ await createActivity({
     }
 }
 
-export async function getAllWorkspace(req,res){
 
-    try{
-    
-    const allWorkspace = await workspaceModel.find()
-    .select("name coverImage description createdBy")
-    .populate("createdBy", "name email")
+export async function getAllWorkspace(req, res) {
+  try {
+    const userId = req.userId;
+
+    // 🔥 GET ALL WORKSPACES
+    const workspaces = await workspaceModel
+      .find()
+      .select("name coverImage description createdBy createdAt")
+      .populate("createdBy", "name email profileImage")
+      .sort({ createdAt: -1 });
+
+    // 🔥 ADD EXTRA DATA (member count + joined flag)
+    const formatted = await Promise.all(
+      workspaces.map(async (ws) => {
+        // 👥 MEMBER COUNT
+        const memberCount = await workspaceMemberModel.countDocuments({
+          workspaceId: ws._id,
+        });
+
+        // 🔥 CHECK IF USER IS MEMBER
+        const isJoined = await workspaceMemberModel.exists({
+          workspaceId: ws._id,
+          userId,
+        });
+
+        return {
+          ...ws.toObject(),
+          memberCount,
+          isJoined: !!isJoined, // true/false
+        };
+      })
+    );
 
     return res.status(200).json({
-        message : "All Workspace Fetched Successfully",
-        count : allWorkspace.length,
-        allWorkspace
-    })
-}catch(error){
-     console.error(error);
-    return res.status(500).json({
-      message: "Internal Server Error"
+      message: "All Workspace Fetched Successfully",
+      count: formatted.length,
+      workspaces: formatted,
     });
-}
+
+  } catch (error) {
+    console.error("GET ALL WORKSPACE ERROR:", error);
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }
 
 export async function deleteWorkspace(req,res){
@@ -898,32 +926,122 @@ export async function workspaceStats(req, res) {
   }
 }
 
+
 export async function searchWorkspaces(req, res) {
   try {
     const { query } = req.query;
-    const userId = req.userId;
+    const userId = new mongoose.Types.ObjectId(req.userId);
 
     let workspaces = [];
 
-    // 🔥 CASE 1: Empty query → RANDOM 10
+    // ================== FETCH WORKSPACES ==================
     if (!query || query.trim() === "") {
+      // 🔥 RANDOM (EXPLORE MODE)
       workspaces = await workspaceModel.aggregate([
-        { $sample: { size: 10 } }
+        { $sample: { size: 10 } },
+
+        // 👤 CREATOR INFO
+        {
+          $lookup: {
+            from: "users",
+            localField: "createdBy",
+            foreignField: "_id",
+            as: "createdBy",
+          },
+        },
+        { $unwind: "$createdBy" },
+
+        // 👥 MEMBER COUNT
+        {
+          $lookup: {
+            from: "workspacemembers",
+            localField: "_id",
+            foreignField: "workspaceId",
+            as: "members",
+          },
+        },
+        {
+          $addFields: {
+            memberCount: { $size: "$members" },
+          },
+        },
+
+        // 🔥 CLEAN DATA
+        {
+          $project: {
+            name: 1,
+            description: 1,
+            coverImage: 1,
+            createdAt: 1,
+            memberCount: 1,
+            createdBy: {
+              _id: 1,
+              name: 1,
+              email: 1,
+              profileImage: 1,
+            },
+          },
+        },
       ]);
     } else {
-      // 🔥 CASE 2: Search
-      workspaces = await workspaceModel
-        .find({
-          name: { $regex: query, $options: "i" },
-        })
-        .limit(10);
+      // 🔥 SEARCH MODE
+      workspaces = await workspaceModel.aggregate([
+        {
+          $match: {
+            name: { $regex: query, $options: "i" },
+          },
+        },
+        { $limit: 10 },
+
+        // 👤 CREATOR
+        {
+          $lookup: {
+            from: "users",
+            localField: "createdBy",
+            foreignField: "_id",
+            as: "createdBy",
+          },
+        },
+        { $unwind: "$createdBy" },
+
+        // 👥 MEMBERS
+        {
+          $lookup: {
+            from: "workspacemembers",
+            localField: "_id",
+            foreignField: "workspaceId",
+            as: "members",
+          },
+        },
+        {
+          $addFields: {
+            memberCount: { $size: "$members" },
+          },
+        },
+
+        {
+          $project: {
+            name: 1,
+            description: 1,
+            coverImage: 1,
+            createdAt: 1,
+            memberCount: 1,
+            createdBy: {
+              _id: 1,
+              name: 1,
+              email: 1,
+              profileImage: 1,
+            },
+          },
+        },
+      ]);
     }
 
-    // 🔥 memberships
+    // ================== USER RELATION ==================
+
     const memberships = await workspaceMemberModel.find({ userId });
     const joinedIds = memberships.map((m) => m.workspaceId.toString());
 
-    // 🔥 requests
     const requests = await joinRequestModel.find({
       userId,
       type: "workspace",
@@ -934,31 +1052,31 @@ export async function searchWorkspaces(req, res) {
       r.workspaceId?.toString()
     );
 
-    // 🔥 final result
-    const results = workspaces.map((ws) => {
-      const obj = ws.toObject ? ws.toObject() : ws; // aggregate me direct object aata hai
+    // ================== FINAL FORMAT ==================
 
+    const results = workspaces.map((ws) => {
       let status = "none";
 
-      if (joinedIds.includes(obj._id.toString())) {
+      if (joinedIds.includes(ws._id.toString())) {
         status = "joined";
-      } else if (requestedIds.includes(obj._id.toString())) {
+      } else if (requestedIds.includes(ws._id.toString())) {
         status = "requested";
       }
 
       return {
-        ...obj,
+        ...ws,
         status,
       };
     });
 
     return res.status(200).json({
-      message: "Success",
+      message: "Workspaces fetched successfully",
+      count: results.length,
       workspaces: results,
     });
 
   } catch (error) {
-    console.error("SEARCH ERROR:", error);
+    console.error("SEARCH WORKSPACE ERROR:", error);
 
     return res.status(500).json({
       message: error.message || "Internal Server Error",

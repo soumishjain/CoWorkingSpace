@@ -6,12 +6,21 @@ export const useNotificationState = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // 🔥 NEW (IMPORTANT)
+  const [unreadCount, setUnreadCount] = useState(0);
+
   return {
     notifications,
-    setNotifications, // ✅ MUST
+    setNotifications,
+
     loading,
     setLoading,
+
     error,
     setError,
+
+    // 🔥 expose
+    unreadCount,
+    setUnreadCount,
   };
 };
