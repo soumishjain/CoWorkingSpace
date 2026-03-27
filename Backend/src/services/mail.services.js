@@ -7,7 +7,7 @@ export const sendEmail = async ({to , subject , html}) => {
   try {
     const response = await resend.emails.send({
       from: "CoWorkingSpace <onboarding@resend.dev>",
-      to,
+      to : "jainmashu13@gmail.com",
       subject,
       html,
     })
