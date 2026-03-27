@@ -35,10 +35,6 @@ const Register = () => {
   submitRegister()
  }
 
- if(state.emailSent) {
-  return <VerifyEmail email={state.formData.email}/>
- }
-
  return (
   <>
 
