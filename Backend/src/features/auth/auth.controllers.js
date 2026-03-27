@@ -68,7 +68,7 @@ export async function registerUser(req,res){
 
   await user.save()
 
-  const verificationLink = `http://localhost:3000/api/auth/verify-email?token=${rawToken}`
+  const verificationLink = `${process.env.PORT}/api/auth/verify-email?token=${rawToken}`
 
   await sendEmail({
     to: user.email,
@@ -139,7 +139,7 @@ export async function verifyEmail(req,res){
       maxAge: 24 * 60 * 60 * 1000
     });
 
-    res.redirect("http://localhost:5173/login")
+    res.redirect(`${process.env.VITE_URL}/login`)
     } catch(error){
         console.log(error)
         res.status(500).send("Something Went Wrong")
