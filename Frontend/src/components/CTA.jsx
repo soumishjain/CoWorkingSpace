@@ -30,7 +30,11 @@ export default function CTA() {
         {/* 🔥 CTA BUTTONS */}
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
 
-          <button className="px-8 py-3 rounded-xl bg-[var(--color-primary)] text-white font-medium shadow-sm hover:shadow-md hover:scale-[1.02] transition">
+          <button
+          onClick={() => {
+            navigate('/dashboard')
+          }}
+          className="px-8 py-3 rounded-xl bg-[var(--color-primary)] text-white font-medium shadow-sm hover:shadow-md hover:scale-[1.02] transition">
             Get Started
           </button>
 

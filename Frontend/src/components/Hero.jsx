@@ -1,4 +1,7 @@
+import { useNavigate } from "react-router-dom";
+
 export default function Hero() {
+  const navigate = useNavigate()
   return (
     <section className="relative max-w-7xl mx-auto px-6 py-24 grid md:grid-cols-2 gap-16 items-center overflow-hidden">
 
@@ -31,11 +34,19 @@ export default function Hero() {
         {/* BUTTONS */}
         <div className="mt-8 flex flex-col sm:flex-row gap-4">
 
-          <button className="px-6 py-3 rounded-xl bg-[var(--color-primary)] text-white font-medium shadow-sm hover:shadow-md hover:scale-[1.02] transition">
+          <button
+          onClick={() => {
+            navigate('/dashboard')
+          }}
+          className="px-6 py-3 rounded-xl bg-[var(--color-primary)] text-white font-medium shadow-sm hover:shadow-md hover:scale-[1.02] transition">
             Create Workspace
           </button>
 
-          <button className="px-6 py-3 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition">
+          <button
+          onClick={() => {
+            navigate('/dashboard')
+          }}
+          className="px-6 py-3 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition">
             Explore
           </button>
 
