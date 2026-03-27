@@ -3,6 +3,7 @@ import RegisterForm from "../components/RegisterForm.jsx"
 import { useRegister } from "../hooks/useRegister.js"
 import { useRegisterState } from "../state/useRegistrationState.js"
 import VerifyEmail from "../components/VerifyEmail.jsx"
+import Login from "./Login.jsx"
 
 const Register = () => {
 
@@ -33,6 +34,10 @@ const Register = () => {
  const handleSubmit = (e) => {
   e.preventDefault()
   submitRegister()
+ }
+
+ if(state.emailSent) {
+  return <Login />
  }
 
  return (
