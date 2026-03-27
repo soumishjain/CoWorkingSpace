@@ -5,7 +5,7 @@ import { Bell } from "lucide-react";
 import WorkspaceCards from "./WorkspaceCards";
 import WorkspaceCardSkeleton from "./WorkspaceSkeleton";
 
-import CreateWorkspaceModal from "./createWorkspaceModal";
+import CreateWorkspaceModal from "./CreateWorkspaceModal";
 import JoinWorkspaceModal from "./JoinWorkspaceModal";
 
 import { useWorkspaceState } from "../state/useWorkspaceState";
