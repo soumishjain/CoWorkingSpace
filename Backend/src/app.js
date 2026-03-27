@@ -28,6 +28,10 @@ app.use(cors({
 }))
 app.use(globalErrorHandler)
 
+app.get('/' , (req,res) => {
+    res.send("Server is Live")
+})
+
 app.use('/api',apiLimiter)
 
 app.use('/api/auth',authRouter)
