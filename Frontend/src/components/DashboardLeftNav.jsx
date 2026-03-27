@@ -131,11 +131,11 @@ const DashboardLeftNav = () => {
     path: "/dashboard/delete-workspace",
     icon: <TrashIcon size={20} />,
   },
-  {
-    name: "Settings",
-    path: "/settings",
-    icon: <UserCheck size={20} />,
-  },
+  // {
+  //   name: "Settings",
+  //   path: "/settings",
+  //   icon: <UserCheck size={20} />,
+  // },
 ];
   }, [workspaceId, departmentId, isAdmin]);
 
