@@ -71,7 +71,6 @@ export async function registerUser(req,res){
   const verificationLink = `${process.env.VITE_URL}/api/auth/verify-email?token=${rawToken}`
 
   await sendEmail({
-    to: user.email,
     subject: "Verify Your Email",
     html : `
         <h2>Email Verification</h2>
