@@ -68,7 +68,7 @@ export async function registerUser(req,res){
 
   await user.save()
 
-  const verificationLink = `${process.env.PORT}/api/auth/verify-email?token=${rawToken}`
+  const verificationLink = `${process.env.VITE_URL}/api/auth/verify-email?token=${rawToken}`
 
   await sendEmail({
     to: user.email,
