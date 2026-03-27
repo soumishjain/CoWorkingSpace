@@ -54,7 +54,7 @@ export async function registerUser(req,res){
     }
 
 
-    const user = await userModel.create({name , username ,email , password : hash , profileImage : profileImageUrl , isVerified : false})
+    const user = await userModel.create({name , username ,email , password : hash , profileImage : profileImageUrl , isVerified : true})
 
     const rawToken = crypto.randomBytes(32).toString("hex")
     
@@ -63,21 +63,21 @@ export async function registerUser(req,res){
   .update(rawToken)
   .digest("hex");
 
-  user.emailVerificationToken = hashedToken
-  user.emailVerificationExpiry = Date.now() + 15 * 60 * 1000
+  // user.emailVerificationToken = hashedToken
+  // user.emailVerificationExpiry = Date.now() + 15 * 60 * 1000
 
-  await user.save()
+  // await user.save()
 
-  const verificationLink = `${process.env.VITE_URL}/api/auth/verify-email?token=${rawToken}`
+  // const verificationLink = `${process.env.VITE_URL}/api/auth/verify-email?token=${rawToken}`
 
-  await sendEmail({
-    subject: "Verify Your Email",
-    html : `
-        <h2>Email Verification</h2>
-        <p>Click the button below to verify your email:</p>
-        <a href="${verificationLink}">Verify Email</a>
-      `
-  })
+  // await sendEmail({
+  //   subject: "Verify Your Email",
+  //   html : `
+  //       <h2>Email Verification</h2>
+  //       <p>Click the button below to verify your email:</p>
+  //       <a href="${verificationLink}">Verify Email</a>
+  //     `
+  // })
 
 
     res.status(201).json({
@@ -85,7 +85,7 @@ export async function registerUser(req,res){
         user : {
             name : name ,
             email , 
-            profileImage : profileImageUrl
+            profileImage : profileImageUrl,
         }
     })
    }catch(error){
