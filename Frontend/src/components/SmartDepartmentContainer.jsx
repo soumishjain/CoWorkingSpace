@@ -1,5 +1,6 @@
 import React from "react";
 import SmartDepartmentCard from "./SmartDepartmentCard";
+import Loader from "./Loader";
 
 const SmartDepartmentContainer = ({
   departments,
@@ -14,7 +15,7 @@ const SmartDepartmentContainer = ({
   workspaceId
 }) => {
 
-  if (loading) return <p>Loading...</p>;
+  if (loading) return <Loader />;
   if (error) return <p className="text-red-500">{error}</p>;
 
   return (

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Search } from "lucide-react";
 import { useJoinWorkspaceState } from "../state/useJoinWorkspaceState";
 import { useJoinWorkspace } from "../hooks/useJoinWorkspace";
+import Loader from "./Loader";
 
 const JoinWorkspaceModal = ({ setOpen, fetchWorkspaces }) => {
   const state = useJoinWorkspaceState();
@@ -55,9 +56,7 @@ const JoinWorkspaceModal = ({ setOpen, fetchWorkspaces }) => {
         <div className="max-h-[350px] overflow-y-auto space-y-3 pr-1">
 
           {state.loading && (
-            <p className="text-sm text-gray-500 text-center py-6">
-              Loading workspaces...
-            </p>
+            <Loader />
           )}
 
           {!state.loading && filteredWorkspaces.length === 0 && (

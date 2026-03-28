@@ -1,11 +1,10 @@
 import { Trophy } from "lucide-react";
+import Loader from "./Loader";
 
 const PreviousWinnerCard = ({ winner, loading }) => {
   if (loading) {
     return (
-      <div className="rounded-3xl p-6 bg-gray-50 text-sm text-gray-500">
-        Loading...
-      </div>
+      <Loader />
     );
   }
 

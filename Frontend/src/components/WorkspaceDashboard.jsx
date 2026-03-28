@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useWorkspaceMembers } from "../hooks/useWorkspaceMembers";
 import { Users, Building2, X } from "lucide-react";
+import Loader from "./Loader";
 
 const WorkspaceDashboard = ({ workspace }) => {
   const navigate = useNavigate();
@@ -110,9 +111,7 @@ const WorkspaceDashboard = ({ workspace }) => {
             {/* list */}
             <div className="overflow-y-auto flex-1 space-y-2 pr-1">
               {loading ? (
-                <p className="text-sm text-gray-500">
-                  Loading...
-                </p>
+                <Loader />
               ) : members.length === 0 ? (
                 <p className="text-sm text-gray-500">
                   No members found
