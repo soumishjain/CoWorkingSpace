@@ -128,10 +128,11 @@ export const fetchWorkspaceMembers = (workspaceId) => {
   );
 };
 
-export const fetchAllWorkspace = () => {
-  return axios.get(
+export const fetchAllWorkspace = async () => {
+  const res = await axios.get(
     `/workspace/get-all-workspace`, {
       withCredentials : true
     }
   )
+  return res.data
 }

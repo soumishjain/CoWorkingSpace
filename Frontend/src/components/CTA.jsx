@@ -1,4 +1,7 @@
+import { useNavigate } from "react-router-dom";
+
 export default function CTA() {
+  const navigate = useNavigate()
   return (
     <section className="relative py-24 px-6 overflow-hidden">
 
@@ -38,7 +41,11 @@ export default function CTA() {
             Get Started
           </button>
 
-          <button className="px-8 py-3 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition">
+          <button
+          onClick={() => {
+            navigate('/dashboard')
+          }}
+          className="px-8 py-3 rounded-xl border border-gray-200 text-gray-700 font-medium hover:bg-gray-50 transition">
             Live Demo
           </button>
 

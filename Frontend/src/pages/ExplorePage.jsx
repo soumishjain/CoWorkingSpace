@@ -10,13 +10,15 @@ const ExplorePage = () => {
   const { fetchWorkspaces } = useExplore(state);
 
   const {
-    workspaces,
-    searchResults,
-    loading,
-    searchLoading,
-    query,
-    setQuery,
-  } = state;
+  workspaces,
+  searchResults,
+  loading,
+  searchLoading,
+  query,
+  setQuery,
+  setWorkspaces,
+  setSearchResults,
+} = state;
 
   useEffect(() => {
     fetchWorkspaces();
@@ -65,8 +67,14 @@ const ExplorePage = () => {
             ) : (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {searchResults.map((ws) => (
-                  <ExplorePageCard key={ws._id} workspace={ws} />
-                ))}
+  <ExplorePageCard
+    key={ws._id}
+    workspace={ws}
+    setWorkspaces={setWorkspaces}
+    setSearchResults={setSearchResults}
+    isSearching={true}
+  />
+))}
               </div>
             )}
           </>
@@ -90,8 +98,14 @@ const ExplorePage = () => {
             ) : (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {workspaces.map((ws) => (
-                  <ExplorePageCard key={ws._id} workspace={ws} />
-                ))}
+  <ExplorePageCard
+    key={ws._id}
+    workspace={ws}
+    setWorkspaces={setWorkspaces}
+    setSearchResults={setSearchResults}
+    isSearching={true}
+  />
+))}
               </div>
             )}
           </>

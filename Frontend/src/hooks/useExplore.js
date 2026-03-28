@@ -21,20 +21,17 @@ export const useExplore = (state) => {
 
       const res = await fetchAllWorkspace();
 
-      console.log("EXPLORE RES:", res); // 🔥 DEBUG
+      console.log("EXPLORE RES:", res);
 
-      const workspaces = res?.workspaces || res?.data?.workspaces || [];
+      const workspaces = res?.workspaces || []; // ✅ clean
 
-      if (workspaces.length > 0) {
-        const shuffled = [...workspaces].sort(() => 0.5 - Math.random());
-        setWorkspaces(shuffled.slice(0, 20));
-      } else {
-        setWorkspaces([]);
-      }
+      const shuffled = [...workspaces].sort(() => 0.5 - Math.random());
+
+      setWorkspaces(shuffled.slice(0, 20));
 
     } catch (err) {
       console.error("FETCH WORKSPACE ERROR:", err);
-      setError(err?.message || "Failed to fetch workspaces");
+      setError(err?.response?.data?.message || "Failed to fetch workspaces");
     } finally {
       setLoading(false);
     }
@@ -58,22 +55,21 @@ export const useExplore = (state) => {
 
         const res = await searchWorkspaces(query);
 
-        console.log("SEARCH RES:", res); // 🔥 DEBUG
+        console.log("SEARCH RES:", res);
 
-        const results = res?.workspaces || res?.data?.workspaces || [];
+        const results = res?.workspaces || []; // ✅ clean
 
         setSearchResults(results);
 
       } catch (err) {
         console.error("SEARCH ERROR:", err);
-        setError(err?.message || "Search failed");
+        setError(err?.response?.data?.message || "Search failed");
       } finally {
         setSearchLoading(false);
       }
     }, 400);
   }, [query, setSearchResults, setSearchLoading, setError]);
 
-  // ================== EFFECT ==================
   useEffect(() => {
     handleSearch();
 

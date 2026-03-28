@@ -104,35 +104,48 @@ await createActivity({
 }
 
 
+
 export async function getAllWorkspace(req, res) {
   try {
     const userId = req.userId;
 
-    // 🔥 GET ALL WORKSPACES
     const workspaces = await workspaceModel
       .find()
       .select("name coverImage description createdBy createdAt")
       .populate("createdBy", "name email profileImage")
       .sort({ createdAt: -1 });
 
-    // 🔥 ADD EXTRA DATA (member count + joined flag)
     const formatted = await Promise.all(
       workspaces.map(async (ws) => {
+
         // 👥 MEMBER COUNT
         const memberCount = await workspaceMemberModel.countDocuments({
           workspaceId: ws._id,
         });
 
-        // 🔥 CHECK IF USER IS MEMBER
-        const isJoined = await workspaceMemberModel.exists({
+        // 🔥 CHECK MEMBER
+        const member = await workspaceMemberModel.findOne({
           workspaceId: ws._id,
           userId,
+        });
+
+        // 🔥 CHECK JOIN REQUEST
+        const request = await joinRequestModel.findOne({
+          workspaceId: ws._id,
+          userId,
+          type: "workspace",
         });
 
         return {
           ...ws.toObject(),
           memberCount,
-          isJoined: !!isJoined, // true/false
+
+          // ✅ JOINED
+          isJoined: !!member,
+
+          // ✅ REQUEST STATUS
+          requestStatus: request?.status || null,
+          // "pending" | "approved" | "rejected" | null
         };
       })
     );
