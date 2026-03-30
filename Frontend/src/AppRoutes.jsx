@@ -22,17 +22,20 @@ import MyTasksPage from './pages/MyTasksPage'
 import TaskDetailsPage from './pages/TaskDetailPage'
 import TaskPage from './pages/TaskPage'
 import ExplorePage from './pages/ExplorePage'
+import UnderMaintainance from './pages/UnderMaintainance'
 
 const AppRoutes = () => {
   return (
     <Routes>
 
+      <Route path='/' element={<UnderMaintainance />}/>
+
       {/* PUBLIC */}
+      {/*  
       <Route path='/' element={<GlobalDashboard />} />
       <Route path='/register' element={<Register />} />
       <Route path='/login' element={<Login />} />
 
-      {/* PROTECTED */}
       <Route
         path="/dashboard"
         element={
@@ -44,17 +47,13 @@ const AppRoutes = () => {
         }
       >
 
-        {/* 🔵 GLOBAL */}
         <Route index element={<PersonalDashboard />} />
         <Route path='delete-workspace' element={<DeleteWorkspace />} />
 
-        {/* 🔔 USER NOTIFICATIONS */}
         <Route path='notifications' element={<NotificationsPage />} />
 
-        {/* 🟡 WORKSPACE */}
         <Route path='workspace/:workspaceId' element={<Workspace />} />
 
-        {/* 🔥 ALL DEPARTMENTS */}
         <Route
           path='workspace/:workspaceId/departments'
           element={<AllDepartments />}
@@ -65,7 +64,6 @@ const AppRoutes = () => {
           element={<ExplorePage />}
         />
 
-        {/* 🔴 DEPARTMENT */}
         <Route
           path='workspace/:workspaceId/department/:departmentId'
           element={<Department />}
@@ -89,7 +87,6 @@ const AppRoutes = () => {
   element={<MyTasksPage />}
 />
 
-        {/* 📊 ACTIVITY */}
         <Route
           path='workspace/:workspaceId/activity'
           element={<ActivityPage />}
@@ -100,7 +97,6 @@ const AppRoutes = () => {
           element={<ActivityPage />}
         />
 
-        {/* ❌ DELETE DEPARTMENT */}
         <Route
           path='workspace/:workspaceId/delete-department'
           element={<DeleteDepartment />}
@@ -112,6 +108,7 @@ const AppRoutes = () => {
         />
 
       </Route>
+      */}
 
     </Routes>
   )
