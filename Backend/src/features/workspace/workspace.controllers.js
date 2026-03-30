@@ -10,97 +10,153 @@ import ImageKit from '@imagekit/nodejs'
 import { createNotification } from "../../utils/createNotification.js";
 import { createActivity } from "../../utils/createActivity.js";
 import mongoose from "mongoose";
+import subscriptionModel from "../../models/subscription.models.js";
+
 
 const imagekit = new ImageKit({
   privateKey: process.env.IMAGE_KIT_PRIVATE_KEY,
 });
 
 
-export async function createWorkspace(req,res){
-    
-    try{
-        const userId = req.userId;
-    const user = await userModel.findById(userId)
-
-    if(!user){
-        return res.status(401).json({
-            message : "Unauthorized Access"
-        })
-    }
-
-    let {name , description} = req.body;
-    if(!name){
-        return res.status(400).json({
-            messsage : "Please fill All the Details"
-        })
-    }
-
-    name = name.toLowerCase()
-
-    const isNameAlreadyExists = await workspaceModel.findOne({name})
-
-    if(isNameAlreadyExists){
-        return res.status(409).json({
-            message : "Workspace with this name already exists"
-        })
-    }
-
-
-    let coverImageUrl;
-
-     if(req.file){
-    const file = await imagekit.files.upload({
-        file :  req.file.buffer.toString("base64"),
-        fileName : `workspace-${Date.now()}`,
-        folder : '/coworkingspace/workspace'
-     })
-     coverImageUrl = file.url
-    }
-
-
-    const workspace = await workspaceModel.create({
-        name , description , coverImage : coverImageUrl, createdBy : userId
-    })
-
-    const generalDept = await departmentModel.create({
-        name : "general",
-        description : "This is general Department",
-        workspaceId : workspace._id,
-        createdBy : userId
-    })
-
-    await workspaceMemberModel.create({
-        userId : userId,
-        workspaceId : workspace._id,
-        role : "admin"
-    })
-
-    // after creating workspace & generalDept
-
-await createActivity({
-  workspaceId: workspace._id,
-  departmentId: null, // 🔥 workspace level
+export async function createWorkspaceService({
   userId,
-  type: "WORKSPACE_CREATED",
-  message: `${user.name} created the workspace`,
-});
+  name,
+  description,
+  plan,
+  payment = null,
+  session
+}) {
+  // ✅ user fetch (for activity)
+  const user = await userModel.findById(userId);
 
-    res.status(201).json({
-        messaege : "workspace created successfully",
-        workspace : {
-            id : workspace._id,
-            name : workspace.name ,
-            description : workspace.description,
-            coverImage : workspace.coverImage,
-            createdBy : workspace.createdBy
-        }
-    })
-    } catch(error){
-        console.error(error);
-    res.status(500).json({
-      message: "Internal Server Error"
-    });
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  // ✅ normalize name
+  name = name.toLowerCase().trim();
+
+  // ✅ duplicate check
+  const existing = await workspaceModel.findOne({ name });
+  if (existing) {
+    throw new Error("Workspace name already exists");
+  }
+
+  // ✅ workspace
+  const workspaceArr = await workspaceModel.create(
+    [{
+      name,
+      description,
+      createdBy: userId,
+      plan
+    }],
+    { session }
+  );
+
+  const workspace = workspaceArr[0];
+
+  const startDate = new Date();
+
+// 🔥 30 days add
+const endDate = new Date();
+endDate.setDate(endDate.getDate() + 30);
+
+  // ✅ subscription
+  const subscriptionArr = await subscriptionModel.create(
+    [{
+      workspaceId: workspace._id,
+      plan,
+      status: "active",
+      startDate,
+      endDate,
+      amount: payment ? payment.amount : 0,
+      paymentId: payment?.paymentId || null,
+      orderId: payment?.orderId || null
+    }],
+    { session }
+  );
+
+  const subscription = subscriptionArr[0];
+
+  // ✅ department (WITH SESSION)
+  await departmentModel.create(
+    [{
+      name: "general",
+      description: "This is general Department",
+      workspaceId: workspace._id,
+      createdBy: userId
+    }],
+    { session }
+  );
+
+  // ✅ member (WITH SESSION)
+  await workspaceMemberModel.create(
+    [{
+      userId,
+      workspaceId: workspace._id,
+      role: "admin"
+    }],
+    { session }
+  );
+
+  // ✅ activity
+  await createActivity({
+    workspaceId: workspace._id,
+    departmentId: null,
+    userId,
+    type: "WORKSPACE_CREATED",
+    message: `${user.name} created the workspace`
+  });
+
+  // ✅ link subscription
+  workspace.subscriptionId = subscription._id;
+  await workspace.save({ session });
+
+  // ✅ link payment
+  if (payment) {
+    payment.workspaceId = workspace._id;
+    await payment.save({ session });
+  }
+
+  return workspace;
+}
+
+// 🔥 FREE PLAN (INDIVIDUAL)
+export async function createFreeWorkspace(req, res) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const userId = req.userId;
+    const { name, description } = req.body;
+
+    if (!name) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Name required" });
     }
+
+    const workspace = await createWorkspaceService({
+      userId,
+      name,
+      description,
+      plan: "individual",
+      session
+    });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.json({
+      message: "Free workspace created",
+      workspace
+    });
+
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error(err);
+    res.status(500).json({ message: "Error" });
+  }
 }
 
 

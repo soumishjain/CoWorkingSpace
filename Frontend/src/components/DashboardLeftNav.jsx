@@ -18,6 +18,7 @@ import {
   Menu,
   TrashIcon,
   BuildingIcon,
+  Receipt,
 } from "lucide-react";
 import axios from "../api/axios";
 import { useAuth } from "../context/AuthContext";
@@ -131,6 +132,11 @@ const DashboardLeftNav = () => {
     path: "/dashboard/delete-workspace",
     icon: <TrashIcon size={20} />,
   },
+  {
+    name : "Billings",
+    path : "/dashboard/billings",
+    icon : <Receipt size={20}/>
+  }
   // {
   //   name: "Settings",
   //   path: "/settings",

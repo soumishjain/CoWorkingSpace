@@ -7,23 +7,45 @@ export const getUserWorkspace = async () => {
     return res.data
 }
 
-export const createWorkspace = async (formData) => {
-    const data = new FormData()
 
-    data.append("name", formData.name)
-    data.append("description", formData.description)
-    data.append("joinPassword", formData.joinPassword)
+export const createFreeWorkspace = async (formData) => {
+  const data = new FormData();
 
-    if (formData.coverImage) {
-        data.append("coverImage", formData.coverImage)
-    }
+  data.append("name", formData.name);
+  data.append("description", formData.description);
 
-    const response = await axios.post('/workspace/create', data, {
-        withCredentials: true
-    })
+  if (formData.coverImage) {
+    data.append("coverImage", formData.coverImage);
+  }
 
-    return response.data
-}
+  const res = await axios.post("/workspace/create-free", data, {
+    withCredentials: true
+  });
+
+  return res.data;
+};
+
+
+export const createOrder = async (formData) => {
+  const res = await axios.post("/payment/create-order", {
+    plan: formData.plan,
+    name: formData.name,
+    description: formData.description
+  }, {
+    withCredentials: true
+  });
+
+  return res.data;
+};
+
+
+export const verifyPayment = async (payload) => {
+  const res = await axios.post("/payment/verify", payload, {
+    withCredentials: true
+  });
+
+  return res.data;
+};
 
 export const deleteWorkspace = async (workspaceId) => {
     try {

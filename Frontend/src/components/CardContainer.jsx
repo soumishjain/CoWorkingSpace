@@ -14,7 +14,6 @@ import { useWorkspace } from "../hooks/useWorkspace";
 import { useCreateWorkspaceState } from "../state/useCreateWorkspaceState";
 import { useCreateWorkspace } from "../hooks/useCrateWorkspace";
 
-// 🔥 IMPORT COUNT API
 import { getUnreadNotificationCount } from "../api/notification.api";
 
 const CardContainer = () => {
@@ -23,8 +22,6 @@ const CardContainer = () => {
 
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const [openJoinModal, setOpenJoinModal] = useState(false);
-
-  // 🔥 NEW STATE
   const [unreadCount, setUnreadCount] = useState(0);
 
   const workspaceState = useWorkspaceState();
@@ -41,20 +38,23 @@ const CardContainer = () => {
     error: createError
   } = createState;
 
-  const { submitWorkspace } = useCreateWorkspace(
+  // 🔥 IMPORTANT: retry values destructure karo
+  const {
+    submitWorkspace,
+    retryWorkspaceCreation,
+    retryPayload
+  } = useCreateWorkspace(
     createState,
     () => setOpenCreateModal(false),
     fetchWorkspaces
   );
 
-  // 🔥 FETCH WORKSPACES
   useEffect(() => {
     if (workspaceId) {
       fetchWorkspaces(workspaceId);
     }
   }, [workspaceId]);
 
-  // 🔥 FETCH NOTIFICATION COUNT
   useEffect(() => {
     const fetchCount = async () => {
       try {
@@ -85,10 +85,9 @@ const CardContainer = () => {
   return (
     <div className="mt-10">
 
-      {/* 🔥 HEADER */}
+      {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
 
-        {/* LEFT */}
         <div>
           <h2 className="text-2xl font-semibold text-gray-900 tracking-tight">
             Workspaces
@@ -98,17 +97,15 @@ const CardContainer = () => {
           </p>
         </div>
 
-        {/* RIGHT */}
         <div className="flex items-center gap-3">
 
-          {/* 🔔 NOTIFICATION WITH COUNT */}
+          {/* 🔔 NOTIFICATIONS */}
           <button
             onClick={() => navigate(`/dashboard/notifications`)}
             className="relative p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition shadow-sm"
           >
             <Bell size={18} />
 
-            {/* 🔥 BADGE */}
             {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1.5 py-[1px] rounded-full">
                 {unreadCount}
@@ -116,7 +113,6 @@ const CardContainer = () => {
             )}
           </button>
 
-          {/* JOIN */}
           <button
             onClick={() => setOpenJoinModal(true)}
             className="px-4 py-2 rounded-xl text-sm font-medium border border-gray-200 bg-white hover:bg-gray-50 transition shadow-sm"
@@ -124,7 +120,6 @@ const CardContainer = () => {
             Join
           </button>
 
-          {/* CREATE */}
           <button
             onClick={() => setOpenCreateModal(true)}
             className="px-4 py-2 rounded-xl text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-md"
@@ -135,12 +130,12 @@ const CardContainer = () => {
         </div>
       </div>
 
-      {/* 🔥 ERROR */}
+      {/* ERROR */}
       {error && (
         <p className="text-red-500 text-sm mb-4">{error}</p>
       )}
 
-      {/* 🔥 LOADING */}
+      {/* LOADING */}
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {Array.from({ length: 8 }).map((_, i) => (
@@ -149,7 +144,7 @@ const CardContainer = () => {
         </div>
       )}
 
-      {/* 🔥 EMPTY */}
+      {/* EMPTY */}
       {!loading && !error && workspaces?.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 border border-dashed border-gray-200 rounded-2xl bg-gray-50">
           <p className="text-sm text-gray-500 mb-3">
@@ -165,19 +160,16 @@ const CardContainer = () => {
         </div>
       )}
 
-      {/* 🔥 GRID */}
+      {/* GRID */}
       {!loading && !error && workspaces?.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {workspaces.map((workspace) => (
-            <WorkspaceCards
-              key={workspace._id}
-              workspace={workspace}
-            />
+            <WorkspaceCards key={workspace._id} workspace={workspace} />
           ))}
         </div>
       )}
 
-      {/* 🔥 MODALS */}
+      {/* MODALS */}
       {openCreateModal && (
         <CreateWorkspaceModal
           formData={formData}
@@ -186,6 +178,8 @@ const CardContainer = () => {
           loading={createLoading}
           error={createError}
           setOpenModal={setOpenCreateModal}
+          retryPayload={retryPayload}                // ✅ FIXED
+          onRetry={retryWorkspaceCreation}          // ✅ FIXED
         />
       )}
 

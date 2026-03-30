@@ -23,15 +23,16 @@ import TaskDetailsPage from './pages/TaskDetailPage'
 import TaskPage from './pages/TaskPage'
 import ExplorePage from './pages/ExplorePage'
 import UnderMaintainance from './pages/UnderMaintainance'
+import BillingPage from './pages/BillingPage'
 
 const AppRoutes = () => {
   return (
     <Routes>
 
-      <Route path='/' element={<UnderMaintainance />}/>
+      {/* <Route path='/' element={<UnderMaintainance />}/> */}
 
       {/* PUBLIC */}
-      {/*  
+      
       <Route path='/' element={<GlobalDashboard />} />
       <Route path='/register' element={<Register />} />
       <Route path='/login' element={<Login />} />
@@ -58,6 +59,8 @@ const AppRoutes = () => {
           path='workspace/:workspaceId/departments'
           element={<AllDepartments />}
         />
+
+        <Route path='billings' element={<BillingPage />} />
 
         <Route
           path='explore'
@@ -108,7 +111,7 @@ const AppRoutes = () => {
         />
 
       </Route>
-      */}
+      
 
     </Routes>
   )

@@ -7,13 +7,14 @@ const CreateWorkspaceModal = ({
   onSubmit,
   loading,
   error,
-  setOpenModal
+  setOpenModal,
+  retryPayload,
+  onRetry // 🔥 NEW PROP
 }) => {
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
 
-      {/* 🔥 MODAL */}
       <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-gray-200 p-6">
 
         {/* CLOSE */}
@@ -69,7 +70,26 @@ const CreateWorkspaceModal = ({
             />
           </div>
 
-          {/* 🔥 FILE INPUT (UPGRADED) */}
+          {/* PLAN */}
+          <div>
+            <label className="text-xs font-medium text-gray-600">
+              Select Plan
+            </label>
+
+            <select
+              name="plan"
+              value={formData.plan}
+              onChange={onChange}
+              className="mt-1 w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+            >
+              <option value="individual">Free</option>
+              <option value="startup">Startup - ₹499</option>
+              <option value="company">Company - ₹1999</option>
+              <option value="bigtech">BigTech - ₹4999</option>
+            </select>
+          </div>
+
+          {/* FILE */}
           <div>
             <label className="text-xs font-medium text-gray-600">
               Cover Image
@@ -88,9 +108,20 @@ const CreateWorkspaceModal = ({
 
           {/* ERROR */}
           {error && (
-            <p className="text-red-500 text-xs bg-red-50 px-3 py-2 rounded-lg">
-              {error}
-            </p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-red-600 text-xs">{error}</p>
+
+              {/* 🔥 RETRY BUTTON */}
+              {retryPayload && (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="mt-2 text-xs px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition"
+                >
+                  Retry Creating Workspace
+                </button>
+              )}
+            </div>
           )}
 
           {/* ACTIONS */}
@@ -109,7 +140,7 @@ const CreateWorkspaceModal = ({
               disabled={loading}
               className="px-4 py-2 text-sm rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-md"
             >
-              {loading ? "Creating..." : "Create"}
+              {loading ? "Processing..." : "Create"}
             </button>
 
           </div>
