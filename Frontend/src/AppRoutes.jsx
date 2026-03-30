@@ -28,10 +28,10 @@ const AppRoutes = () => {
   return (
     <Routes>
 
-      <Route path='/' element={<UnderMaintainance />}/>
+      {/* <Route path='/' element={<UnderMaintainance />}/> */}
 
       {/* PUBLIC */}
-      {/*  
+       
       <Route path='/' element={<GlobalDashboard />} />
       <Route path='/register' element={<Register />} />
       <Route path='/login' element={<Login />} />
@@ -108,7 +108,7 @@ const AppRoutes = () => {
         />
 
       </Route>
-      */}
+     
 
     </Routes>
   )
