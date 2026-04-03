@@ -1,9 +1,10 @@
 import express from 'express'
 import { identifyUser } from '../../middleware/auth.middleware.js'
-import { getOldMessage } from './chat.controllers.js'
+import { deleteMessage, getMessages } from './chat.controllers.js'
 
 const chatRouter = express.Router()
 
-chatRouter.get('/old-messages/:departmentId',identifyUser,getOldMessage)
+chatRouter.get("/:chatRoomId/messages", identifyUser, getMessages)
+chatRouter.delete("/message/:messageId", identifyUser, deleteMessage)
 
 export default chatRouter

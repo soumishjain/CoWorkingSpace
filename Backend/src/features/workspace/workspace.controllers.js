@@ -625,6 +625,10 @@ export async function leaveWorkspace(req,res){
         userId : userId, workspaceId : workspaceId
     })
 
+    await workspaceModel.findByIdAndUpdate(workspaceId, {
+      $inc: { memberCount: -1 }
+    });
+
     await joinRequestModel.deleteMany({
         userId , workspaceId
     })
@@ -774,6 +778,10 @@ export async function removeMember(req,res){
         await joinRequestModel.deleteMany({
             userId : removeUserId , workspaceId
         })
+
+        await workspaceModel.findByIdAndUpdate(workspaceId, {
+          $inc: { memberCount: -1 }
+        });
 
         await workspaceMemberModel.deleteOne({
             userId : removeUserId,

@@ -1,24 +1,39 @@
 import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema({
-  content: {
-    type: String,
-    required: true,
-  },
+  content: String,
+
   senderId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
   },
-  workspaceId: {
+
+  chatRoomId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Workspace",
+    ref: "ChatRoom",
   },
-  departmentId: {
+
+  // 🔥 NEW FEATURES
+  type: {
+    type: String,
+    enum: ["text", "file", "system"],
+    default: "text"
+  },
+
+  fileUrl: String,
+
+  replyTo: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Department",
+    ref: "Message"
   },
+
+  mentions: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User"
+  }]
+
 }, { timestamps: true });
 
-const messageModel = mongoose.model("Message",messageSchema)
+const messageModel = mongoose.model("Message", messageSchema);
 
 export default messageModel

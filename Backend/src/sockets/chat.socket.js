@@ -1,153 +1,179 @@
 import jwt from "jsonwebtoken";
-import departmentMemberModel from "../models/departmentMember.models.js";
+import chatRoomModel from "../models/chatRoom.models.js";
 import messageModel from "../models/message.models.js";
-import departmentModel from "../models/department.models.js";
-import workspaceMemberModel from "../models/workspaceMember.models.js";
 
 export const initSocket = (io) => {
 
-  console.log("🔥 INIT SOCKET CALLED");
-  console.log("SECRET IN SOCKET: ", process.env.JWT_SECRET)
+  // 🔐 AUTH
+  io.use((socket, next) => {
+    try {
+      const token = socket.handshake.auth?.token;
 
-  // ===== 🔐 AUTH MIDDLEWARE (AUTH TOKEN BASED) =====
-io.use((socket, next) => {
-  try {
-    const token = socket.handshake.auth?.token;
+      if (!token) return next(new Error("No token"));
 
-    console.log("🔑 TOKEN:", token);
-    console.log("🔐 SECRET:", process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      socket.userId = decoded.id;
 
-    if (!token) {
-      console.log("❌ NO TOKEN");
-      return next(new Error("No token"));
+      next();
+    } catch (err) {
+      next(new Error("Unauthorized"));
     }
+  });
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    console.log("✅ DECODED:", decoded);
-
-    socket.userId = decoded.id;
-
-    next();
-  } catch (err) {
-    console.log("❌ JWT ERROR:", err.message); // 🔥 MOST IMPORTANT
-    next(new Error("Unauthorized"));
-  }
-});
-
-
-
-  // ===== 🔌 CONNECTION =====
+  // 🔌 CONNECTION
   io.on("connection", (socket) => {
-    console.log("🟢 CONNECTED USER:", socket.userId);
+    console.log("🟢 CONNECTED:", socket.userId);
 
-    // ===== 🧠 JOIN DEPARTMENT =====
-    socket.on("join_department", async ({ departmentId }) => {
+    // ===== 🧠 JOIN CHATROOM =====
+    socket.on("join_chatroom", async ({ chatRoomId }) => {
       try {
-        console.log("joinDepartment: ", departmentId)
-        if (!departmentId) {
-          console.log("❌ NO DEPARTMENT ID");
-          return;
-        }
+        if (!chatRoomId) return;
 
-        const member = await departmentMemberModel.findOne({
-          userId: socket.userId,
-          departmentId,
-        });
+        const chatRoom = await chatRoomModel.findById(chatRoomId);
 
-        const department = await departmentModel.findById(departmentId)
+        if (!chatRoom) return;
 
-        const workspaceId = department.workspaceId
+        const isMember = chatRoom.members.some(
+          m => m.toString() === socket.userId
+        );
 
-        const admin = await workspaceMemberModel.findOne({workspaceId,userId: socket.userId, role : 'admin'})
+        if (!isMember) return;
 
-        if (!admin && !member) {
-          console.log("❌ NOT A MEMBER");
-          return;
-        }
+        socket.join(chatRoomId.toString());
 
-        socket.join(departmentId.toString());
-
-        console.log("✅ JOINED:", departmentId);
       } catch (err) {
         console.error("JOIN ERROR:", err);
       }
     });
 
-
-
     // ===== 🚪 LEAVE =====
-    socket.on("leave_department", ({ departmentId }) => {
-      if (!departmentId) return;
-
-      socket.leave(departmentId.toString());
-
-      console.log("🚪 LEFT:", departmentId);
+    socket.on("leave_chatroom", ({ chatRoomId }) => {
+      if (!chatRoomId) return;
+      socket.leave(chatRoomId.toString());
     });
 
+    // ===== 💬 SEND MESSAGE (UPGRADED) =====
+    socket.on("send_message", async (data) => {
+      try {
+        const { content, chatRoomId, type = "text", fileUrl, replyTo, mentions } = data;
 
+        if (!chatRoomId) return;
+        if (type === "text" && (!content || !content.trim())) return;
 
-    // ===== 💬 SEND MESSAGE =====
-socket.on("send_message", async ({ content, departmentId }) => {
-  try {
-    if (!content || !departmentId) return;
-    if (!content.trim()) return;
+        // 🔥 get chatroom + workspace
+        const chatRoom = await chatRoomModel
+          .findById(chatRoomId)
+          .populate({
+            path: "workspaceId",
+            select: "plan"
+          });
 
-    const department = await departmentModel.findById(departmentId);
-    const workspaceId = department.workspaceId;
+        if (!chatRoom) return;
 
-    // 🔥 check admin (workspace level)
-    const admin = await workspaceMemberModel.findOne({
-      workspaceId,
-      userId: socket.userId,
-      role: "admin",
-    });
+        if (replyTo) {
+  const originalMessage = await messageModel.findById(replyTo);
 
-    // 🔥 check department member (manager bhi yahi hoga)
-    const member = await departmentMemberModel.findOne({
-      userId: socket.userId,
-      departmentId,
-    });
-
-    if (!admin && !member) {
-      console.log("❌ NOT AUTHORIZED");
-      return;
-    }
-
-    // 🔥 role decide karo
-    let role = "member";
-
-    if (admin) {
-      role = "admin";
-    } else if (member?.role === "manager") {
-      role = "manager";
-    }
-
-    console.log(role)
-
-    const message = await messageModel.create({
-      content: content.trim(),
-      departmentId,
-      senderId: socket.userId,
-    });
-
-    const populated = await messageModel
-      .findById(message._id)
-      .populate("senderId", "name profileImage");
-
-    // 🔥 yaha attach kar role manually
-    const messageWithRole = {
-      ...populated.toObject(),
-      role,
-    };
-
-    io.to(departmentId.toString()).emit("receive_message", messageWithRole);
-
-  } catch (err) {
-    console.error("SEND ERROR:", err);
+  if (!originalMessage) {
+    return socket.emit("error", "Original message not found");
   }
-});
 
+  // 🔥 ensure same chatroom
+  if (originalMessage.chatRoomId.toString() !== chatRoomId) {
+    return socket.emit("error", "Invalid reply target");
+  }
+}
+
+        const workspace = chatRoom.workspaceId;
+        const features = workspace.plan.features;
+
+        // ✅ membership check
+        const isMember = chatRoom.members.some(
+          m => m.toString() === socket.userId
+        );
+
+        if (!isMember) return;
+
+        // ===== 🔥 FEATURE CHECKS =====
+
+        // file
+        if (type === "file" && !features.fileUpload) {
+          return socket.emit("error", "File upload not allowed in your plan");
+        }
+
+        // reply
+        if (replyTo && !features.replyMessage) {
+          return socket.emit("error", "Reply feature not available");
+        }
+
+        // mentions
+        if (mentions?.length && !features.mentions) {
+          return socket.emit("error", "Mentions not allowed in your plan");
+        }
+
+        if (mentions?.length) {
+
+  // remove duplicates
+  const uniqueMentions = [...new Set(mentions)];
+
+  // check all users are part of chatroom
+  const invalidUsers = uniqueMentions.filter(
+    userId => !chatRoom.members.some(
+      m => m.toString() === userId
+    )
+  );
+
+  if (invalidUsers.length > 0) {
+    return socket.emit("error", "Invalid users in mentions");
+  }
+}
+
+        // ===== 💾 CREATE MESSAGE =====
+        const message = await messageModel.create({
+          content: content?.trim(),
+          senderId: socket.userId,
+          chatRoomId,
+          type,
+          fileUrl,
+          replyTo,
+          mentions
+        });
+
+        // ===== 🔥 POPULATE =====
+        const populated = await messageModel
+  .findById(message._id)
+  .populate("senderId", "name profileImage")
+  .populate("mentions", "name profileImage")
+  .populate({
+    path: "replyTo",
+    populate: {
+      path: "senderId",
+      select: "name profileImage"
+    }
+  });
+
+        // ===== 📡 EMIT =====
+        io.to(chatRoomId.toString()).emit("receive_message", populated);
+
+        // optional ack
+        socket.emit("message_sent", populated);
+
+      } catch (err) {
+        console.error("SEND ERROR:", err);
+      }
+    });
+
+    // ===== ✍️ TYPING =====
+    socket.on("typing", ({ chatRoomId }) => {
+      socket.to(chatRoomId).emit("typing", {
+        userId: socket.userId
+      });
+    });
+
+    socket.on("stop_typing", ({ chatRoomId }) => {
+      socket.to(chatRoomId).emit("stop_typing", {
+        userId: socket.userId
+      });
+    });
 
     // ===== ❌ DISCONNECT =====
     socket.on("disconnect", () => {

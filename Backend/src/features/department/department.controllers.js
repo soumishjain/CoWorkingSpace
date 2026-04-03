@@ -10,11 +10,13 @@ import monthlyLeaderboardModel from "../../models/monthlyLeaderboard.models.js";
 import { createActivity } from "../../utils/createActivity.js";
 import { createNotification } from "../../utils/createNotification.js";
 import { getIO } from "../../lib/socket.js";
+import subscriptionModel from "../../models/subscription.models.js";
+import { PLANS } from "../../utils/plans.js";
 
 export async function createDepartment(req,res){
     try{
 
-        const workspace = req.workspace
+    const workspace = req.workspace
     const userId = req.userId
 
     const admin = await workspaceMemberModel.findOne({userId , workspaceId : workspace._id})
@@ -24,8 +26,21 @@ export async function createDepartment(req,res){
             message : "You are not authorized to create a department in this workspace"
         })
     }
+    const workspaceId = workspace._id
 
+    const plan = await subscriptionModel.findOne({workspaceId , status : 'active'})
 
+    if(!plan) {
+      return res.status(403).json({
+        message : "No active Subscription"
+      })
+    }
+
+    if(workspace.departmentCount >= PLANS[plan].limits.departments) {
+      return res.status(403).json({
+        message : "Max Departments Count Reached For this Plan"
+      })
+    }
 
     const {name , description} = req.body
     const department = await departmentModel.create({
@@ -35,12 +50,15 @@ export async function createDepartment(req,res){
         createdBy : userId 
     })
 
-    const workspaceId = workspace._id
-    const departmentId = department._id
+    await workspaceModel.findByIdAndUpdate(workspaceId, {
+      $inc: { departmentCount: 1 }
+    });
+
+    
 
     await createActivity({
   workspaceId,
-  departmentId: null,
+  departmentId: department._id,
   userId,
   type: "DEPARTMENT_CREATED",
   message: `${name} department created`
@@ -314,6 +332,10 @@ export async function deleteDepartment(req, res) {
     // 🔥 3. DELETE ALL MEMBERS
     await departmentMemberModel.deleteMany({
       departmentId,
+    });
+
+    await workspaceModel.findByIdAndUpdate(workspaceId, {
+      $inc: { departmentCount: -1 }
     });
 
     // 🔥 4. DELETE DEPARTMENT

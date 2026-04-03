@@ -1,30 +1,97 @@
 export const PLANS = {
   individual: {
-    name: "individual",
+    id: "individual",
+    name: "Individual",
     price: 0,
-    maxMembers: 10,
-    maxDepartments: 1,
-    maxChatroomsPerDepartment: 1
+
+    limits: {
+      members: 10,
+      departments: 1,
+      chatroomsPerDepartment: 1
+    },
+
+    features: {
+      // existing
+      videoCall: false,
+      analytics: false,
+      chatbot: false,
+
+      // 🔥 NEW (chat features)
+      fileUpload: false,
+      replyMessage: false,
+      mentions: false
+    }
   },
+
   startup: {
-    name: "startup",
+    id: "startup",
+    name: "Startup",
     price: 499,
-    maxMembers: 50,
-    maxDepartments: 3,
-    maxChatroomsPerDepartment: 3
+
+    limits: {
+      members: 50,
+      departments: 3,
+      chatroomsPerDepartment: 3
+    },
+
+    features: {
+      // existing
+      videoCall: false,
+      analytics: false,
+      chatbot: false,
+
+      // 🔥 NEW
+      fileUpload: true,
+      replyMessage: true,
+      mentions: false
+    }
   },
+
   company: {
-    name: "company",
+    id: "company",
+    name: "Company",
     price: 1999,
-    maxMembers: 200,
-    maxDepartments: 10,
-    maxChatroomsPerDepartment: 10
+
+    limits: {
+      members: 200,
+      departments: 10,
+      chatroomsPerDepartment: 10
+    },
+
+    features: {
+      // existing
+      videoCall: true,
+      analytics: true,
+      chatbot: false,
+
+      // 🔥 NEW
+      fileUpload: false,
+      replyMessage: true,
+      mentions: false
+    }
   },
+
   bigtech: {
-    name: "bigtech",
+    id: "bigtech",
+    name: "Big Tech",
     price: 4999,
-    maxMembers: 1000,
-    maxDepartments: 50,
-    maxChatroomsPerDepartment: 20
+
+    limits: {
+      members: 1000,
+      departments: 50,
+      chatroomsPerDepartment: 20
+    },
+
+    features: {
+      // existing
+      videoCall: true,
+      analytics: true,
+      chatbot: true,
+
+      // 🔥 NEW
+      fileUpload: true,
+      replyMessage: true,
+      mentions: true
+    }
   }
 };
