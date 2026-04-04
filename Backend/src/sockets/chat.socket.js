@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import chatRoomModel from "../models/chatRoom.models.js";
-import messageModel from "../models/message.models.js";
+import { PLANS } from "../utils/plans.js";
 
 export const initSocket = (io) => {
 
@@ -30,7 +30,6 @@ export const initSocket = (io) => {
         if (!chatRoomId) return;
 
         const chatRoom = await chatRoomModel.findById(chatRoomId);
-
         if (!chatRoom) return;
 
         const isMember = chatRoom.members.some(
@@ -52,80 +51,87 @@ export const initSocket = (io) => {
       socket.leave(chatRoomId.toString());
     });
 
-    // ===== 💬 SEND MESSAGE (UPGRADED) =====
+    // ===== 💬 SEND MESSAGE =====
     socket.on("send_message", async (data) => {
       try {
-        const { content, chatRoomId, type = "text", fileUrl, replyTo, mentions } = data;
+        const {
+          content,
+          chatRoomId,
+          type = "text",
+          fileUrl,
+          replyTo,
+          mentions
+        } = data;
 
         if (!chatRoomId) return;
-        if (type === "text" && (!content || !content.trim())) return;
 
-        // 🔥 get chatroom + workspace
-        const chatRoom = await chatRoomModel
-          .findById(chatRoomId)
-          .populate({
-            path: "workspaceId",
-            select: "plan"
-          });
+        if (type === "text" && !content?.trim()) return;
 
+        // 🔥 GET CHATROOM
+        const chatRoom = await chatRoomModel.findById(chatRoomId);
         if (!chatRoom) return;
 
-        if (replyTo) {
-  const originalMessage = await messageModel.findById(replyTo);
+        // 🔥 GET PLAN PROPERLY
+        const workspacePlanKey = chatRoom.workspacePlan || chatRoom.plan || "individual";
+        const plan = PLANS[workspacePlanKey];
+        const features = plan.features;
 
-  if (!originalMessage) {
-    return socket.emit("error", "Original message not found");
-  }
-
-  // 🔥 ensure same chatroom
-  if (originalMessage.chatRoomId.toString() !== chatRoomId) {
-    return socket.emit("error", "Invalid reply target");
-  }
-}
-
-        const workspace = chatRoom.workspaceId;
-        const features = workspace.plan.features;
-
-        // ✅ membership check
+        // ✅ MEMBERSHIP CHECK
         const isMember = chatRoom.members.some(
           m => m.toString() === socket.userId
         );
-
         if (!isMember) return;
 
         // ===== 🔥 FEATURE CHECKS =====
 
-        // file
-        if (type === "file" && !features.fileUpload) {
-          return socket.emit("error", "File upload not allowed in your plan");
+        // file validation
+        if (type === "file") {
+          if (!fileUrl) {
+            return socket.emit("chat_error", { message: "File URL required" });
+          }
+
+          if (!features.fileUpload) {
+            return socket.emit("chat_error", { message: "File upload not allowed" });
+          }
         }
 
-        // reply
-        if (replyTo && !features.replyMessage) {
-          return socket.emit("error", "Reply feature not available");
+        // reply validation
+        if (replyTo) {
+          if (!features.replyMessage) {
+            return socket.emit("chat_error", { message: "Reply not allowed" });
+          }
+
+          const originalMessage = await messageModel.findById(replyTo);
+
+          if (!originalMessage) {
+            return socket.emit("chat_error", { message: "Original message not found" });
+          }
+
+          if (originalMessage.chatRoomId.toString() !== chatRoomId) {
+            return socket.emit("chat_error", { message: "Invalid reply target" });
+          }
         }
 
-        // mentions
-        if (mentions?.length && !features.mentions) {
-          return socket.emit("error", "Mentions not allowed in your plan");
-        }
+        // mentions validation
+        let cleanMentions = [];
 
         if (mentions?.length) {
+          if (!features.mentions) {
+            return socket.emit("chat_error", { message: "Mentions not allowed" });
+          }
 
-  // remove duplicates
-  const uniqueMentions = [...new Set(mentions)];
+          cleanMentions = [...new Set(mentions)];
 
-  // check all users are part of chatroom
-  const invalidUsers = uniqueMentions.filter(
-    userId => !chatRoom.members.some(
-      m => m.toString() === userId
-    )
-  );
+          const invalidUsers = cleanMentions.filter(
+            userId => !chatRoom.members.some(
+              m => m.toString() === userId
+            )
+          );
 
-  if (invalidUsers.length > 0) {
-    return socket.emit("error", "Invalid users in mentions");
-  }
-}
+          if (invalidUsers.length > 0) {
+            return socket.emit("chat_error", { message: "Invalid mention users" });
+          }
+        }
 
         // ===== 💾 CREATE MESSAGE =====
         const message = await messageModel.create({
@@ -135,30 +141,30 @@ export const initSocket = (io) => {
           type,
           fileUrl,
           replyTo,
-          mentions
+          mentions: cleanMentions
         });
 
         // ===== 🔥 POPULATE =====
         const populated = await messageModel
-  .findById(message._id)
-  .populate("senderId", "name profileImage")
-  .populate("mentions", "name profileImage")
-  .populate({
-    path: "replyTo",
-    populate: {
-      path: "senderId",
-      select: "name profileImage"
-    }
-  });
+          .findById(message._id)
+          .populate("senderId", "name profileImage")
+          .populate("mentions", "name profileImage")
+          .populate({
+            path: "replyTo",
+            populate: {
+              path: "senderId",
+              select: "name profileImage"
+            }
+          });
 
         // ===== 📡 EMIT =====
         io.to(chatRoomId.toString()).emit("receive_message", populated);
 
-        // optional ack
         socket.emit("message_sent", populated);
 
       } catch (err) {
         console.error("SEND ERROR:", err);
+        socket.emit("chat_error", { message: "Message send failed" });
       }
     });
 

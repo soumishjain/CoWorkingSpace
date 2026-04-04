@@ -621,8 +621,6 @@ export async function leaveDepartment(req, res) {
   }
 }
 
-
-
 // * getAllDepartmentMembers
 export async function getAllDepartmentMembers(req, res) {
   try {
