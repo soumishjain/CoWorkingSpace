@@ -15,85 +15,115 @@ const ActivityPage = () => {
     departmentId
   );
 
-  // 🔥 INITIAL LOAD + RESET (FIXED)
   useEffect(() => {
     if (!workspaceId) return;
-
     state.reset();
-
-    // reset ke baad load (safe)
-      loadActivities();
- 
-
+    loadActivities();
   }, [workspaceId, departmentId]);
 
-  // 🔥 SOCKET (FIXED)
   useEffect(() => {
     if (!workspaceId) return;
-
     initSocket();
-
-    return () => {
-      cleanupSocket();
-    };
+    return cleanupSocket;
   }, [workspaceId, departmentId]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-2xl mx-auto px-4 py-8">
+    <div className="min-h-screen bg-[var(--bg-main)] px-4 py-10">
 
-        {/* HEADER */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 rounded-xl bg-black text-white">
+      {/* 🔥 BACKGROUND GLOW */}
+      <div className="absolute inset-0 -z-10 flex justify-center">
+        <div className="w-[600px] h-[600px] 
+                        bg-[radial-gradient(circle,rgba(255,106,0,0.15),transparent_70%)] 
+                        blur-3xl opacity-40" />
+      </div>
+
+      <div className="max-w-2xl mx-auto">
+
+        {/* 🔥 HEADER */}
+        <div className="flex items-center gap-4 mb-10">
+
+          <div className="p-3 rounded-xl 
+                          bg-[var(--accent)]/20 
+                          text-[var(--accent)] 
+                          border border-[var(--accent)]/20">
             <Activity size={18} />
           </div>
+
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">
+            <h1 className="text-xl font-semibold text-[var(--text-primary)]">
               Activity Feed
             </h1>
-            <p className="text-xs text-gray-500">
-              Track everything happening in your workspace
+
+            <p className="text-sm text-[var(--text-secondary)]">
+              Everything happening in your workspace
             </p>
           </div>
+
         </div>
 
-        {/* EMPTY */}
+        {/* 🔥 EMPTY STATE */}
         {!state.loading && state.activities.length === 0 && (
-          <div className="text-center mt-16">
-            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <Activity size={18} className="text-gray-400" />
+          <div className="text-center mt-20">
+
+            <div className="w-14 h-14 rounded-full 
+                            bg-[var(--bg-secondary)] 
+                            border border-[var(--border)] 
+                            flex items-center justify-center mx-auto mb-4">
+
+              <Activity size={18} className="text-[var(--text-secondary)]" />
+
             </div>
-            <p className="text-sm text-gray-500">
+
+            <p className="text-sm text-[var(--text-secondary)]">
               No activity yet
             </p>
+
           </div>
         )}
 
-        {/* LIST */}
-        <div className="space-y-3">
+        {/* 🔥 ACTIVITY LIST */}
+        <div className="relative space-y-4">
+
+          {/* 🔥 TIMELINE LINE */}
+          {state.activities.length > 0 && (
+            <div className="absolute left-2 top-0 bottom-0 w-[2px] bg-[var(--border)] opacity-50" />
+          )}
+
           {state.activities.map((activity) => (
             <ActivityItem key={activity._id} activity={activity} />
           ))}
+
         </div>
 
-        {/* LOADING */}
+        {/* 🔥 LOADING */}
         {state.loading && (
-          <div className="flex justify-center mt-6">
-            <Loader2 className="animate-spin text-gray-500" size={20} />
+          <div className="flex justify-center mt-8">
+            <Loader2
+              className="animate-spin text-[var(--accent)]"
+              size={22}
+            />
           </div>
         )}
 
-        {/* LOAD MORE */}
+        {/* 🔥 LOAD MORE */}
         {state.hasMore && !state.loading && state.activities.length > 0 && (
           <button
             onClick={loadActivities}
-            className="mt-6 w-full py-2.5 text-sm font-medium bg-black text-white rounded-xl hover:bg-gray-800"
+            className="mt-8 w-full py-3 rounded-xl 
+                       bg-[var(--bg-secondary)] 
+                       border border-[var(--border)] 
+                       text-sm font-medium 
+                       text-[var(--text-primary)]
+                       hover:bg-[var(--bg-hover)] 
+                       hover:border-[var(--accent)] 
+                       transition"
           >
-            Load More
+            Load More Activity
           </button>
         )}
 
       </div>
+
     </div>
   );
 };

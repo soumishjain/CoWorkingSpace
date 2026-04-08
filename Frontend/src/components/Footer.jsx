@@ -2,8 +2,12 @@ export default function Footer() {
   return (
     <footer className="relative mt-28">
 
-      {/* 🔥 TOP GRADIENT LINE (premium touch) */}
-      <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent" />
+      {/* 🔥 TOP GRADIENT LINE */}
+      <div className="h-[1px] w-full 
+                      bg-gradient-to-r 
+                      from-transparent 
+                      via-[var(--accent)]/40 
+                      to-transparent" />
 
       <div className="max-w-7xl mx-auto px-6 py-12">
 
@@ -12,11 +16,11 @@ export default function Footer() {
 
           {/* LEFT */}
           <div className="max-w-sm">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">
               CoworkSpace
             </h2>
 
-            <p className="mt-3 text-sm text-gray-500 leading-relaxed">
+            <p className="mt-3 text-sm text-[var(--text-secondary)] leading-relaxed">
               Manage your workspaces, collaborate with your team, and stay productive —
               all in one powerful platform.
             </p>
@@ -27,28 +31,64 @@ export default function Footer() {
 
             {/* COLUMN 1 */}
             <div>
-              <p className="text-gray-900 font-medium mb-3">Product</p>
-              <div className="flex flex-col gap-2 text-gray-500">
-                <a href="#" className="hover:text-gray-900 transition">Features</a>
-                <a href="#" className="hover:text-gray-900 transition">Pricing</a>
+              <p className="text-[var(--text-primary)] font-medium mb-3">
+                Product
+              </p>
+              <div className="flex flex-col gap-2 text-[var(--text-secondary)]">
+                <a
+                  href="#"
+                  className="hover:text-[var(--accent)] transition"
+                >
+                  Features
+                </a>
+                <a
+                  href="#"
+                  className="hover:text-[var(--accent)] transition"
+                >
+                  Pricing
+                </a>
               </div>
             </div>
 
             {/* COLUMN 2 */}
             <div>
-              <p className="text-gray-900 font-medium mb-3">Company</p>
-              <div className="flex flex-col gap-2 text-gray-500">
-                <a href="#" className="hover:text-gray-900 transition">About</a>
-                <a href="#" className="hover:text-gray-900 transition">Contact</a>
+              <p className="text-[var(--text-primary)] font-medium mb-3">
+                Company
+              </p>
+              <div className="flex flex-col gap-2 text-[var(--text-secondary)]">
+                <a
+                  href="#"
+                  className="hover:text-[var(--accent)] transition"
+                >
+                  About
+                </a>
+                <a
+                  href="#"
+                  className="hover:text-[var(--accent)] transition"
+                >
+                  Contact
+                </a>
               </div>
             </div>
 
             {/* COLUMN 3 */}
             <div>
-              <p className="text-gray-900 font-medium mb-3">Legal</p>
-              <div className="flex flex-col gap-2 text-gray-500">
-                <a href="#" className="hover:text-gray-900 transition">Privacy</a>
-                <a href="#" className="hover:text-gray-900 transition">Terms</a>
+              <p className="text-[var(--text-primary)] font-medium mb-3">
+                Legal
+              </p>
+              <div className="flex flex-col gap-2 text-[var(--text-secondary)]">
+                <a
+                  href="#"
+                  className="hover:text-[var(--accent)] transition"
+                >
+                  Privacy
+                </a>
+                <a
+                  href="#"
+                  className="hover:text-[var(--accent)] transition"
+                >
+                  Terms
+                </a>
               </div>
             </div>
 
@@ -57,15 +97,23 @@ export default function Footer() {
         </div>
 
         {/* 🔥 BOTTOM */}
-        <div className="mt-10 pt-6 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-gray-400">
+        <div className="mt-10 pt-6 border-t border-[var(--border)] 
+                        flex flex-col sm:flex-row justify-between items-center 
+                        gap-4 text-xs text-[var(--text-secondary)]">
 
           <p>© 2026 CoworkSpace. All rights reserved.</p>
 
-          {/* OPTIONAL SOCIALS */}
+          {/* 🔥 SOCIALS */}
           <div className="flex gap-4">
-            <span className="hover:text-gray-700 cursor-pointer transition">Twitter</span>
-            <span className="hover:text-gray-700 cursor-pointer transition">LinkedIn</span>
-            <span className="hover:text-gray-700 cursor-pointer transition">GitHub</span>
+            <span className="hover:text-[var(--accent)] cursor-pointer transition">
+              Twitter
+            </span>
+            <span className="hover:text-[var(--accent)] cursor-pointer transition">
+              LinkedIn
+            </span>
+            <span className="hover:text-[var(--accent)] cursor-pointer transition">
+              GitHub
+            </span>
           </div>
 
         </div>

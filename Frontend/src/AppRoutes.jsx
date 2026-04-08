@@ -24,6 +24,7 @@ import TaskPage from './pages/TaskPage'
 import ExplorePage from './pages/ExplorePage'
 import UnderMaintainance from './pages/UnderMaintainance'
 import BillingPage from './pages/BillingPage'
+import PricingPage from './pages/PricingPage'
 
 const AppRoutes = () => {
   return (
@@ -36,6 +37,7 @@ const AppRoutes = () => {
       <Route path='/' element={<GlobalDashboard />} />
       <Route path='/register' element={<Register />} />
       <Route path='/login' element={<Login />} />
+      <Route path='/pricing' element={<PricingPage />} />
 
       <Route
         path="/dashboard"

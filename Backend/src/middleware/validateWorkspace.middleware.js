@@ -4,7 +4,9 @@ export async function validateWorkspace(req,res , next){
     try{
         const {workspaceId} = req.params
 
-    const workspace = await workspaceModel.findById(workspaceId).select("-joinPassword")
+    const workspace = await workspaceModel.findById(workspaceId)
+    .select("-joinPassword")
+    .populate("createdBy","name email profileImage")
 
     if(!workspace) {
         return res.status(404).json({

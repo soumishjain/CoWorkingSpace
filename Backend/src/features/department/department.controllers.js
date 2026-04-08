@@ -36,7 +36,7 @@ export async function createDepartment(req,res){
       })
     }
 
-    if(workspace.departmentCount >= PLANS[plan].limits.departments) {
+    if(workspace.departmentCount >= PLANS[plan.plan].limits.departments) {
       return res.status(403).json({
         message : "Max Departments Count Reached For this Plan"
       })

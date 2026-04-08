@@ -38,7 +38,6 @@ const CardContainer = () => {
     error: createError
   } = createState;
 
-  // 🔥 IMPORTANT: retry values destructure karo
   const {
     submitWorkspace,
     retryWorkspaceCreation,
@@ -61,10 +60,9 @@ const CardContainer = () => {
         const res = await getUnreadNotificationCount();
         setUnreadCount(res.count || 0);
       } catch (err) {
-        console.error("Notification count error:", err);
+        console.error(err);
       }
     };
-
     fetchCount();
   }, []);
 
@@ -85,44 +83,65 @@ const CardContainer = () => {
   return (
     <div className="mt-10">
 
-      {/* HEADER */}
+      {/* 🔥 HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
 
+        {/* LEFT */}
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900 tracking-tight">
+          <h2 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
             Workspaces
           </h2>
-          <p className="text-sm text-gray-500 mt-1">
+
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
             Access and manage your workspace environments
           </p>
         </div>
 
+        {/* RIGHT */}
         <div className="flex items-center gap-3">
 
           {/* 🔔 NOTIFICATIONS */}
           <button
             onClick={() => navigate(`/dashboard/notifications`)}
-            className="relative p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition shadow-sm"
+            className="relative p-2.5 rounded-xl 
+                       border border-[var(--border)] 
+                       bg-[var(--bg-secondary)] 
+                       hover:bg-[var(--bg-hover)] 
+                       transition-all duration-300 
+                       hover:shadow-[0_0_15px_var(--accent-glow)]"
           >
-            <Bell size={18} />
+            <Bell size={18} className="text-[var(--text-primary)]" />
 
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1.5 py-[1px] rounded-full">
+              <span className="absolute -top-1 -right-1 
+                               bg-[var(--accent)] text-white 
+                               text-[10px] px-1.5 py-[1px] rounded-full">
                 {unreadCount}
               </span>
             )}
           </button>
 
+          {/* JOIN */}
           <button
             onClick={() => setOpenJoinModal(true)}
-            className="px-4 py-2 rounded-xl text-sm font-medium border border-gray-200 bg-white hover:bg-gray-50 transition shadow-sm"
+            className="px-4 py-2 rounded-xl text-sm font-medium 
+                       border border-[var(--border)] 
+                       bg-[var(--bg-secondary)] 
+                       text-[var(--text-primary)]
+                       hover:bg-[var(--bg-hover)] 
+                       transition-all duration-300"
           >
             Join
           </button>
 
+          {/* CREATE */}
           <button
             onClick={() => setOpenCreateModal(true)}
-            className="px-4 py-2 rounded-xl text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-md"
+            className="px-4 py-2 rounded-xl text-sm font-medium text-white 
+                       bg-[var(--accent)] 
+                       hover:bg-[var(--accent-soft)] 
+                       hover:shadow-[0_0_20px_var(--accent-glow)] 
+                       transition-all duration-300"
           >
             + New Workspace
           </button>
@@ -130,12 +149,14 @@ const CardContainer = () => {
         </div>
       </div>
 
-      {/* ERROR */}
+      {/* 🔥 ERROR */}
       {error && (
-        <p className="text-red-500 text-sm mb-4">{error}</p>
+        <p className="text-red-400 text-sm mb-4 bg-red-500/10 px-3 py-2 rounded-lg border border-red-500/20">
+          {error}
+        </p>
       )}
 
-      {/* LOADING */}
+      {/* 🔥 LOADING */}
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {Array.from({ length: 8 }).map((_, i) => (
@@ -144,23 +165,31 @@ const CardContainer = () => {
         </div>
       )}
 
-      {/* EMPTY */}
+      {/* 🔥 EMPTY STATE */}
       {!loading && !error && workspaces?.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 border border-dashed border-gray-200 rounded-2xl bg-gray-50">
-          <p className="text-sm text-gray-500 mb-3">
+        <div className="flex flex-col items-center justify-center py-20 
+                        border border-dashed border-[var(--border)] 
+                        rounded-2xl bg-[var(--bg-secondary)]/50 backdrop-blur">
+
+          <p className="text-sm text-[var(--text-secondary)] mb-3">
             No workspaces yet
           </p>
 
           <button
             onClick={() => setOpenCreateModal(true)}
-            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition"
+            className="px-4 py-2 text-sm font-medium text-white 
+                       bg-[var(--accent)] 
+                       rounded-lg 
+                       hover:bg-[var(--accent-soft)] 
+                       hover:shadow-[0_0_15px_var(--accent-glow)] 
+                       transition"
           >
             Create your first workspace
           </button>
         </div>
       )}
 
-      {/* GRID */}
+      {/* 🔥 GRID */}
       {!loading && !error && workspaces?.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {workspaces.map((workspace) => (
@@ -169,7 +198,7 @@ const CardContainer = () => {
         </div>
       )}
 
-      {/* MODALS */}
+      {/* 🔥 MODALS */}
       {openCreateModal && (
         <CreateWorkspaceModal
           formData={formData}
@@ -178,8 +207,8 @@ const CardContainer = () => {
           loading={createLoading}
           error={createError}
           setOpenModal={setOpenCreateModal}
-          retryPayload={retryPayload}                // ✅ FIXED
-          onRetry={retryWorkspaceCreation}          // ✅ FIXED
+          retryPayload={retryPayload}
+          onRetry={retryWorkspaceCreation}
         />
       )}
 

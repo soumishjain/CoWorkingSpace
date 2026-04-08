@@ -1,22 +1,37 @@
 export default function WorkspaceCardSkeleton() {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 animate-pulse">
+    <div className="relative overflow-hidden rounded-2xl 
+                    border border-[var(--border)] 
+                    bg-[var(--bg-secondary)] 
+                    p-4">
 
-      {/* Image */}
-      <div className="h-32 w-full bg-gray-200 rounded-lg"></div>
+      {/* 🔥 SHIMMER OVERLAY */}
+      <div className="absolute inset-0 
+                      bg-gradient-to-r 
+                      from-transparent 
+                      via-white/5 
+                      to-transparent 
+                      animate-[shimmer_1.5s_infinite]" />
 
-      {/* Title */}
-      <div className="h-4 bg-gray-200 rounded mt-4 w-3/4"></div>
+      {/* IMAGE */}
+      <div className="h-36 w-full 
+                      bg-[var(--bg-hover)] 
+                      rounded-lg" />
 
-      {/* Subtitle */}
-      <div className="h-3 bg-gray-200 rounded mt-2 w-1/2"></div>
+      {/* TITLE */}
+      <div className="h-4 bg-[var(--bg-hover)] rounded mt-4 w-3/4" />
 
-      {/* Footer */}
+      {/* SUBTITLE */}
+      <div className="h-3 bg-[var(--bg-hover)] rounded mt-2 w-1/2" />
+
+      {/* FOOTER */}
       <div className="flex justify-between items-center mt-4">
-        <div className="h-8 w-8 bg-gray-200 rounded-full"></div>
-        <div className="h-8 w-16 bg-gray-200 rounded"></div>
-      </div>
 
+        <div className="h-8 w-8 bg-[var(--bg-hover)] rounded-full" />
+
+        <div className="h-8 w-16 bg-[var(--bg-hover)] rounded-lg" />
+
+      </div>
     </div>
   );
 }
