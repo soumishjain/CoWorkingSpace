@@ -114,36 +114,75 @@ button{
   cursor: pointer;
 }
 
+/* 🔥 DATEPICKER FULL THEME FIX */
+
 .react-datepicker {
-  background-color: #0f172a !important;
-  border: 1px solid #334155 !important;
+  background-color: var(--bg-secondary) !important;
+  border: 1px solid var(--border) !important;
   border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
 }
 
+/* HEADER */
 .react-datepicker__header {
-  background-color: #1e293b !important;
-  border-bottom: 1px solid #334155 !important;
+  background-color: var(--bg-hover) !important;
+  border-bottom: 1px solid var(--border) !important;
 }
 
+/* MONTH TEXT */
 .react-datepicker__current-month,
 .react-datepicker-time__header,
 .react-datepicker-year-header {
-  color: white !important;
+  color: var(--text-primary) !important;
+  font-weight: 500;
 }
 
+/* DAYS TEXT */
 .react-datepicker__day-name,
 .react-datepicker__day {
-  color: #cbd5f5 !important;
+  color: var(--text-secondary) !important;
 }
 
-.react-datepicker__day--selected {
-  background-color: #3b82f6 !important;
+/* SELECTED DAY */
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background-color: var(--accent) !important;
   color: white !important;
   border-radius: 8px !important;
 }
 
+/* HOVER */
 .react-datepicker__day:hover {
-  background-color: #2563eb !important;
+  background-color: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+/* TODAY */
+.react-datepicker__day--today {
+  border: 1px solid var(--accent) !important;
+}
+
+/* NAVIGATION ARROWS */
+.react-datepicker__navigation-icon::before {
+  border-color: var(--text-secondary) !important;
+}
+
+/* REMOVE BLUE FOCUS */
+.react-datepicker__day--keyboard-selected:hover {
+  background-color: var(--accent) !important;
+}
+
+/* 🔥 WIDTH FIX (NO SCROLL ISSUE) */
+.react-datepicker {
+  width: 280px !important;
+  max-width: 100% !important;
+}
+
+/* POPPER FIX */
+.react-datepicker-popper {
+  z-index: 9999 !important;
+  max-width: 100% !important;
 }
 img{
   object-fit: cover;

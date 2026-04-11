@@ -110,7 +110,7 @@ const WorkspaceDashboard = ({ workspace }) => {
 
         <div className="space-y-3 text-sm text-[var(--text-secondary)]">
 
-          {activities.map((a, i) => (
+          {activities.slice(0,5).map((a, i) => (
             <div key={i} className="flex items-center gap-2">
               <Activity size={16} className="text-[var(--accent)]" />
               <p>{a.message}</p>

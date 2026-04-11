@@ -1,3 +1,4 @@
+// MyTasksPage.jsx
 import { useSubtask } from "../hooks/useSubtask";
 
 const MyTasksPage = () => {
@@ -5,73 +6,97 @@ const MyTasksPage = () => {
 
   const getPriorityStyle = (priority) => {
     if (priority === "high")
-      return "bg-red-50 text-red-600 border border-red-200";
+      return "border-red-400/40 text-red-400";
     if (priority === "medium")
-      return "bg-yellow-50 text-yellow-600 border border-yellow-200";
-    return "bg-green-50 text-green-600 border border-green-200";
+      return "border-yellow-400/40 text-yellow-400";
+    return "border-green-400/40 text-green-400";
   };
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
 
       {/* HEADER */}
-      <h1 className="text-2xl font-semibold text-gray-800 mb-6">
+      <h1
+        className="text-2xl font-semibold mb-6"
+        style={{ color: "var(--text-primary)" }}
+      >
         My Tasks
       </h1>
 
       {/* EMPTY */}
       {mySubtasks.length === 0 && (
-        <p className="text-gray-500 text-sm">
+        <p
+          className="text-sm"
+          style={{ color: "var(--text-secondary)" }}
+        >
           No tasks assigned
         </p>
       )}
 
       {/* LIST */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {mySubtasks.map((s) => (
           <div
             key={s._id}
-            className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-200 flex justify-between items-center"
+            className="group rounded-xl p-4 flex justify-between items-center transition"
+            style={{
+              background: "var(--bg-secondary)",
+              border: "1px solid var(--border)",
+            }}
           >
             {/* LEFT */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
 
-              {/* SUBTASK TITLE */}
-              <h2 className="text-sm font-semibold text-gray-800">
+              {/* TITLE */}
+              <h2
+                className="text-sm font-medium"
+                style={{ color: "var(--text-primary)" }}
+              >
                 {s.title}
               </h2>
 
-              {/* PARENT TASK */}
-              <p className="text-xs text-gray-500">
-                Task:{" "}
-                <span className="font-medium text-gray-700">
-                  {s.taskId?.title}
-                </span>
+              {/* PARENT */}
+              <p
+                className="text-xs"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                {s.taskId?.title || "—"}
               </p>
 
               {/* META */}
-              <div className="flex gap-2 flex-wrap mt-1 text-xs">
+              <div className="flex gap-2 flex-wrap mt-1 text-[11px]">
 
                 {/* PRIORITY */}
                 <span
-                  className={`px-3 py-1 rounded-full ${
-                    getPriorityStyle(s.taskId?.priority)
-                  }`}
+                  className={`px-2 py-0.5 rounded-md border ${getPriorityStyle(
+                    s.taskId?.priority
+                  )}`}
                 >
                   {s.taskId?.priority}
                 </span>
 
                 {/* DEADLINE */}
-                <span className="bg-gray-100 px-3 py-1 rounded-full">
-                  📅{" "}
+                <span
+                  className="px-2 py-0.5 rounded-md"
+                  style={{
+                    background: "var(--bg-hover)",
+                    color: "var(--text-secondary)",
+                  }}
+                >
                   {s.taskId?.deadline
                     ? new Date(s.taskId.deadline).toLocaleDateString()
                     : "No deadline"}
                 </span>
 
                 {/* POINTS */}
-                <span className="bg-gray-100 px-3 py-1 rounded-full">
-                  ⚡ {s.points} pts
+                <span
+                  className="px-2 py-0.5 rounded-md"
+                  style={{
+                    background: "var(--bg-hover)",
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  {s.points} pts
                 </span>
               </div>
             </div>
@@ -81,13 +106,23 @@ const MyTasksPage = () => {
 
               {/* STATUS */}
               {s.status === "completed" ? (
-                <span className="text-xs bg-green-50 text-green-600 px-3 py-1 rounded-full font-medium">
-                  ✔ Completed
+                <span
+                  className="text-[11px] px-2 py-0.5 rounded-md"
+                  style={{
+                    background: "rgba(34,197,94,0.1)",
+                    color: "rgb(34,197,94)",
+                  }}
+                >
+                  Completed
                 </span>
               ) : (
                 <button
                   onClick={() => completeSubtask(s._id)}
-                  className="text-xs bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-1.5 rounded-full hover:scale-105 transition"
+                  className="text-[11px] px-3 py-1 rounded-md transition"
+                  style={{
+                    background: "var(--accent)",
+                    color: "white",
+                  }}
                 >
                   Mark Done
                 </button>

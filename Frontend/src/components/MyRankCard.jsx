@@ -1,9 +1,18 @@
+// MyRankCard.jsx
 import { Trophy } from "lucide-react";
+import { motion } from "framer-motion";
 
 const MyRankCard = ({ myRank }) => {
   if (!myRank || !myRank.rank) {
     return (
-      <div className="rounded-2xl px-5 py-4 bg-gray-50 text-gray-500 text-sm flex items-center justify-between">
+      <div
+        className="rounded-xl px-4 py-3 flex items-center justify-between text-sm"
+        style={{
+          background: "var(--bg-secondary)",
+          border: "1px solid var(--border)",
+          color: "var(--text-secondary)",
+        }}
+      >
         <span>You are not participating</span>
         <span className="text-xs">—</span>
       </div>
@@ -11,22 +20,45 @@ const MyRankCard = ({ myRank }) => {
   }
 
   return (
-    <div className="relative rounded-3xl px-6 py-5 bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md overflow-hidden group">
-      
-      {/* subtle glow */}
-      <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition duration-300" />
-
-      <div className="relative flex items-center justify-between">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -2 }}
+      className="rounded-xl px-4 py-4"
+      style={{
+        background: "var(--bg-secondary)",
+        border: "1px solid var(--border)",
+      }}
+    >
+      <div className="flex items-center justify-between">
         
         {/* LEFT */}
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-white/20 backdrop-blur">
-            <Trophy size={18} />
+          
+          {/* icon (clean, no glow) */}
+          <div
+            className="p-2 rounded-lg"
+            style={{
+              background: "var(--bg-hover)",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <Trophy size={16} style={{ color: "var(--accent)" }} />
           </div>
 
+          {/* text */}
           <div>
-            <p className="text-xs opacity-80">Your Rank</p>
-            <h2 className="text-2xl font-bold leading-tight">
+            <p
+              className="text-[10px] uppercase tracking-wider"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              Rank
+            </p>
+
+            <h2
+              className="text-lg font-semibold"
+              style={{ color: "var(--text-primary)" }}
+            >
               #{myRank.rank}
             </h2>
           </div>
@@ -34,13 +66,22 @@ const MyRankCard = ({ myRank }) => {
 
         {/* RIGHT */}
         <div className="text-right">
-          <p className="text-xs opacity-80">Points</p>
-          <p className="text-lg font-semibold">
+          <p
+            className="text-[10px] uppercase tracking-wider"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            Points
+          </p>
+
+          <p
+            className="text-sm font-semibold"
+            style={{ color: "var(--text-primary)" }}
+          >
             {myRank.points}
           </p>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

@@ -8,7 +8,6 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { CalendarDays } from "lucide-react";
 
-// 🔥 ONLY ADDITION
 import { useDebounce } from "../hooks/useDebounce";
 
 const CreateTaskModal = ({ onClose }) => {
@@ -19,7 +18,6 @@ const CreateTaskModal = ({ onClose }) => {
   const [openDropdown, setOpenDropdown] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
 
-  // 🔥 ONLY ADDITION
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
 
@@ -27,14 +25,12 @@ const CreateTaskModal = ({ onClose }) => {
     title: "",
     description: "",
     priority: "medium",
-    deadline: "",
     assignedMembers: [],
     subtasks: [{ title: "", description: "" }],
   };
 
   const [form, setForm] = useState(initialForm);
 
-  // ================= FETCH MEMBERS =================
   useEffect(() => {
     const fetchMembers = async () => {
       const res = await getAllDepartmentMembers(
@@ -57,19 +53,17 @@ const CreateTaskModal = ({ onClose }) => {
     fetchMembers();
   }, [workspaceId, departmentId]);
 
-  // ================= INPUT =================
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // ================= MEMBERS =================
   const addMember = (id) => {
     setForm((prev) => ({
       ...prev,
       assignedMembers: [...prev.assignedMembers, id],
     }));
     setOpenDropdown(false);
-    setSearch(""); // 🔥 reset search
+    setSearch("");
   };
 
   const removeMember = (id) => {
@@ -83,13 +77,11 @@ const CreateTaskModal = ({ onClose }) => {
     (m) => !form.assignedMembers.includes(m._id)
   );
 
-  // 🔥 ONLY ADDITION (FILTER WITH DEBOUNCE)
   const filteredMembers = availableMembers.filter((m) =>
     m.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
     m.email.toLowerCase().includes(debouncedSearch.toLowerCase())
   );
 
-  // ================= SUBTASK =================
   const handleSubtaskChange = (index, field, value) => {
     const updated = [...form.subtasks];
     updated[index][field] = value;
@@ -108,7 +100,6 @@ const CreateTaskModal = ({ onClose }) => {
     setForm({ ...form, subtasks: updated });
   };
 
-  // ================= SUBMIT =================
   const handleSubmit = async () => {
     if (!form.title || !selectedDate) {
       toast.error("Fill required fields");
@@ -138,13 +129,24 @@ const CreateTaskModal = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex justify-center items-center z-50">
-      <div className="bg-[#0f172a] text-white w-[650px] rounded-2xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+
+      <div
+        className="w-[650px] max-h-[90vh] overflow-y-auto rounded-2xl p-6"
+        style={{
+          background: "var(--bg-secondary)",
+          border: "1px solid var(--border)",
+        }}
+      >
 
         {/* HEADER */}
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">Create Task</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+          <h2 style={{ color: "var(--text-primary)" }}>
+            Create Task
+          </h2>
+          <button onClick={onClose} style={{ color: "var(--text-secondary)" }}>
+            ✕
+          </button>
         </div>
 
         {/* TITLE */}
@@ -152,7 +154,7 @@ const CreateTaskModal = ({ onClose }) => {
           name="title"
           value={form.title}
           placeholder="Task title..."
-          className="w-full bg-[#1e293b] p-3 rounded-lg mb-3 outline-none focus:ring-2 focus:ring-blue-500"
+          className="input mb-3"
           onChange={handleChange}
         />
 
@@ -161,16 +163,17 @@ const CreateTaskModal = ({ onClose }) => {
           name="description"
           value={form.description}
           placeholder="Description..."
-          className="w-full bg-[#1e293b] p-3 rounded-lg mb-4 outline-none focus:ring-2 focus:ring-blue-500"
+          className="input mb-4"
           onChange={handleChange}
         />
 
-        {/* ROW */}
-        <div className="flex gap-3 mb-5">
+        {/* PRIORITY + CALENDAR */}
+        <div className="grid grid-cols-2 gap-3 mb-5">
+
           <select
             name="priority"
             value={form.priority}
-            className="flex-1 bg-[#1e293b] p-3 rounded-lg"
+            className="input"
             onChange={handleChange}
           >
             <option value="low">Low</option>
@@ -178,31 +181,44 @@ const CreateTaskModal = ({ onClose }) => {
             <option value="high">High</option>
           </select>
 
-          <div className="relative flex-1">
-            <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <div className="relative">
+            <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)] z-10" />
+
             <DatePicker
               selected={selectedDate}
               onChange={(date) => setSelectedDate(date)}
-              placeholderText="Select deadline"
+              placeholderText="Deadline"
               dateFormat="dd MMM yyyy"
-              className="w-full pl-10 pr-3 py-3 bg-[#1e293b] border border-[#334155] rounded-xl text-white outline-none focus:ring-2 focus:ring-blue-500"
+              wrapperClassName="w-full"
+              popperPlacement="bottom-start"
+              className="w-full pl-9 pr-3 py-3 rounded-xl border text-sm"
+              style={{
+                background: "var(--bg-hover)",
+                borderColor: "var(--border)",
+                color: "var(--text-primary)",
+              }}
             />
           </div>
         </div>
 
         {/* MEMBERS */}
         <div className="mb-6 relative">
-          <p className="text-sm text-gray-400 mb-2">Assign Members</p>
+          <p className="text-xs mb-2" style={{ color: "var(--text-secondary)" }}>
+            Assign Members
+          </p>
 
           <div className="flex flex-wrap gap-2 mb-2">
             {form.assignedMembers.map((id) => {
               const user = members.find((m) => m._id === id);
               return (
-                <div key={id} className="flex items-center gap-2 bg-blue-600 px-3 py-1 rounded-full text-sm">
-                  <img
-                    src={user?.profileImage || "https://i.pravatar.cc/40"}
-                    className="w-5 h-5 rounded-full"
-                  />
+                <div
+                  key={id}
+                  className="flex items-center gap-2 px-2 py-1 rounded-md text-xs"
+                  style={{
+                    background: "var(--bg-hover)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
                   {user?.name}
                   <span onClick={() => removeMember(id)}>✕</span>
                 </div>
@@ -211,59 +227,35 @@ const CreateTaskModal = ({ onClose }) => {
           </div>
 
           <div
-            onClick={() => {
-              setOpenDropdown(!openDropdown);
-              setSearch(""); // 🔥 reset search
-            }}
-            className="bg-[#1e293b] p-3 rounded-lg cursor-pointer"
+            onClick={() => setOpenDropdown(!openDropdown)}
+            className="input cursor-pointer"
           >
             Select members...
           </div>
 
           {openDropdown && (
-            <div className="absolute w-full bg-[#1e293b] mt-2 rounded-lg shadow max-h-52 overflow-y-auto z-50">
-
-              {/* 🔥 SEARCH BAR */}
-              <div className="p-2 border-b border-[#334155]">
-                <input
-                  type="text"
-                  placeholder="Search members..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full bg-[#0f172a] p-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-
-              {filteredMembers.length === 0 && (
-                <p className="text-center text-gray-400 py-3">No members found</p>
-              )}
+            <div
+              className="absolute w-full mt-2 rounded-xl overflow-hidden z-50"
+              style={{
+                background: "var(--bg-secondary)",
+                border: "1px solid var(--border)",
+              }}
+            >
+              <input
+                placeholder="Search..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="input border-none rounded-none"
+              />
 
               {filteredMembers.map((m) => (
                 <div
                   key={m._id}
                   onClick={() => addMember(m._id)}
-                  className="flex items-center justify-between p-3 hover:bg-[#334155] cursor-pointer"
+                  className="p-3 cursor-pointer hover:bg-[var(--bg-hover)] text-sm flex justify-between"
                 >
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={m.profileImage || "https://i.pravatar.cc/40"}
-                      className="w-8 h-8 rounded-full"
-                    />
-                    <div>
-                      <p className="text-sm">{m.name}</p>
-                      <p className="text-xs text-gray-400">{m.email}</p>
-                    </div>
-                  </div>
-
-                  <span
-                    className={`text-xs px-2 py-1 rounded-full ${
-                      m.pendingTasks > 3
-                        ? "bg-red-500/20 text-red-400"
-                        : "bg-yellow-500/20 text-yellow-400"
-                    }`}
-                  >
-                    {m.pendingTasks ?? 0} pending
-                  </span>
+                  {m.name}
+                  <span className="text-xs">{m.pendingTasks} pending</span>
                 </div>
               ))}
             </div>
@@ -272,14 +264,23 @@ const CreateTaskModal = ({ onClose }) => {
 
         {/* SUBTASKS */}
         <div>
-          <p className="text-sm text-gray-400 mb-2">Subtasks</p>
+          <p className="text-xs mb-2" style={{ color: "var(--text-secondary)" }}>
+            Subtasks
+          </p>
 
           {form.subtasks.map((s, i) => (
-            <div key={i} className="bg-[#1e293b] p-3 rounded-lg mb-3">
+            <div
+              key={i}
+              className="p-3 rounded-xl mb-2"
+              style={{
+                background: "var(--bg-hover)",
+                border: "1px solid var(--border)",
+              }}
+            >
               <input
                 value={s.title}
                 placeholder="Subtask title"
-                className="w-full bg-transparent outline-none mb-2"
+                className="input mb-2"
                 onChange={(e) =>
                   handleSubtaskChange(i, "title", e.target.value)
                 }
@@ -287,34 +288,43 @@ const CreateTaskModal = ({ onClose }) => {
               <input
                 value={s.description}
                 placeholder="Description"
-                className="w-full bg-transparent outline-none text-sm text-gray-400"
+                className="input"
                 onChange={(e) =>
                   handleSubtaskChange(i, "description", e.target.value)
                 }
               />
-              <button
-                onClick={() => removeSubtask(i)}
-                className="text-red-400 text-xs mt-2"
-              >
-                Remove
-              </button>
             </div>
           ))}
 
-          <button onClick={addSubtask} className="text-blue-400 text-sm">
+          <button
+            onClick={addSubtask}
+            className="text-sm"
+            style={{ color: "var(--accent)" }}
+          >
             + Add Subtask
           </button>
         </div>
 
         {/* ACTIONS */}
         <div className="flex justify-end gap-3 mt-6">
-          <button onClick={onClose} className="px-4 py-2 bg-gray-700 rounded-lg">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-md text-sm"
+            style={{
+              background: "var(--bg-hover)",
+              color: "var(--text-secondary)",
+            }}
+          >
             Cancel
           </button>
 
           <button
             onClick={handleSubmit}
-            className="px-5 py-2 bg-blue-600 rounded-lg hover:bg-blue-700"
+            className="px-5 py-2 rounded-md text-sm"
+            style={{
+              background: "var(--accent)",
+              color: "white",
+            }}
           >
             Create Task
           </button>

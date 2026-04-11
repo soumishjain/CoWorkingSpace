@@ -1,3 +1,4 @@
+// TopThreeBar.jsx
 import { Crown } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -6,91 +7,126 @@ const TopThreeBar = ({ data }) => {
 
   const order = [1, 0, 2];
 
+  const getRankStyle = (rank) => {
+    if (rank === 0)
+      return {
+        color: "#FFD700",
+        glow: "0 0 25px rgba(255,215,0,0.25)",
+      };
+    if (rank === 1)
+      return {
+        color: "#C0C0C0",
+        glow: "0 0 15px rgba(192,192,192,0.2)",
+      };
+    if (rank === 2)
+      return {
+        color: "#CD7F32",
+        glow: "0 0 15px rgba(205,127,50,0.2)",
+      };
+  };
+
   return (
-    <div className="bg-gradient-to-b from-emerald-50 to-white border border-emerald-100 rounded-3xl bg-white p-8 shadow-sm border border-gray-100">
-      
-      <h2 className="text-xl font-semibold text-gray-900 text-center mb-10 tracking-tight">
+    <div
+      className="rounded-3xl p-6"
+      style={{
+        background: "var(--bg-secondary)",
+        border: "1px solid var(--border)",
+      }}
+    >
+      {/* Heading */}
+      <h2
+        className="text-lg font-semibold text-center mb-8"
+        style={{ color: "var(--text-primary)" }}
+      >
         Top Performers
       </h2>
 
-      <div className="flex items-end justify-center gap-8">
+      {/* Podium */}
+      <div className="flex items-end justify-center gap-5">
         {order.map((pos, i) => {
           const user = data[pos];
           if (!user) return null;
 
           const isFirst = pos === 0;
+          const style = getRankStyle(pos);
 
           return (
             <motion.div
               key={pos}
-              
-              // ✅ ENTRY ONLY (runs once)
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 25 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: i * 0.1 }}
-
-              whileHover={{ y: -6, scale: 1.06 }}
-
-              className={`relative flex flex-col items-center rounded-2xl px-6 py-6 transition-all duration-300
-              ${
-  pos === 0
-    ? "bg-gradient-to-b from-yellow-50 to-white shadow-lg scale-110"
-    : pos === 1
-    ? "bg-gradient-to-b from-blue-50 to-white hover:shadow"
-    : "bg-gradient-to-b from-orange-50 to-white hover:shadow"
-}`}
+              transition={{ delay: i * 0.1 }}
+              whileHover={{ y: -6 }}
+              className="flex flex-col items-center"
             >
-              {/* 🔥 FLOAT LAYER (SEPARATE — FIXED) */}
-              <motion.div
-                animate={isFirst ? { y: [0, -6, 0] } : {}}
-                transition={
-                  isFirst
-                    ? {
-                        duration: 2.5,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                      }
-                    : {}
-                }
-                className="flex flex-col items-center"
+              {/* CARD */}
+              <div
+                className={`relative flex flex-col items-center rounded-2xl px-4 py-4 ${
+                  isFirst ? "mb-4" : "mb-2"
+                }`}
+                style={{
+                  background: "var(--bg-secondary)",
+                  border: `1px solid ${style.color}40`,
+                  boxShadow: isFirst ? style.glow : "none",
+                }}
               >
-                {/* glow */}
+                {/* Crown */}
                 {isFirst && (
-                  <div className="absolute inset-0 rounded-2xl bg-yellow-300/20 blur-xl opacity-40" />
-                )}
-
-                {/* crown */}
-                {isFirst && (
-                  <div className="absolute -top-5">
-                    <Crown size={20} className="text-yellow-500" />
+                  <div className="absolute -top-4">
+                    <Crown size={18} style={{ color: style.color }} />
                   </div>
                 )}
 
-                {/* avatar */}
-                <div className="relative mb-3">
-                  <img
-                    src={
-                      user.profileImage ||
-                      "https://ui-avatars.com/api/?name=User"
-                    }
-                    className={`rounded-full object-cover ${
-                      isFirst
-                        ? "w-16 h-16 shadow-md"
-                        : "w-12 h-12"
-                    }`}
-                  />
-                </div>
+                {/* Avatar */}
+                <img
+                  src={
+                    user.profileImage ||
+                    "https://ui-avatars.com/api/?name=User"
+                  }
+                  className={`rounded-full ${
+                    isFirst ? "w-14 h-14" : "w-11 h-11"
+                  }`}
+                  style={{
+                    border: `2px solid ${style.color}`,
+                  }}
+                />
 
-                {/* name */}
-                <p className="text-sm font-semibold text-gray-900">
+                {/* Name */}
+                <p
+                  className="text-sm font-medium mt-2"
+                  style={{ color: "var(--text-primary)" }}
+                >
                   {user.name}
                 </p>
 
-                {/* points */}
-                <p className="text-sm text-gray-500 mt-1">
+                {/* Points */}
+                <p
+                  className="text-xs"
+                  style={{ color: "var(--text-secondary)" }}
+                >
                   {user.points} pts
                 </p>
-              </motion.div>
+              </div>
+
+              {/* PODIUM BASE */}
+              <div
+                className={`w-14 rounded-xl ${
+                  isFirst ? "h-16" : pos === 1 ? "h-12" : "h-10"
+                }`}
+                style={{
+                  background:
+                    "linear-gradient(180deg, var(--bg-hover), transparent)",
+                  border: "1px solid var(--border)",
+                }}
+              />
+
+              {/* Rank */}
+              <span
+                className="text-xs mt-2 font-semibold"
+                style={{ color: style.color }}
+              >
+                #{pos + 1}
+              </span>
             </motion.div>
           );
         })}
