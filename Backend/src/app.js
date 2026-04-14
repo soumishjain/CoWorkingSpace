@@ -18,6 +18,10 @@ import chatRouter from './features/chat/chat.routes.js'
 import paymentRouter from './features/payment/payment.routes.js'
 import { startSubscriptionCron } from './cron/subscription.js'
 import { leaderboardReset } from './cron/leaderboardReset.js'
+import chatRoomRouter from './features/chatRoom/chatRoom.routes.js'
+import imagekitRouter from './features/imagekit/imagekit.routes.js'
+import fileUploadRouter from './features/chat/fileUpload.routes.js'
+import zegoRouter from './features/zego/zego.routes.js'
 const app = express()
 
 connectToDb()
@@ -52,6 +56,9 @@ app.use('/api/notifications',notificationRouter)
 app.use('/api/ai',aiRouter)
 app.use('/api/leaderboard',leaderboardRouter)
 app.use('/api/chat',chatRouter)
+app.use('/api/chatrooms',chatRoomRouter)
+app.use('/api',fileUploadRouter)
+app.use('/api/meet',zegoRouter)
 
 app.use(globalErrorHandler)
 

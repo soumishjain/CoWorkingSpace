@@ -1,8 +1,8 @@
 import express from "express";
-import { generateZegoToken } from "./zego.controllers";
+import { generateZegoToken } from "./zego.controllers.js";
 
-const router = express.Router();
+const zegoRouter = express.Router();
 
-router.get("/token", generateZegoToken);
+zegoRouter.get("/token", generateZegoToken);
 
-export default router;
+export default zegoRouter;

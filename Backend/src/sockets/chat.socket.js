@@ -1,187 +1,219 @@
 import jwt from "jsonwebtoken";
 import chatRoomModel from "../models/chatRoom.models.js";
+import messageModel from "../models/message.models.js";
+import workspaceModel from "../models/workspace.models.js";
 import { PLANS } from "../utils/plans.js";
+
+const activeCalls = new Map(); // optional feature
 
 export const initSocket = (io) => {
 
-  // 🔐 AUTH
+  // ================= AUTH =================
   io.use((socket, next) => {
     try {
       const token = socket.handshake.auth?.token;
+
+      console.log("🔑 TOKEN:", token);
 
       if (!token) return next(new Error("No token"));
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       socket.userId = decoded.id;
 
+      console.log("✅ AUTH SUCCESS:", socket.userId);
+
       next();
     } catch (err) {
+      console.log("❌ AUTH ERROR:", err.message);
       next(new Error("Unauthorized"));
     }
   });
 
-  // 🔌 CONNECTION
   io.on("connection", (socket) => {
     console.log("🟢 CONNECTED:", socket.userId);
 
-    // ===== 🧠 JOIN CHATROOM =====
+    // ================= JOIN ROOM =================
     socket.on("join_chatroom", async ({ chatRoomId }) => {
       try {
-        if (!chatRoomId) return;
+        console.log("➡️ JOIN REQUEST:", chatRoomId);
 
-        const chatRoom = await chatRoomModel.findById(chatRoomId);
-        if (!chatRoom) return;
+        const room = await chatRoomModel.findOne({
+          _id: chatRoomId,
+          members: socket.userId,
+        });
 
-        const isMember = chatRoom.members.some(
-          m => m.toString() === socket.userId
-        );
-
-        if (!isMember) return;
+        if (!room) {
+          console.log("❌ JOIN FAILED (NOT MEMBER)");
+          return;
+        }
 
         socket.join(chatRoomId.toString());
 
+        console.log("✅ JOINED ROOM:", chatRoomId);
+
+        socket.to(chatRoomId).emit("user_joined_room", {
+          userId: socket.userId,
+        });
+
       } catch (err) {
-        console.error("JOIN ERROR:", err);
+        console.log("💥 JOIN ERROR:", err.message);
       }
     });
 
-    // ===== 🚪 LEAVE =====
+    // ================= LEAVE ROOM =================
     socket.on("leave_chatroom", ({ chatRoomId }) => {
-      if (!chatRoomId) return;
-      socket.leave(chatRoomId.toString());
+      console.log("🚪 LEAVE ROOM:", chatRoomId);
+
+      socket.leave(chatRoomId?.toString());
+
+      socket.to(chatRoomId).emit("user_left_room", {
+        userId: socket.userId,
+      });
     });
 
-    // ===== 💬 SEND MESSAGE =====
+    // ================= SEND MESSAGE =================
     socket.on("send_message", async (data) => {
       try {
+        console.log("📥 RAW MESSAGE:", data);
+
         const {
           content,
           chatRoomId,
           type = "text",
-          fileUrl,
+          fileName,
           replyTo,
-          mentions
+          mentions,
         } = data;
 
-        if (!chatRoomId) return;
+        console.log("📦 PARSED:", {
+          content,
+          type,
+          fileName,
+        });
 
-        if (type === "text" && !content?.trim()) return;
+        // ===== CHECK ROOM =====
+        const chatRoom = await chatRoomModel.findOne({
+          _id: chatRoomId,
+          members: socket.userId,
+        });
 
-        // 🔥 GET CHATROOM
-        const chatRoom = await chatRoomModel.findById(chatRoomId);
-        if (!chatRoom) return;
-
-        // 🔥 GET PLAN PROPERLY
-        const workspacePlanKey = chatRoom.workspacePlan || chatRoom.plan || "individual";
-        const plan = PLANS[workspacePlanKey];
-        const features = plan.features;
-
-        // ✅ MEMBERSHIP CHECK
-        const isMember = chatRoom.members.some(
-          m => m.toString() === socket.userId
-        );
-        if (!isMember) return;
-
-        // ===== 🔥 FEATURE CHECKS =====
-
-        // file validation
-        if (type === "file") {
-          if (!fileUrl) {
-            return socket.emit("chat_error", { message: "File URL required" });
-          }
-
-          if (!features.fileUpload) {
-            return socket.emit("chat_error", { message: "File upload not allowed" });
-          }
+        if (!chatRoom) {
+          console.log("❌ USER NOT IN ROOM");
+          return;
         }
 
-        // reply validation
-        if (replyTo) {
-          if (!features.replyMessage) {
-            return socket.emit("chat_error", { message: "Reply not allowed" });
-          }
+        // ===== WORKSPACE + PLAN =====
+        const workspace = await workspaceModel
+          .findById(chatRoom.workspaceId)
+          .populate("plan");
 
-          const originalMessage = await messageModel.findById(replyTo);
+          console.log("Workspace: " ,workspace)
 
-          if (!originalMessage) {
-            return socket.emit("chat_error", { message: "Original message not found" });
-          }
+        const features = PLANS[workspace?.plan].features || {};
 
-          if (originalMessage.chatRoomId.toString() !== chatRoomId) {
-            return socket.emit("chat_error", { message: "Invalid reply target" });
-          }
+        // ===== VALIDATION =====
+        if (type === "text" && !content?.trim()) {
+          console.log("❌ EMPTY TEXT");
+          return;
         }
 
-        // mentions validation
-        let cleanMentions = [];
-
-        if (mentions?.length) {
-          if (!features.mentions) {
-            return socket.emit("chat_error", { message: "Mentions not allowed" });
-          }
-
-          cleanMentions = [...new Set(mentions)];
-
-          const invalidUsers = cleanMentions.filter(
-            userId => !chatRoom.members.some(
-              m => m.toString() === userId
-            )
-          );
-
-          if (invalidUsers.length > 0) {
-            return socket.emit("chat_error", { message: "Invalid mention users" });
-          }
+        if (type !== "text" && !content) {
+          console.log("❌ FILE BUT NO URL");
+          return;
         }
 
-        // ===== 💾 CREATE MESSAGE =====
+        if (type !== "text" && !features.fileUpload) {
+          console.log(features)
+        console.log("❌ NON-TEXT MESSAGE BLOCKED BY PLAN");
+
+        return socket.emit("chat_error", {
+          message: "Only text messages allowed in your plan",
+        });
+      }
+
+        if (replyTo && !features.replyMessage) {
+          console.log("❌ REPLY BLOCKED");
+          return socket.emit("chat_error", {
+            message: "Reply not allowed",
+          });
+        }
+
+        if (mentions?.length && !features.mentions) {
+          console.log("❌ MENTIONS BLOCKED");
+          return socket.emit("chat_error", {
+            message: "Mentions not allowed",
+          });
+        }
+
+        // ===== FINAL CONTENT FIX =====
+        const finalContent =
+          type === "text"
+            ? content.trim()
+            : content; // 🔥 URL for image/file
+
+        console.log("🔥 FINAL CONTENT:", finalContent);
+
+        // ===== SAVE =====
         const message = await messageModel.create({
-          content: content?.trim(),
+          content: finalContent,
           senderId: socket.userId,
           chatRoomId,
           type,
-          fileUrl,
+          fileName,
           replyTo,
-          mentions: cleanMentions
+          mentions: mentions || [],
         });
 
-        // ===== 🔥 POPULATE =====
+        console.log("💾 MESSAGE SAVED:", message._id);
+
+        // ===== POPULATE =====
         const populated = await messageModel
           .findById(message._id)
-          .populate("senderId", "name profileImage")
-          .populate("mentions", "name profileImage")
-          .populate({
-            path: "replyTo",
-            populate: {
-              path: "senderId",
-              select: "name profileImage"
-            }
-          });
+          .populate("senderId", "name email");
 
-        // ===== 📡 EMIT =====
-        io.to(chatRoomId.toString()).emit("receive_message", populated);
+        console.log("📤 EMITTING:", populated);
 
-        socket.emit("message_sent", populated);
+        // ===== EMIT =====
+        io.to(chatRoomId).emit("receive_message", populated);
 
       } catch (err) {
-        console.error("SEND ERROR:", err);
-        socket.emit("chat_error", { message: "Message send failed" });
+        console.log("💥 SEND ERROR:", err.message);
+        socket.emit("chat_error", { message: "Send failed" });
       }
     });
 
-    // ===== ✍️ TYPING =====
-    socket.on("typing", ({ chatRoomId }) => {
-      socket.to(chatRoomId).emit("typing", {
-        userId: socket.userId
-      });
+    // ================= DELETE MESSAGE =================
+    socket.on("delete_message", async ({ messageId }) => {
+      try {
+        console.log("🗑 DELETE REQUEST:", messageId);
+
+        const message = await messageModel.findById(messageId);
+
+        if (!message) {
+          console.log("❌ MESSAGE NOT FOUND");
+          return;
+        }
+
+        if (message.senderId.toString() !== socket.userId) {
+          console.log("❌ NOT OWNER");
+          return;
+        }
+
+        await messageModel.deleteOne({ _id: messageId });
+
+        console.log("✅ MESSAGE DELETED");
+
+        io.to(message.chatRoomId.toString()).emit(
+          "message_deleted",
+          { messageId }
+        );
+
+      } catch (err) {
+        console.log("💥 DELETE ERROR:", err.message);
+      }
     });
 
-    socket.on("stop_typing", ({ chatRoomId }) => {
-      socket.to(chatRoomId).emit("stop_typing", {
-        userId: socket.userId
-      });
-    });
-
-    // ===== ❌ DISCONNECT =====
+    // ================= DISCONNECT =================
     socket.on("disconnect", () => {
       console.log("🔴 DISCONNECTED:", socket.userId);
     });

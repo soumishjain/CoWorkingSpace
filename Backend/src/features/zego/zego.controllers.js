@@ -1,8 +1,3 @@
-import chatRoomModel from "../../models/chatRoom.models.js";
-import workspaceModel from "../../models/workspace.models.js";
-import { PLANS } from "../../utils/plans.js";
-import { generateToken04 } from "../../utils/zegoToken.js";
-
 export const generateZegoToken = async (req, res) => {
   try {
     const userId = req.userId;
@@ -14,33 +9,46 @@ export const generateZegoToken = async (req, res) => {
       });
     }
 
-    // 🔥 get chatroom + workspace
-    const chatRoom = await chatRoomModel.findById(chatRoomId);
+    // ✅ CHECK ROOM + MEMBERSHIP
+    const chatRoom = await chatRoomModel.findOne({
+      _id: chatRoomId,
+      members: userId
+    });
+
     if (!chatRoom) {
-      return res.status(404).json({
-        message: "Chatroom not found"
+      return res.status(403).json({
+        message: "Access denied"
       });
     }
 
-    const workspace = await workspaceModel.findById(chatRoom.workspaceId);
+    // 🚫 OPTIONAL: block announcement rooms
+    if (chatRoom.type === "announcement") {
+      return res.status(400).json({
+        message: "Video call not allowed in this room"
+      });
+    }
 
-    // 🔥 GET PLAN
-    const plan = PLANS[workspace.plan];
+    // ✅ GET WORKSPACE + PLAN
+    const workspace = await workspaceModel
+      .findById(chatRoom.workspaceId)
+      .populate("plan");
 
-    // ===== 🔥 MAIN CHECK =====
-    if (!plan.features.videoCall) {
+    const features = workspace.plan?.features || {};
+
+    // ✅ PLAN CHECK
+    if (!features.videoCall) {
       return res.status(403).json({
         message: "Video call not allowed in your plan"
       });
     }
 
-    // ===== TOKEN GENERATE =====
+    // ===== 🔥 TOKEN =====
     const appID = Number(process.env.ZEGO_APP_ID);
     const serverSecret = process.env.ZEGO_SERVER_SECRET;
 
     const token = generateToken04(
       appID,
-      userId,
+      userId.toString(), // 🔥 IMPORTANT FIX
       serverSecret,
       3600
     );
@@ -49,7 +57,7 @@ export const generateZegoToken = async (req, res) => {
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({
+    return res.status(500).json({
       message: "Token generation failed"
     });
   }

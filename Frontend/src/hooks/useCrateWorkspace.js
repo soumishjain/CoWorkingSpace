@@ -56,7 +56,7 @@ export const useCreateWorkspace = (state, closeModal, refreshWorkspaces) => {
         refreshWorkspaces();
         closeModal();
 
-        navigate(`workspace/${res.workspace._id}`);
+        navigate(`/workspace/${res.workspace._id}`);
         return;
       }
 

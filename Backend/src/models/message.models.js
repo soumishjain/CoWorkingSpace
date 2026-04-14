@@ -13,27 +13,28 @@ const messageSchema = new mongoose.Schema({
     ref: "ChatRoom",
   },
 
-  // 🔥 NEW FEATURES
+  // 🔥 FIXED TYPE ENUM
   type: {
     type: String,
-    enum: ["text", "file", "system"],
-    default: "text"
+    enum: ["text", "image", "video", "audio", "file", "system"], // ✅ ADDED
+    default: "text",
   },
 
-  fileUrl: String,
+  fileName: String, // 🔥 ADD THIS (tu use kar raha hai frontend me)
 
   replyTo: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Message"
+    ref: "Message",
   },
 
-  mentions: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User"
-  }]
-
+  mentions: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
 }, { timestamps: true });
 
 const messageModel = mongoose.model("Message", messageSchema);
 
-export default messageModel
+export default messageModel;

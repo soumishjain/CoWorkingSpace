@@ -4,42 +4,51 @@ import chatRoomModel from "../../models/chatRoom.models.js";
 export const getMessages = async (req, res) => {
   try {
     const { chatRoomId } = req.params;
-    const { page = 1, limit = 20 } = req.query;
+    let { page = 1, limit = 20 } = req.query;
     const userId = req.userId;
 
-    const chatRoom = await chatRoomModel.findById(chatRoomId);
+    page = parseInt(page);
+    limit = parseInt(limit);
+
+    // ✅ CHECK USER IS MEMBER (FAST)
+    const chatRoom = await chatRoomModel.findOne({
+      _id: chatRoomId,
+      members: userId
+    });
 
     if (!chatRoom) {
-      return res.status(404).json({
-        message: "Chat room not found"
-      });
-    }
-
-    const isMember = chatRoom.members.some(
-      m => m.toString() === userId
-    );
-
-    if (!isMember) {
       return res.status(403).json({
-        message: "Access denied"
+        message: "Access denied or chat room not found"
       });
     }
 
-    const messages = await messageModel.find({ chatRoomId })
-  .sort({ createdAt: 1 })
-  .populate("senderId", "name email")
-  .populate("mentions", "name email")
-  .populate({
-    path: "replyTo",
-    populate: {
-      path: "senderId",
-      select: "name email"
-    }
-  });
+    // ✅ PAGINATION (LATEST FIRST)
+    const messages = await messageModel
+      .find({ chatRoomId })
+      .sort({ createdAt: -1 }) // latest first
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate("senderId", "name email")
+      .populate("mentions", "name email")
+      .populate({
+        path: "replyTo",
+        populate: {
+          path: "senderId",
+          select: "name email"
+        }
+      });
+
+    // 👉 reverse for frontend (old → new order)
+    const orderedMessages = messages.reverse();
 
     return res.status(200).json({
       message: "Messages fetched successfully",
-      data: messages
+      data: orderedMessages,
+      meta: {
+        page,
+        limit,
+        hasMore: messages.length === limit
+      }
     });
 
   } catch (error) {
@@ -63,14 +72,15 @@ export const deleteMessage = async (req, res) => {
       });
     }
 
-    // only sender can delete
+    // ✅ ONLY SENDER CAN DELETE
     if (message.senderId.toString() !== userId) {
       return res.status(403).json({
         message: "You can only delete your own messages"
       });
     }
 
-    await messageModel.findByIdAndDelete(messageId);
+    // ✅ DELETE
+    await messageModel.deleteOne({ _id: messageId });
 
     return res.status(200).json({
       message: "Message deleted successfully"

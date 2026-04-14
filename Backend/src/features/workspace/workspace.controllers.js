@@ -11,12 +11,12 @@ import { createNotification } from "../../utils/createNotification.js";
 import { createActivity } from "../../utils/createActivity.js";
 import mongoose from "mongoose";
 import subscriptionModel from "../../models/subscription.models.js";
+import chatRoomModel from "../../models/chatRoom.models.js";
 
 
 const imagekit = new ImageKit({
   privateKey: process.env.IMAGE_KIT_PRIVATE_KEY,
 });
-
 
 export async function createWorkspaceService({
   userId,
@@ -26,7 +26,7 @@ export async function createWorkspaceService({
   payment = null,
   session
 }) {
-  // ✅ user fetch (for activity)
+  // ✅ user fetch
   const user = await userModel.findById(userId);
 
   if (!user) {
@@ -42,7 +42,7 @@ export async function createWorkspaceService({
     throw new Error("Workspace name already exists");
   }
 
-  // ✅ workspace
+  // ================= WORKSPACE =================
   const workspaceArr = await workspaceModel.create(
     [{
       name,
@@ -55,13 +55,11 @@ export async function createWorkspaceService({
 
   const workspace = workspaceArr[0];
 
+  // ================= SUBSCRIPTION =================
   const startDate = new Date();
+  const endDate = new Date();
+  endDate.setDate(endDate.getDate() + 30);
 
-// 🔥 30 days add
-const endDate = new Date();
-endDate.setDate(endDate.getDate() + 30);
-
-  // ✅ subscription
   const subscriptionArr = await subscriptionModel.create(
     [{
       workspaceId: workspace._id,
@@ -78,8 +76,8 @@ endDate.setDate(endDate.getDate() + 30);
 
   const subscription = subscriptionArr[0];
 
-  // ✅ department (WITH SESSION)
-  await departmentModel.create(
+  // ================= DEPARTMENT =================
+  const departmentArr = await departmentModel.create(
     [{
       name: "general",
       description: "This is general Department",
@@ -89,8 +87,10 @@ endDate.setDate(endDate.getDate() + 30);
     { session }
   );
 
-  // ✅ member (WITH SESSION)
-  await workspaceMemberModel.create(
+  const generalDepartment = departmentArr[0];
+
+  // ================= MEMBER =================
+  const memberArr = await workspaceMemberModel.create(
     [{
       userId,
       workspaceId: workspace._id,
@@ -99,7 +99,21 @@ endDate.setDate(endDate.getDate() + 30);
     { session }
   );
 
-  // ✅ activity
+  const member = memberArr[0];
+
+  // ================= 🔥 DEFAULT CHATROOM =================
+  await chatRoomModel.create(
+    [{
+      name: "general",
+      workspaceId: workspace._id,
+      departmentId: generalDepartment._id,
+      createdBy: userId,
+      members: [userId] // ✅ creator auto added
+    }],
+    { session }
+  );
+
+  // ================= ACTIVITY =================
   await createActivity({
     workspaceId: workspace._id,
     departmentId: null,
@@ -108,11 +122,11 @@ endDate.setDate(endDate.getDate() + 30);
     message: `${user.name} created the workspace`
   });
 
-  // ✅ link subscription
+  // ================= LINK SUBSCRIPTION =================
   workspace.subscriptionId = subscription._id;
   await workspace.save({ session });
 
-  // ✅ link payment
+  // ================= LINK PAYMENT =================
   if (payment) {
     payment.workspaceId = workspace._id;
     await payment.save({ session });
@@ -220,46 +234,67 @@ export async function getAllWorkspace(req, res) {
   }
 }
 
-export async function deleteWorkspace(req,res){
-    
-    try{
-        const userId = req.userId
+export async function deleteWorkspace(req, res) {
+  try {
+    const userId = req.userId;
+    const workspace = req.workspace;
+    const workspaceId = workspace._id;
 
-    const workspace = req.workspace
-    const workspaceId = workspace._id
-
-    if(workspace.createdBy.toString() !== userId){
-        return res.status(403).json({
-            messaege : "You are not allowed to delete this workspace"
-        })
+    // ================= AUTH =================
+    if (workspace.createdBy.toString() !== userId) {
+      return res.status(403).json({
+        message: "You are not allowed to delete this workspace",
+      });
     }
 
-    const departments = await departmentModel.find({workspaceId})
+    // ================= GET ALL DEPARTMENTS =================
+    const departments = await departmentModel.find({ workspaceId });
+    const departmentIds = departments.map((d) => d._id);
 
-    const departmentIds = departments.map(d => d._id)
+    // ================= GET ALL CHATROOMS =================
+    const chatRooms = await chatRoomModel.find({ workspaceId });
+    const chatRoomIds = chatRooms.map((c) => c._id);
 
-    await departmentMemberModel.deleteMany({
-        departmentId : {$in: departmentIds}
-    })
+    // ================= 🔥 DELETE ALL MESSAGES =================
+    if (chatRoomIds.length > 0) {
+      await messageModel.deleteMany({
+        chatRoomId: { $in: chatRoomIds },
+      });
+    }
 
-    await monthlyLeaderboardModel.deleteMany({workspaceId})
+    // ================= 🔥 DELETE ALL CHATROOMS =================
+    await chatRoomModel.deleteMany({ workspaceId });
 
-    await workspaceMemberModel.deleteMany({workspaceId})
+    // ================= DELETE DEPARTMENT MEMBERS =================
+    if (departmentIds.length > 0) {
+      await departmentMemberModel.deleteMany({
+        departmentId: { $in: departmentIds },
+      });
+    }
 
-    await departmentModel.deleteMany({workspaceId})
+    // ================= DELETE WORKSPACE MEMBERS =================
+    await workspaceMemberModel.deleteMany({ workspaceId });
 
-    await workspaceModel.findByIdAndDelete(workspaceId)
+    // ================= DELETE LEADERBOARD =================
+    await monthlyLeaderboardModel.deleteMany({ workspaceId });
 
+    // ================= DELETE DEPARTMENTS =================
+    await departmentModel.deleteMany({ workspaceId });
 
-    res.status(200).json({
-        message : "Workspace Deleted Successfully"
-    })
-    }catch(error){
-        console.error(error);
+    // ================= DELETE WORKSPACE =================
+    await workspaceModel.findByIdAndDelete(workspaceId);
+
+    return res.status(200).json({
+      message: "Workspace Deleted Successfully",
+    });
+
+  } catch (error) {
+    console.error("DELETE WORKSPACE ERROR:", error);
+
     return res.status(500).json({
-      message: "Internal Server Error"
-    }); 
-    }
+      message: "Internal Server Error",
+    });
+  }
 }
 
 export async function updateWorkspace(req,res) {
@@ -384,12 +419,13 @@ console.error(error);
     }
 }
 
+
 export async function approveJoinRequest(req, res) {
   try {
     const adminId = req.userId;
     const { reqId } = req.params;
 
-    // 🔥 1. FIND REQUEST
+    // ================= FIND REQUEST =================
     const request = await joinRequestModel.findOne({
       _id: reqId,
       type: "workspace",
@@ -405,7 +441,7 @@ export async function approveJoinRequest(req, res) {
     const workspaceId = request.workspaceId;
     const reqUserId = request.userId;
 
-    // 🔥 2. CHECK ADMIN
+    // ================= AUTH =================
     const isAdmin = await workspaceMemberModel.findOne({
       userId: adminId,
       workspaceId,
@@ -418,7 +454,7 @@ export async function approveJoinRequest(req, res) {
       });
     }
 
-    // 🔥 3. CHECK IF ALREADY MEMBER
+    // ================= DUPLICATE CHECK =================
     const alreadyMember = await workspaceMemberModel.findOne({
       userId: reqUserId,
       workspaceId,
@@ -430,14 +466,14 @@ export async function approveJoinRequest(req, res) {
       });
     }
 
-    // 🔥 4. ADD TO WORKSPACE
+    // ================= ADD TO WORKSPACE =================
     await workspaceMemberModel.create({
       userId: reqUserId,
       workspaceId,
       role: "member",
     });
 
-    // 🔥 5. GET GENERAL DEPARTMENT
+    // ================= GET GENERAL DEPARTMENT =================
     const generalDept = await departmentModel.findOne({
       workspaceId,
       name: "general",
@@ -448,15 +484,28 @@ export async function approveJoinRequest(req, res) {
     if (generalDept) {
       departmentId = generalDept._id;
 
-      // add to department
+      // ================= ADD TO DEPARTMENT =================
       await departmentMemberModel.create({
         userId: reqUserId,
         departmentId,
         role: "employee",
       });
+
+      // ================= 🔥 ADD TO GENERAL CHATROOM =================
+      const generalRoom = await chatRoomModel.findOne({
+        workspaceId,
+        departmentId,
+        name: "general",
+      });
+
+      if (generalRoom) {
+        await chatRoomModel.findByIdAndUpdate(generalRoom._id, {
+          $addToSet: { members: reqUserId }, // ✅ safe add
+        });
+      }
     }
 
-    // 🔥 6. GET DATA FOR MESSAGE
+    // ================= FETCH DATA =================
     const [workspace, user] = await Promise.all([
       workspaceModel.findById(workspaceId),
       userModel.findById(reqUserId),
@@ -465,7 +514,7 @@ export async function approveJoinRequest(req, res) {
     const workspaceName = workspace?.name || "workspace";
     const userName = user?.name || "Someone";
 
-    // 🔥 7. NOTIFICATION
+    // ================= NOTIFICATION =================
     await createNotification({
       workspaceId,
       userId: reqUserId,
@@ -473,20 +522,16 @@ export async function approveJoinRequest(req, res) {
       message: `Your request to join ${workspaceName} has been approved`,
     });
 
-    // 🔥 8. ACTIVITY (FIXED)
-   await createActivity({
-  workspaceId,
-  departmentId: null,
-  userId: reqUserId,
-  type: "MEMBER_JOINED",
-  message: `${userName} joined the workspace`,
-});
+    // ================= ACTIVITY =================
+    await createActivity({
+      workspaceId,
+      departmentId: null,
+      userId: reqUserId,
+      type: "MEMBER_JOINED",
+      message: `${userName} joined the workspace`,
+    });
 
-    // 🔥 9. UPDATE STATUS
-    request.status = "approved";
-    await request.save();
-
-    // 🔥 10. DELETE REQUEST
+    // ================= DELETE REQUEST =================
     await joinRequestModel.findByIdAndDelete(request._id);
 
     return res.status(200).json({
@@ -494,13 +539,13 @@ export async function approveJoinRequest(req, res) {
     });
 
   } catch (error) {
-    console.error(error);
+    console.error("APPROVE WORKSPACE REQUEST ERROR:", error);
+
     return res.status(500).json({
       message: "Internal server error",
     });
   }
 }
-
 export async function rejectJoinRequest(req, res) {
   try {
     const { reqId } = req.params;
@@ -593,80 +638,98 @@ export async function getMyWorkspaces(req,res){
 }
 
 // leaveWorkspace
-export async function leaveWorkspace(req,res){
-    try{
-        const userId = req.userId;
-        const workspace = req.workspace
-        const workspaceId = workspace._id;
 
-        const isUserInWorkspace = await workspaceMemberModel.findOne({
-            userId , workspaceId
-        })
+export async function leaveWorkspace(req, res) {
+  try {
+    const userId = req.userId;
+    const workspace = req.workspace;
+    const workspaceId = workspace._id;
 
-        if(!isUserInWorkspace) {
-            return res.status(403).json({
-                message : "User is not the part of this workspace"
-            })
-        }
-
-        const adminCount = await workspaceMemberModel.countDocuments({
-            workspaceId , role : "admin"
-        })
-
-        if(adminCount === 1 && isUserInWorkspace.role === "admin"){
-            return res.status(403).json({
-                message : "Assign another admin before leaving"
-            })
-        }
-
-       
-
-    await workspaceMemberModel.findOneAndDelete({
-        userId : userId, workspaceId : workspaceId
-    })
-
-    await workspaceModel.findByIdAndUpdate(workspaceId, {
-      $inc: { memberCount: -1 }
+    // ================= CHECK MEMBERSHIP =================
+    const isUserInWorkspace = await workspaceMemberModel.findOne({
+      userId,
+      workspaceId,
     });
 
-    await joinRequestModel.deleteMany({
-        userId , workspaceId
-    })
-
-    const departments = await departmentModel
-    .find({workspaceId})
-    .select("_id")
-
-    const departmentIds = departments.map(d => d._id)
-    // before delete
-
-const user = await userModel.findById(userId);
-
-await createActivity({
-  workspaceId,
-  departmentId: null,
-  userId,
-  type: "MEMBER_LEFT",
-  message: `${user.name} left the workspace`,
-});
-
-    await departmentMemberModel.deleteMany({
-        userId,
-        departmentId : {$in : departmentIds}
-    })
-
-    res.status(200).json({
-        message : "You are no more part of this workspace"
-    })
-
-
-
-    }catch(error){
-        console.error(error)
-        res.status(500).json({
-            message : "Internal Server Error"
-        })
+    if (!isUserInWorkspace) {
+      return res.status(403).json({
+        message: "User is not the part of this workspace",
+      });
     }
+
+    // ================= ADMIN SAFETY =================
+    const adminCount = await workspaceMemberModel.countDocuments({
+      workspaceId,
+      role: "admin",
+    });
+
+    if (adminCount === 1 && isUserInWorkspace.role === "admin") {
+      return res.status(403).json({
+        message: "Assign another admin before leaving",
+      });
+    }
+
+    // ================= REMOVE FROM WORKSPACE =================
+    await workspaceMemberModel.findOneAndDelete({
+      userId,
+      workspaceId,
+    });
+
+    await workspaceModel.findByIdAndUpdate(workspaceId, {
+      $inc: { memberCount: -1 },
+    });
+
+    // ================= DELETE JOIN REQUESTS =================
+    await joinRequestModel.deleteMany({
+      userId,
+      workspaceId,
+    });
+
+    // ================= GET ALL DEPARTMENTS =================
+    const departments = await departmentModel
+      .find({ workspaceId })
+      .select("_id");
+
+    const departmentIds = departments.map((d) => d._id);
+
+    // ================= 🔥 REMOVE FROM ALL CHATROOMS =================
+    await chatRoomModel.updateMany(
+      {
+        workspaceId,
+      },
+      {
+        $pull: { members: userId },
+      }
+    );
+
+    // ================= REMOVE FROM DEPARTMENTS =================
+    await departmentMemberModel.deleteMany({
+      userId,
+      departmentId: { $in: departmentIds },
+    });
+
+    // ================= ACTIVITY =================
+    const user = await userModel.findById(userId);
+
+    await createActivity({
+      workspaceId,
+      departmentId: null,
+      userId,
+      type: "MEMBER_LEFT",
+      message: `${user.name} left the workspace`,
+    });
+
+    return res.status(200).json({
+      message: "You are no more part of this workspace",
+    });
+
+  } catch (error) {
+    console.error("LEAVE WORKSPACE ERROR:", error);
+
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }
 
 // getPendingRequests
@@ -726,99 +789,116 @@ export async function getAllPendingRequestsForWorkspace(req, res) {
 }
 
 // removeMember
-export async function removeMember(req,res){
-    try{
-        const userId = req.userId;
-        const {removeUserId} = req.params
 
-        const workspace = req.workspace
-        const workspaceId = workspace._id
+export async function removeMember(req, res) {
+  try {
+    const userId = req.userId;
+    const { removeUserId } = req.params;
 
-        const isUserMember = await workspaceMemberModel.findOne({
-            userId : removeUserId , workspaceId
-        })
+    const workspace = req.workspace;
+    const workspaceId = workspace._id;
 
-        const isUserAdmin = await workspaceMemberModel.findOne({
-            userId , workspaceId
-        })
+    // ================= CHECK TARGET USER =================
+    const isUserMember = await workspaceMemberModel.findOne({
+      userId: removeUserId,
+      workspaceId,
+    });
 
-        if(!isUserAdmin){
-            return res.status(404).json({
-                messaege : "You are not part of this Workspace"
-            })
-        }
+    const isUserAdmin = await workspaceMemberModel.findOne({
+      userId,
+      workspaceId,
+    });
 
-
-        if(isUserAdmin.role !== 'admin'){
-            return res.status(403).json({
-                message : "You are not authorized to remove a member from this workspace"
-            })
-        }
-
-        if(removeUserId === userId){
-            return res.status(400).json({
-                message : "Use leave Workspace instead"
-            })
-        }
-
-        if(!isUserMember) {
-            return res.status(404).json({
-                message : "user is not a member of this workspace"
-            })
-        }
-
-        if(isUserMember.role === 'admin'){
-            return res.status(403).json({
-                message : "Admins cannot be removed"
-            })
-        }
-
-        
-
-        await joinRequestModel.deleteMany({
-            userId : removeUserId , workspaceId
-        })
-
-        await workspaceModel.findByIdAndUpdate(workspaceId, {
-          $inc: { memberCount: -1 }
-        });
-
-        await workspaceMemberModel.deleteOne({
-            userId : removeUserId,
-            workspaceId
-        })
-
-        const departments = await departmentModel
-        .find({workspaceId})
-        .select("_id")
-
-        const departmentIds = departments.map(d => d._id)
-        const removedUser = await userModel.findById(removeUserId);
-
-await createActivity({
-  workspaceId,
-  departmentId: null,
-  userId: removeUserId,
-  type: "MEMBER_REMOVED",
-  message: `${removedUser.name} was removed from workspace`,
-});
-
-        await departmentMemberModel.deleteMany({
-            userId : removeUserId , 
-            departmentId : {$in : departmentIds}
-        })
-
-        res.status(200).json({
-            message : "User removed Successfully",
-        })
-
+    if (!isUserAdmin) {
+      return res.status(404).json({
+        message: "You are not part of this Workspace",
+      });
     }
-    catch(error){
-        console.log(error)
-        res.status(500).json({
-            message : "Internal Server Error"
-        })
+
+    if (isUserAdmin.role !== "admin") {
+      return res.status(403).json({
+        message: "You are not authorized to remove a member from this workspace",
+      });
     }
+
+    if (removeUserId.toString() === userId.toString()) {
+      return res.status(400).json({
+        message: "Use leave Workspace instead",
+      });
+    }
+
+    if (!isUserMember) {
+      return res.status(404).json({
+        message: "user is not a member of this workspace",
+      });
+    }
+
+    if (isUserMember.role === "admin") {
+      return res.status(403).json({
+        message: "Admins cannot be removed",
+      });
+    }
+
+    // ================= DELETE JOIN REQUESTS =================
+    await joinRequestModel.deleteMany({
+      userId: removeUserId,
+      workspaceId,
+    });
+
+    // ================= REMOVE FROM WORKSPACE =================
+    await workspaceMemberModel.deleteOne({
+      userId: removeUserId,
+      workspaceId,
+    });
+
+    await workspaceModel.findByIdAndUpdate(workspaceId, {
+      $inc: { memberCount: -1 },
+    });
+
+    // ================= 🔥 REMOVE FROM ALL CHATROOMS =================
+    await chatRoomModel.updateMany(
+      {
+        workspaceId,
+      },
+      {
+        $pull: { members: removeUserId },
+      }
+    );
+
+    // ================= REMOVE FROM ALL DEPARTMENTS =================
+    const departments = await departmentModel
+      .find({ workspaceId })
+      .select("_id");
+
+    const departmentIds = departments.map((d) => d._id);
+
+    await departmentMemberModel.deleteMany({
+      userId: removeUserId,
+      departmentId: { $in: departmentIds },
+    });
+
+    // ================= ACTIVITY =================
+    const removedUser = await userModel.findById(removeUserId);
+
+    await createActivity({
+      workspaceId,
+      departmentId: null,
+      userId: removeUserId,
+      type: "MEMBER_REMOVED",
+      message: `${removedUser.name} was removed from workspace`,
+    });
+
+    return res.status(200).json({
+      message: "User removed Successfully",
+    });
+
+  } catch (error) {
+    console.log("REMOVE MEMBER ERROR:", error);
+
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }
 
 // changeMemberRole
