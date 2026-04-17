@@ -7,7 +7,7 @@ import { validateManager } from '../../middleware/validateManager.js'
 
 const taskRouter = express.Router()
 
-taskRouter.post('/create-task/:workspaceId/:departmentId',identifyUser,validateWorkspace,validateDepartment,validateManager,createTask)
+taskRouter.post('/create-task/:workspaceId/:departmentId',identifyUser,validateWorkspace,validateDepartment,createTask)
 taskRouter.delete('/delete-task/:taskId',identifyUser,deleteTask)
 taskRouter.get('/task/:taskId',identifyUser,getSingleTask)
 taskRouter.get('/all-tasks/:workspaceId/:departmentId',identifyUser,validateWorkspace,validateDepartment,getAllTasks)

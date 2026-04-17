@@ -125,16 +125,18 @@ const CreateTaskModal = ({ onClose }) => {
       deadline: selectedDate.toISOString(),
     };
 
-    const res = await createTask(payload);
+    try {
+  const res = await createTask(payload);
 
-    if (res?.success) {
-      toast.success("Task created 🚀");
-      setForm(initialForm);
-      setSelectedDate(null);
-      onClose();
-    } else {
-      toast.error("Something went wrong");
-    }
+  if (res) {
+    toast.success("Task created 🚀");
+    setForm(initialForm);
+    setSelectedDate(null);
+    onClose();
+  }
+} catch (err) {
+  toast.error("Something went wrong");
+}
   };
 
   return (

@@ -7,139 +7,164 @@ import { createActivity } from "../../utils/createActivity.js";
 import { createNotification } from "../../utils/createNotification.js";
 import { getIO } from "../../lib/socket.js";
 
-export async function createTask(req,res) {
+// file: createTask.controller.js
 
-    try{
-        const userId = req.userId;
-    const workspace = req.workspace ;
+export async function createTask(req, res) {
+  try {
+    const userId = req.userId;
+    const workspace = req.workspace;
     const department = req.department;
-const io = getIO()
-    
+    const io = getIO();
 
+    const {
+      title,
+      description,
+      priority,
+      deadline,
+      assignedMembers,
+      subtasks,
+    } = req.body;
 
-    const {title , description , priority , deadline , assignedMembers, subtasks} = req.body
-    if(!title || !priority || !deadline){
-        return res.status(400).json({
-            message : "All requiered Fields must be provided"
-        })
+    // ✅ validation
+    if (!title || !priority || !deadline) {
+      return res.status(400).json({
+        message: "All required fields must be provided",
+      });
     }
 
-    if(!["low" , "medium" , "high"].includes(priority)){
-        return res.status(400).json({
-            message : "inavalid priority value"
-        })
+    if (!["low", "medium", "high"].includes(priority)) {
+      return res.status(400).json({
+        message: "Invalid priority value",
+      });
     }
 
-    if(!assignedMembers || !assignedMembers.length) {
-        return res.status(400).json({
-            message : "Task must be assigned to at least one member"
-        })
+    if (!assignedMembers || !assignedMembers.length) {
+      return res.status(400).json({
+        message: "Task must be assigned to at least one member",
+      });
     }
 
-
-    if(!subtasks || !subtasks.length){
-        return res.status(400).json({
-            message : "At least one subtask is required"
-        })
+    if (!subtasks || !subtasks.length) {
+      return res.status(400).json({
+        message: "At least one subtask is required",
+      });
     }
 
-    const uniqueMembers = [...new Set(assignedMembers)]
+    const deadlineDate = new Date(deadline);
+
+    if (deadlineDate < new Date()) {
+      return res.status(400).json({
+        message: "Deadline must be in the future",
+      });
+    }
+
+    // ✅ unique members
+    const uniqueMembers = [...new Set(assignedMembers)];
 
     const membersCount = await departmentMemberModel.countDocuments({
-        userId : {$in : uniqueMembers},
-        departmentId : department._id
-    })
+      userId: { $in: uniqueMembers },
+      departmentId: department._id,
+    });
 
-    if(membersCount !== uniqueMembers.length){
-        return res.status(400).json({
-            message : "Some assigned users are not department members"
-        })
+    if (membersCount !== uniqueMembers.length) {
+      return res.status(400).json({
+        message: "Some assigned users are not department members",
+      });
     }
 
+    // ✅ points logic
     const priorityPoints = {
-        low : 30,
-        medium : 60,
-        high : 100
-    }
+      low: 30,
+      medium: 60,
+      high: 100,
+    };
 
-    const totalPoints = priorityPoints[priority]
+    const totalPoints = priorityPoints[priority];
 
-    if(!totalPoints) {
-        return res.status(400).json({
-            message : "Invalid Priority Value"
-        })
-    }
+    const totalSubtasks = subtasks.length;
+    const basePoints = Math.floor(totalPoints / totalSubtasks);
+    const remainingPoints =
+      totalPoints - basePoints * totalSubtasks;
 
-    const totalSubtasks = subtasks.length
-    const basePoints = Math.floor(totalPoints / totalSubtasks)
-    const remainingPoints = totalPoints - (basePoints * totalSubtasks)
+    // ✅ create task
+    const task = await taskModel.create({
+      title,
+      description,
+      createdBy: userId,
+      workspaceId: workspace._id,
+      departmentId: department._id,
+      assignedMembers: uniqueMembers,
+      priority,
+      totalPoints,
+      totalSubtasks,
+      completedSubtasks: 0,
+      deadline: deadlineDate,
+      progress: 0,
+      status: "pending",
+    });
 
-    const task = await taskModel.create ({
-        title,
-        description ,
-        createdBy : userId,
-        workspaceId : workspace._id,
-        departmentId : department._id,
-        assignedMembers : uniqueMembers,
-        priority,
-        totalPoints,
-        totalSubtasks,
-        completedSubtasks : 0,
-        deadline,
-        progress : 0,
-        status : "pending",
-    })
+    // ✅ create subtasks
+    const subtaskDocs = subtasks.map((s, index) => ({
+      title: s.title,
+      description: s.description || "",
+      taskId: task._id,
+      points:
+        index === totalSubtasks - 1
+          ? basePoints + remainingPoints
+          : basePoints,
+      deadline: s.deadline || deadlineDate,
+    }));
 
-    const subtaskDocs = subtasks.map((s,index) => ({
-        title: s.title,
-        description: s.description || "",
-        taskId : task._id,
-        points : index === totalSubtasks - 1 ? basePoints + remainingPoints : basePoints,
-        deadline : s.deadline || deadline
-    }))
+    await subtaskModel.insertMany(subtaskDocs);
 
-    await subtaskModel.insertMany(subtaskDocs)
-
+    // ✅ activity log
     await createActivity({
-        workspaceId : task.workspaceId,
-        departmentId : task.departmentId,
-        userId,
-        type : "TASK_CREATED",
-        message : `created task ${task.title}`
-    })
+      workspaceId: task.workspaceId,
+      departmentId: task.departmentId,
+      userId,
+      type: "TASK_CREATED",
+      message: `created task ${task.title}`,
+    });
 
+    // ✅ realtime event
     io.to(task.departmentId.toString()).emit("task-created", {
-        taskId : task._id,
-        createdBy : userId
-    })
+      taskId: task._id,
+      createdBy: userId,
+    });
 
-    for (const memberId of assignedMembers) {
+    // 🚀 NON-BLOCKING notifications (IMPORTANT FIX)
+    uniqueMembers.forEach(async (memberId) => {
+      try {
+        await createNotification({
+          workspaceId: task.workspaceId,
+          departmentId: task.departmentId,
+          userId: memberId,
+          type: "TASK_ASSIGNED",
+          message: `You were assigned a new task: ${task.title}`,
+        });
 
-    await createNotification({
-        workspaceId : task.workspaceId,
-        departmentId : task.departmentId,
-        userId : memberId,
-        type : "TASK_ASSIGNED",
-        message : `You were assigned a new task: ${task.title}`
-    })
+        io.to(memberId.toString()).emit("notification", {
+          type: "TASK_ASSIGNED",
+          taskId: task._id,
+          title: task.title,
+        });
+      } catch (err) {
+        console.error("Notification error:", err);
+      }
+    });
 
-    io.to(memberId.toString()).emit("notification", {
-        type : "TASK_ASSIGNED",
-        taskId : task._id,
-        title : task.title
-    })
-}
-
+    // ✅ response (NOW WILL NOT BLOCK)
     return res.status(201).json({
-        message : "Task Created Successfully",
-        task
-    })
-    }catch(error){
-        console.error(error)
-        res.status(500).json({
-            message : "Internal Server Error"
-        })
-    }
+      message: "Task Created Successfully",
+      task,
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }
 
 export async function deleteTask(req,res) {
@@ -247,7 +272,7 @@ console.log("type:", typeof workspaceId);
 
     const workspaceAdmin = await workspaceMemberModel.findOne({
       userId,
-      workspaceId : workspace._id,
+      workspaceId,
       role: "admin",
     });
 
