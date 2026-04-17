@@ -118,7 +118,7 @@ const CreateTaskModal = ({ onClose }) => {
 
     const res = await createTask(payload);
 
-    if (res?.success) {
+    if (res) {
       toast.success("Task created 🚀");
       setForm(initialForm);
       setSelectedDate(null);
