@@ -17,7 +17,7 @@ export const useChatrooms = () => {
   const [role, setRole] = useState("member");
   const [loading, setLoading] = useState(true);
 
-  // ================= FETCH ROOMS =================
+  /* ================= FETCH ROOMS ================= */
   const fetchRooms = useCallback(async () => {
     if (!workspaceId || !departmentId) return;
 
@@ -29,14 +29,12 @@ export const useChatrooms = () => {
         departmentId,
       });
 
-      console.log("📦 CHATROOM API RESPONSE:", res); // 🔥 DEBUG
+      console.log("📦 CHATROOM API RESPONSE:", res);
 
       if (res.success) {
         setRooms(res.chatRooms || []);
         setPlan(res.meta?.plan || {});
         setRole(res.meta?.role || "member");
-      } else {
-        console.error("❌ Fetch rooms failed:", res.error);
       }
     } catch (error) {
       console.error("💥 fetchRooms ERROR:", error);
@@ -49,7 +47,8 @@ export const useChatrooms = () => {
     fetchRooms();
   }, [fetchRooms]);
 
-  // ================= FEATURE HELPERS =================
+  /* ================= FEATURE HELPERS ================= */
+
   const hasFeature = (featureKey) => {
     return Boolean(plan?.features?.[featureKey]);
   };
@@ -62,11 +61,22 @@ export const useChatrooms = () => {
     return true;
   };
 
-  // ================= CREATE ROOM =================
+  /* ================= CREATE ROOM ================= */
   const createRoom = async (name) => {
     if (!name?.trim()) return;
 
-    if (!checkFeature(hasFeature("createChatRoom"))) return;
+    // 🔥 FIX 1: feature check hata diya (kyuki exist hi nahi karta)
+    // instead limit check use karenge
+
+    const maxRooms =
+      plan?.limits?.chatroomsPerDepartment || Infinity;
+
+    if (rooms.length >= maxRooms) {
+      alert(
+        `You can only create ${maxRooms} chat rooms in your plan`
+      );
+      return;
+    }
 
     try {
       const res = await createChatRoomAPI({
@@ -77,15 +87,18 @@ export const useChatrooms = () => {
 
       if (res.success) {
         setRooms((prev) => [...prev, res.chatRoom]);
+
+        return res; // 🔥 IMPORTANT (for modal auto open)
       } else {
-        alert(res.error);
+        // alert(res.error);
+        return res;
       }
     } catch (error) {
       console.error("💥 createRoom ERROR:", error);
     }
   };
 
-  // ================= DELETE ROOM =================
+  /* ================= DELETE ROOM ================= */
   const deleteRoom = async (chatRoomId) => {
     const confirmDelete = window.confirm("Delete this chatroom?");
     if (!confirmDelete) return;
@@ -109,9 +122,8 @@ export const useChatrooms = () => {
     }
   };
 
-  // ================= ADD MEMBERS =================
+  /* ================= ADD MEMBERS ================= */
   const addMembers = async (chatRoomId, members) => {
-    if (!checkFeature(hasFeature("addMember"))) return;
 
     try {
       const res = await addMembersToChatRoomAPI({
@@ -135,7 +147,7 @@ export const useChatrooms = () => {
     }
   };
 
-  // ================= REMOVE MEMBERS =================
+  /* ================= REMOVE MEMBERS ================= */
   const removeMembers = async (chatRoomId, members) => {
     try {
       const res = await removeMembersFromChatRoomAPI({
@@ -171,7 +183,7 @@ export const useChatrooms = () => {
     addMembers,
     removeMembers,
 
-    hasFeature,     // 🔥 NEW (use in UI)
+    hasFeature,
     checkFeature,
   };
 };

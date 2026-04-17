@@ -1,12 +1,20 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
+import { useWorkspaceContext } from "../context/WorkspaceContext";
 
 const WorkspaceCards = ({ workspace }) => {
   const navigate = useNavigate();
   const ws = workspace.workspaceId;
 
+  const { setWorkspace } = useWorkspaceContext(); // 🔥 ADD
+
+
   const handleOpen = () => {
+     console.log("🔥 CLICK WORKSPACE:", ws);
+
+    // 🔥 IMPORTANT LINE
+    setWorkspace(ws);
     navigate(`/dashboard/workspace/${ws._id}`);
   };
 

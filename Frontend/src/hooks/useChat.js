@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getMessagesAPI } from "../api/chat.api";
 import { uploadChatFileAPI } from "../api/file.api";
 import { socket, connectSocket } from "../socket";
@@ -12,17 +12,21 @@ export const useChat = (chatRoomId) => {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const bottomRef = useRef(null);
+  const [replyingTo, setReplyingTo] = useState(null);
+
+  const [errorModal, setErrorModal] = useState({
+    open: false,
+    message: "",
+  });
+
   const isJoinedRef = useRef(false);
 
-  // ================= FETCH INITIAL =================
+  /* ================= INITIAL FETCH ================= */
   useEffect(() => {
     if (!chatRoomId) return;
 
     const fetchMessages = async () => {
-      console.log("📥 Fetching messages:", chatRoomId);
       setLoading(true);
-
       try {
         const res = await getMessagesAPI({
           chatRoomId,
@@ -31,12 +35,13 @@ export const useChat = (chatRoomId) => {
         });
 
         if (res.success) {
-          setMessages(res.data || []);
+          const ordered = [...(res.data || [])].reverse();
+          setMessages(ordered);
           setHasMore(res.meta?.hasMore ?? false);
           setPage(1);
         }
       } catch (err) {
-        console.error("💥 FETCH ERROR:", err);
+        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -45,16 +50,14 @@ export const useChat = (chatRoomId) => {
     fetchMessages();
   }, [chatRoomId]);
 
-  // ================= LOAD MORE (🔥 KEY FEATURE) =================
-  const loadMoreMessages = useCallback(async () => {
+  /* ================= LOAD MORE ================= */
+  const loadMoreMessages = async () => {
     if (loadingMore || !hasMore) return;
 
     try {
       setLoadingMore(true);
 
       const nextPage = page + 1;
-
-      console.log("📜 Loading more page:", nextPage);
 
       const res = await getMessagesAPI({
         chatRoomId,
@@ -63,34 +66,33 @@ export const useChat = (chatRoomId) => {
       });
 
       if (res.success) {
-        setMessages((prev) => [
-          ...(res.data || []), // 🔥 prepend
-          ...prev,
-        ]);
+        let newMessages = res.data || [];
 
-        setHasMore(res.meta?.hasMore ?? false);
+        newMessages = [...newMessages].reverse();
+
+        setMessages((prev) => {
+          const existingIds = new Set(prev.map((m) => m._id));
+
+          const filtered = newMessages.filter(
+            (m) => !existingIds.has(m._id)
+          );
+
+          return [...filtered, ...prev];
+        });
+
         setPage(nextPage);
+        setHasMore(res.meta?.hasMore ?? false);
       }
-
     } catch (err) {
-      console.error("💥 LOAD MORE ERROR:", err);
+      console.error("❌ LOAD MORE ERROR:", err);
     } finally {
       setLoadingMore(false);
     }
-  }, [chatRoomId, page, hasMore, loadingMore]);
+  };
 
-  // ================= SOCKET CONNECT =================
+  /* ================= SOCKET ================= */
   useEffect(() => {
     connectSocket();
-
-    socket.on("connect", () => {
-      console.log("🟢 SOCKET CONNECTED:", socket.id);
-    });
-
-    socket.on("disconnect", () => {
-      console.log("🔴 SOCKET DISCONNECTED");
-      isJoinedRef.current = false;
-    });
 
     return () => {
       socket.off("connect");
@@ -98,7 +100,7 @@ export const useChat = (chatRoomId) => {
     };
   }, []);
 
-  // ================= JOIN ROOM =================
+  /* ================= JOIN ================= */
   useEffect(() => {
     if (!chatRoomId || !socket.connected) return;
     if (isJoinedRef.current) return;
@@ -112,11 +114,9 @@ export const useChat = (chatRoomId) => {
     };
   }, [chatRoomId, socket.connected]);
 
-  // ================= RECEIVE =================
+  /* ================= RECEIVE ================= */
   useEffect(() => {
     const handleReceive = (msg) => {
-      console.log("📩 RECEIVED:", msg);
-
       setMessages((prev) => {
         if (prev.some((m) => m._id === msg._id)) return prev;
         return [...prev, msg];
@@ -129,16 +129,42 @@ export const useChat = (chatRoomId) => {
       );
     };
 
+    // 🔥 FIXED EDIT HANDLER (ONLY CHANGE)
+    const handleEdit = (updatedMsg) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._id === updatedMsg._id
+            ? {
+                ...m,
+                ...updatedMsg,
+                replyTo: m.replyTo || updatedMsg.replyTo,
+              }
+            : m
+        )
+      );
+    };
+
+    const handleError = (err) => {
+      setErrorModal({
+        open: true,
+        message: err.message,
+      });
+    };
+
     socket.on("receive_message", handleReceive);
     socket.on("message_deleted", handleDelete);
+    socket.on("message_edited", handleEdit);
+    socket.on("chat_error", handleError);
 
     return () => {
       socket.off("receive_message", handleReceive);
       socket.off("message_deleted", handleDelete);
+      socket.off("message_edited", handleEdit);
+      socket.off("chat_error", handleError);
     };
   }, []);
 
-  // ================= SEND TEXT =================
+  /* ================= SEND ================= */
   const sendMessage = (content) => {
     if (!content?.trim()) return;
     if (!socket.connected) return;
@@ -147,10 +173,27 @@ export const useChat = (chatRoomId) => {
       chatRoomId,
       content,
       type: "text",
+      replyTo: replyingTo?._id || null,
+    });
+
+    setReplyingTo(null);
+  };
+
+  const editMessage = (messageId, content) => {
+    if (!socket.connected) return;
+
+    socket.emit("edit_message", {
+      messageId,
+      content,
     });
   };
 
-  // ================= SEND FILE =================
+  const deleteMessage = (messageId) => {
+    if (!socket.connected) return;
+
+    socket.emit("delete_message", { messageId });
+  };
+
   const sendFile = async (file, workspaceId) => {
     if (!file || !workspaceId) return;
 
@@ -162,43 +205,40 @@ export const useChat = (chatRoomId) => {
         workspaceId,
       });
 
-      if (!res.success) {
-        alert(res.error || "Upload failed");
-        return;
-      }
+      if (!res.success) return;
 
       socket.emit("send_message", {
         chatRoomId,
         content: res.fileUrl,
         type: res.type,
         fileName: res.fileName,
+        replyTo: replyingTo?._id || null,
       });
 
-    } catch (err) {
-      console.error("💥 FILE ERROR:", err);
+      setReplyingTo(null);
     } finally {
       setUploading(false);
     }
-  };
-
-  // ================= DELETE =================
-  const deleteMessage = (messageId) => {
-    if (!socket.connected) return;
-    socket.emit("delete_message", { messageId });
   };
 
   return {
     messages,
     loading,
     uploading,
-    bottomRef,
 
     sendMessage,
     sendFile,
     deleteMessage,
+    editMessage,
 
+    replyingTo,
+    setReplyingTo,
+
+    loadMoreMessages,
     hasMore,
     loadingMore,
-    loadMoreMessages, // 🔥 important
+
+    errorModal,
+    setErrorModal,
   };
 };

@@ -1,181 +1,281 @@
 import { useState, useRef, useEffect } from "react";
-import { useChat } from "../hooks/useChat";
+import { useChatrooms } from "../hooks/useChatrooms";
+import { Reply, Pencil, Trash2 } from "lucide-react";
+import { PLANS } from "../constants/plans"; // 🔥 ADD
 
-const getFileIcon = (name = "") => {
-  const ext = name.split(".").pop()?.toLowerCase();
-
-  if (["pdf"].includes(ext)) return "📕";
-  if (["doc", "docx"].includes(ext)) return "📄";
-  if (["xls", "xlsx"].includes(ext)) return "📊";
-  if (["zip", "rar"].includes(ext)) return "🗜️";
-
-  return "📎";
-};
-
-// 🔥 fallback for old messages
-const detectType = (url = "") => {
-  if (!url) return "text";
-
-  if (url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) return "image";
-  if (url.match(/\.(mp4|webm)$/i)) return "video";
-  if (url.match(/\.(mp3|wav)$/i)) return "audio";
-
-  return "file";
-};
-
-const BASE_URL = "http://localhost:5000"; // change if needed
-
-const MessageList = ({ chatRoomId }) => {
+const MessageList = ({ chat, workspace }) => {
   const {
     messages,
     deleteMessage,
+    editMessage,
+    setReplyingTo,
     loadMoreMessages,
+    hasMore,
     loadingMore,
-  } = useChat(chatRoomId);
+    setErrorModal,
+  } = chat;
 
-  const [menu, setMenu] = useState(null);
+  const { role } = useChatrooms();
+
+  /* 🔥 FINAL FIX */
+  const planKey = workspace?.plan?.toLowerCase() || "individual";
+  const features = PLANS[planKey]?.features || {};
+
+  const [editingMessage, setEditingMessage] = useState(null);
+  const [editText, setEditText] = useState("");
 
   const containerRef = useRef(null);
   const prevHeightRef = useRef(0);
-  const isFetchingRef = useRef(false);
+  const loadingRef = useRef(false);
 
-  // ================= SCROLL HANDLER =================
+  const messageRefs = useRef({});
+
+  // rest same code...
+
+  /* ================= LOAD MORE ================= */
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    const el = containerRef.current;
+    if (!el) return;
 
-    const handleScroll = async () => {
-      if (container.scrollTop < 50 && !isFetchingRef.current) {
-        isFetchingRef.current = true;
-
-        prevHeightRef.current = container.scrollHeight;
-
-        await loadMoreMessages();
-
-        setTimeout(() => {
-          const newHeight = container.scrollHeight;
-          const diff = newHeight - prevHeightRef.current;
-
-          container.scrollTop = diff;
-          isFetchingRef.current = false;
-        }, 0);
+    const handleScroll = () => {
+      if (el.scrollTop < 50 && hasMore && !loadingMore) {
+        prevHeightRef.current = el.scrollHeight;
+        loadingRef.current = true;
+        loadMoreMessages();
       }
     };
 
-    container.addEventListener("scroll", handleScroll);
-    return () => container.removeEventListener("scroll", handleScroll);
-  }, [loadMoreMessages]);
+    el.addEventListener("scroll", handleScroll);
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [hasMore, loadingMore, loadMoreMessages]);
 
-  // ================= INITIAL SCROLL =================
+  /* ================= SCROLL FIX ================= */
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    const el = containerRef.current;
+    if (!el) return;
 
-    container.scrollTop = container.scrollHeight;
-  }, []);
+    if (loadingRef.current) {
+      const diff = el.scrollHeight - prevHeightRef.current;
+      el.scrollTop += diff;
+      loadingRef.current = false;
+      return;
+    }
 
-  // ================= RIGHT CLICK =================
-  const handleRightClick = (e, messageId) => {
-    e.preventDefault();
-    setMenu({ x: e.clientX, y: e.clientY, messageId });
+    const isNearBottom =
+      el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+
+    if (isNearBottom) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [messages]);
+
+  /* ================= SCROLL TO MESSAGE ================= */
+  const scrollToMessage = (id) => {
+    const el = messageRefs.current[id];
+    if (!el) return;
+
+    el.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+
+    el.style.transition = "all 0.3s ease";
+    el.style.background = "rgba(255,106,0,0.15)";
+
+    setTimeout(() => {
+      el.style.background = "transparent";
+    }, 1500);
+  };
+
+  const formatTime = (date) =>
+    new Date(date).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+  const getFileIcon = (name = "") => {
+    if (name.endsWith(".pdf")) return "📕";
+    if (name.endsWith(".doc") || name.endsWith(".docx")) return "📄";
+    if (name.endsWith(".xls")) return "📊";
+    return "📁";
+  };
+
+  /* ================= REPLY ================= */
+  const handleReply = (msg) => {
+    if (!features.replyMessage) {
+      setErrorModal({
+        open: true,
+        message:
+          "Reply feature is not available in your plan. Ask your admin to upgrade.",
+      });
+      return;
+    }
+    setReplyingTo(msg);
   };
 
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-y-auto p-4 space-y-4"
-      onClick={() => setMenu(null)}
+      className="flex-1 overflow-y-auto px-6 py-4 space-y-6"
     >
-      {/* LOADING */}
       {loadingMore && (
-        <div className="text-center text-sm text-gray-400">
+        <div className="text-center text-xs opacity-60">
           Loading...
         </div>
       )}
 
       {messages.map((msg) => {
-        const type = msg.type || detectType(msg.content);
-        const url = msg.content?.startsWith("http")
-          ? msg.content
-          : BASE_URL + msg.content;
+        const senderRole = msg.senderId?.role || role;
+        const isPrivileged =
+          senderRole === "admin" || senderRole === "manager";
+
+        const isReply = msg.replyTo && typeof msg.replyTo === "object";
 
         return (
           <div
             key={msg._id}
-            onContextMenu={(e) => handleRightClick(e, msg._id)}
-            className="flex gap-3"
+            ref={(el) => (messageRefs.current[msg._id] = el)}
+            className="flex gap-3 items-start group"
           >
             {/* AVATAR */}
-            <div className="w-9 h-9 rounded-full bg-gray-600 flex items-center justify-center text-sm">
-              {msg.senderId?.name?.[0]?.toUpperCase()}
+            <div className="w-9 h-9 rounded-full bg-[var(--bg-hover)] flex items-center justify-center text-sm font-medium shrink-0">
+              {msg.senderId?.name?.[0]}
             </div>
 
-            <div>
+            <div className="max-w-[70%] w-full relative">
+
               {/* HEADER */}
-              <div className="text-sm font-medium">
-                {msg.senderId?.name}
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-medium">
+                  {msg.senderId?.name}
+                </span>
+
+                {isPrivileged && (
+                  <span
+                    className="text-[10px] px-2 py-[2px] rounded-full"
+                    style={{
+                      background: "var(--accent)",
+                      color: "white",
+                    }}
+                  >
+                    {senderRole}
+                  </span>
+                )}
+
+                <span className="text-xs opacity-60 ml-2">
+                  {formatTime(msg.createdAt)}
+                </span>
               </div>
 
-              <div className="text-xs text-gray-400">
-                {new Date(msg.createdAt).toLocaleTimeString()}
+              {/* ACTIONS */}
+              <div className="absolute -right-12 top-0 opacity-0 group-hover:opacity-100 flex gap-2">
+                
+                {/* REPLY */}
+                <button
+                  onClick={() => handleReply(msg)}
+                  className="p-1 rounded hover:bg-[var(--bg-hover)]"
+                >
+                  <Reply size={14} />
+                </button>
+
+                {/* EDIT */}
+                {features.editMessage && (
+                  <button
+                    onClick={() => {
+                      setEditingMessage(msg._id);
+                      setEditText(msg.content);
+                    }}
+                    className="p-1 rounded hover:bg-[var(--bg-hover)]"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                )}
+
+                {/* DELETE */}
+                {features.deleteMessage && (
+                  <button
+                    onClick={() => deleteMessage(msg._id)}
+                    className="p-1 rounded hover:bg-[var(--bg-hover)] text-red-500"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </div>
+
+              {/* REPLY PREVIEW */}
+              {isReply && (
+                <div
+                  onClick={() => scrollToMessage(msg.replyTo?._id)}
+                  className="mt-1 pl-3 text-xs cursor-pointer hover:opacity-80"
+                  style={{
+                    borderLeft: "2px solid var(--accent)",
+                    color: "var(--text-secondary)",
+                  }}
+                >
+                  <span style={{ color: "var(--accent)" }}>
+                    {msg.replyTo.senderId?.name}
+                  </span>
+                  : {msg.replyTo.content}
+                </div>
+              )}
 
               {/* CONTENT */}
               <div className="mt-1">
-                {type === "text" && (
-                  <div className="px-3 py-2 rounded-xl bg-[var(--bg-secondary)]">
-                    {msg.content}
+                {editingMessage === msg._id ? (
+                  <input
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    className="input"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        editMessage(msg._id, editText);
+                        setEditingMessage(null);
+                      }
+                    }}
+                  />
+                ) : (
+                  <div
+                    className="px-4 py-2 rounded-2xl text-sm break-words whitespace-pre-wrap"
+                    style={{ background: "var(--bg-secondary)" }}
+                  >
+                    {msg.type === "image" ? (
+                      <img
+                        src={msg.content}
+                        alt="chat"
+                        className="max-w-full rounded-xl"
+                      />
+                    ) : msg.type === "file" ? (
+                      <a
+                        href={msg.content}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-3 p-3 rounded-xl"
+                        style={{ background: "var(--bg-hover)" }}
+                      >
+                        <div className="text-2xl">
+                          {getFileIcon(msg.fileName)}
+                        </div>
+
+                        <div className="flex flex-col text-xs">
+                          <span className="font-medium">
+                            {msg.fileName || "File"}
+                          </span>
+                          <span style={{ color: "var(--text-secondary)" }}>
+                            Click to download
+                          </span>
+                        </div>
+                      </a>
+                    ) : (
+                      msg.content
+                    )}
                   </div>
                 )}
-
-                {type === "image" && (
-                  <img
-                    src={url}
-                    alt="img"
-                    className="max-w-xs rounded-xl mt-1"
-                  />
-                )}
-
-                {type === "video" && (
-                  <video
-                    src={url}
-                    controls
-                    className="max-w-xs rounded-xl mt-1"
-                  />
-                )}
-
-                {type === "audio" && (
-                  <audio src={url} controls className="mt-1" />
-                )}
-
-                {type === "file" && (
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 p-2 rounded bg-[var(--bg-secondary)]"
-                  >
-                    <span>{getFileIcon(msg.fileName)}</span>
-                    <span>{msg.fileName || "File"}</span>
-                  </a>
-                )}
               </div>
+
             </div>
           </div>
         );
       })}
-
-      {/* MENU */}
-      {menu && (
-        <div
-          className="fixed z-50 bg-[var(--bg-secondary)] border p-2 rounded"
-          style={{ top: menu.y, left: menu.x }}
-        >
-          <button onClick={() => deleteMessage(menu.messageId)}>
-            Delete
-          </button>
-        </div>
-      )}
     </div>
   );
 };

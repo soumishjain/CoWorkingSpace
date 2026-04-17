@@ -158,3 +158,12 @@ export const fetchAllWorkspace = async () => {
   )
   return res.data
 }
+
+export const getWorkspaceById = async (workspaceId) => {
+  const res = await axios.get(
+    `/workspace/get-workspace/${workspaceId}`,
+    { withCredentials: true }
+  );
+
+  return res.data;
+};

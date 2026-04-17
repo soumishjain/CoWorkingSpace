@@ -49,7 +49,7 @@ export const getChatRoomByIdAPI = async ({
     setAuthToken();
 
     const { data } = await axios.get(
-      `/get-chatroom/${workspaceId}/${departmentId}/${chatRoomId}`
+      `chatrooms/get-chatroom/${workspaceId}/${departmentId}/${chatRoomId}`
     );
 
     return {
@@ -80,7 +80,7 @@ export const createChatRoomAPI = async ({
     setAuthToken();
 
     const { data } = await axios.post(
-      `/create-chatroom/${workspaceId}/${departmentId}`,
+      `chatrooms/create-chatroom/${workspaceId}/${departmentId}`,
       { name }
     );
 
@@ -112,7 +112,7 @@ export const deleteChatRoomAPI = async ({
     setAuthToken();
 
     const { data } = await axios.delete(
-      `/delete-chatroom/${workspaceId}/${departmentId}/${chatRoomId}`
+      `chatrooms/delete-chatroom/${workspaceId}/${departmentId}/${chatRoomId}`
     );
 
     return {
@@ -143,7 +143,7 @@ export const addMembersToChatRoomAPI = async ({
     setAuthToken();
 
     const { data } = await axios.patch(
-      `/add-members/${workspaceId}/${departmentId}/${chatRoomId}`,
+      `chatrooms/add-members/${workspaceId}/${departmentId}/${chatRoomId}`,
       { members }
     );
 
@@ -175,7 +175,7 @@ export const removeMembersFromChatRoomAPI = async ({
     setAuthToken();
 
     const { data } = await axios.patch(
-      `/remove-members/${workspaceId}/${departmentId}/${chatRoomId}`,
+      `chatrooms/remove-members/${workspaceId}/${departmentId}/${chatRoomId}`,
       { members }
     );
 

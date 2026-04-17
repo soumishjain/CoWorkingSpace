@@ -10,51 +10,46 @@ export const getMessages = async (req, res) => {
     page = parseInt(page);
     limit = parseInt(limit);
 
-    // ✅ CHECK USER IS MEMBER (FAST)
     const chatRoom = await chatRoomModel.findOne({
       _id: chatRoomId,
-      members: userId
+      members: userId,
     });
 
     if (!chatRoom) {
       return res.status(403).json({
-        message: "Access denied or chat room not found"
+        message: "Access denied or chat room not found",
       });
     }
 
-    // ✅ PAGINATION (LATEST FIRST)
+    // 🔥 KEEP DESC ORDER (NO REVERSE)
     const messages = await messageModel
       .find({ chatRoomId })
       .sort({ createdAt: -1 }) // latest first
       .skip((page - 1) * limit)
       .limit(limit)
-      .populate("senderId", "name email")
+      .populate("senderId", "name email role") // 🔥 role bhi bhej
       .populate("mentions", "name email")
       .populate({
         path: "replyTo",
         populate: {
           path: "senderId",
-          select: "name email"
-        }
+          select: "name email",
+        },
       });
-
-    // 👉 reverse for frontend (old → new order)
-    const orderedMessages = messages.reverse();
 
     return res.status(200).json({
       message: "Messages fetched successfully",
-      data: orderedMessages,
+      data: messages, // ❌ reverse hata diya
       meta: {
         page,
         limit,
-        hasMore: messages.length === limit
-      }
+        hasMore: messages.length === limit,
+      },
     });
-
   } catch (error) {
     console.error("Get messages error:", error);
     return res.status(500).json({
-      message: "Server error while fetching messages"
+      message: "Server error while fetching messages",
     });
   }
 };
@@ -93,3 +88,4 @@ export const deleteMessage = async (req, res) => {
     });
   }
 };
+
