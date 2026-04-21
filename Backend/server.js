@@ -3,7 +3,6 @@ import http from "http";
 import { Server } from "socket.io";
 import app from "./src/app.js";
 
-// 👇 ye tera socket middleware file hai
 import { initSocket } from "./src/sockets/chat.socket.js";
 import { setIO } from "./src/lib/socket.js";
 
