@@ -10,13 +10,14 @@ import { useEffect, useState } from "react";
 import { getWorkspaceById } from "../api/workspace.api";
 import { getAllDepartmentMembers } from "../api/department.api"; // 🔥 FIX
 import { PLANS } from "../constants/plans";
+import AddMembersModal from "./AddMembersModal";
 
 const ChatWindow = () => {
   const { activeChatRoom } = useChatContext();
   const { workspaceId } = useParams();
 
   const chat = useChat(activeChatRoom?._id);
-  const { rooms, addMembers } = useChatrooms();
+  const { rooms, addMembers, removeMembers } = useChatrooms();
 
   const [workspace, setWorkspace] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -230,64 +231,17 @@ const loadMembers = async () => {
       <MessageInput chat={chat} workspace={workspace} />
 
       {/* MEMBER MODAL */}
-      {openMemberModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div
-            className="w-[400px] max-h-[500px] overflow-y-auto p-5 rounded-2xl"
-            style={{
-              background: "var(--bg-secondary)",
-              border: "1px solid var(--border)",
-            }}
-          >
-            <h2 className="text-sm font-semibold mb-4">
-              Add Members
-            </h2>
-
-            {loadingMembers ? (
-              <div className="text-sm">Loading...</div>
-            ) : (
-              (Array.isArray(members) ? members : []).map((m) => {
-                const alreadyAdded =
-  activeChatRoom.members?.some(
-    (id) => id === m._id || id?._id === m._id
-  );
-
-                return (
-                  <div
-                    key={m._id}
-                    className="flex items-center justify-between mb-2"
-                  >
-                    <span className="text-sm">{m.name}</span>
-
-                    <button
-                      disabled={alreadyAdded}
-                      onClick={() => handleAddMember(m._id)}
-                      className="px-3 py-1 text-xs rounded"
-                      style={{
-                        background: alreadyAdded
-                          ? "gray"
-                          : "var(--accent)",
-                        color: "white",
-                        opacity: alreadyAdded ? 0.6 : 1,
-                      }}
-                    >
-                      {alreadyAdded ? "Added" : "Add"}
-                    </button>
-                  </div>
-                );
-              })
-            )}
-
-            <button
-              onClick={() => setOpenMemberModal(false)}
-              className="mt-4 w-full py-2 rounded"
-              style={{ background: "var(--bg-hover)" }}
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+<AddMembersModal
+  open={openMemberModal}
+  onClose={() => setOpenMemberModal(false)}
+  members={members}
+  loadingMembers={loadingMembers}
+  activeChatRoom={activeChatRoom}
+  onAddMember={handleAddMember}
+  onRemoveMember={(userId) =>
+    removeMembers(activeChatRoom._id, userId)
+  }
+/>
 
       {/* ERROR MODAL */}
       <PlanErrorModal

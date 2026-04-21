@@ -1,4 +1,6 @@
+import mongoose from "mongoose";
 import chatRoomModel from "../../models/chatRoom.models.js";
+import departmentMemberModel from "../../models/departmentMember.models.js";
 import messageModel from "../../models/message.models.js";
 import workspaceModel from "../../models/workspace.models.js";
 import workspaceMemberModel from "../../models/workspaceMember.models.js";
@@ -20,15 +22,22 @@ export const createChatRoom = async (req, res) => {
     }
 
     /* ================= ROLE CHECK ================= */
-    const member = await workspaceMemberModel.findOne({
-      workspaceId: workspace._id,
+    const isManager = await departmentMemberModel.findOne({
       userId,
-    });
+      departmentId : department._id,
+      role : 'manager'
+    })
 
-    if (!member || !["admin", "manager"].includes(member.role)) {
+    const isAdmin = await workspaceMemberModel.findOne({
+      userId,
+      workspaceId : workspace._id,
+      role : 'admin'
+    })
+
+    if(!isAdmin && !isManager){
       return res.status(403).json({
-        message: "Only admins or managers can create chat rooms",
-      });
+        message : "You are not authorized"
+      })
     }
 
     /* ================= PLAN LIMIT ================= */
@@ -65,12 +74,22 @@ export const createChatRoom = async (req, res) => {
       });
     }
 
+    const adminId = await workspaceMemberModel.findOne({
+      workspaceId : workspace._id,
+      role : 'admin'
+    })
+
+    const managerId = await departmentMemberModel.findOne({
+      departmentId : department._id,
+      role : 'manager'
+    })
+
     /* ================= CREATE ================= */
     const chatRoom = await chatRoomModel.create({
       workspaceId: workspace._id,
       departmentId: department._id,
       name: name.trim(),
-      members: [userId],
+      members: [adminId.userId,managerId.userId],
       createdBy: userId,
     });
 
@@ -86,6 +105,7 @@ export const createChatRoom = async (req, res) => {
     });
   }
 };
+
 
 export const getChatRooms = async (req, res) => {
   try {
@@ -106,9 +126,6 @@ export const getChatRooms = async (req, res) => {
       });
     }
 
-    /* ================= ROLE ================= */
-    const role = member.role;
-
     /* ================= PLAN ================= */
     const workspaceData = await workspaceModel.findById(workspace._id);
     const plan = workspaceData?.plan || "individual";
@@ -119,9 +136,24 @@ export const getChatRooms = async (req, res) => {
       departmentId: department._id,
     };
 
-    if (role === "member") {
-      query.members = userId;
-    }
+    let role = member.role; // 🔥 CHANGE const → let
+
+    console.log("ROLE BEFORE: " , role)
+
+if (role === "member") {
+  const isManager = await departmentMemberModel.findOne({
+    userId,
+    departmentId: department._id,
+  });
+  console.log("INSIDE if")
+
+  if (isManager && isManager.role) {
+    console.log("Manager: ",isManager)
+    role = isManager.role;
+  }
+}
+
+console.log("Role: ", role)
 
     /* ================= FETCH ROOMS ================= */
     const chatRooms = await chatRoomModel
@@ -130,7 +162,7 @@ export const getChatRooms = async (req, res) => {
       .sort({ createdAt: 1 })
       .lean();
 
-    console.log("🔥 RAW CHAT ROOMS:", chatRooms);
+    // console.log("🔥 RAW CHAT ROOMS:", chatRooms);
 
     /* ================= FORMAT ================= */
     const formattedRooms = chatRooms.map((room) => ({
@@ -144,7 +176,7 @@ export const getChatRooms = async (req, res) => {
       departmentId: room.departmentId, // 🔥 ADD THIS
     }));
 
-    console.log("🔥 FORMATTED ROOMS:", formattedRooms);
+    // console.log("🔥 FORMATTED ROOMS:", formattedRooms);
 
     /* ================= RESPONSE ================= */
     return res.status(200).json({
@@ -175,15 +207,21 @@ export const deleteChatRoom = async (req, res) => {
     const userId = req.userId;
 
     // ✅ CHECK MANAGER
-    const isManager = await workspaceMemberModel.exists({
-      workspaceId: workspace._id,
+    const isManager = await departmentMemberModel.exists({
+      departmentId: department._id,
       userId,
       role: "manager"
     });
 
-    if (!isManager) {
+    const isAdmin = await workspaceMemberModel.exists({
+      userId,
+      role : 'admin',
+      workspaceId : workspace._id
+    })
+
+    if (!isManager && !isAdmin) {
       return res.status(403).json({
-        message: "Only managers can delete chat rooms"
+        message: "Only Admin and managers can delete chat rooms"
       });
     }
 
@@ -271,36 +309,41 @@ export const chatRoomById = async (req, res) => {
 export const addMemberToChatRoom = async (req, res) => {
   try {
     const { chatRoomId } = req.params;
-    const { memberId } = req.body;
+    const { members } = req.body; // 🔥 FIX HERE
+
     const workspace = req.workspace;
     const department = req.department;
     const userId = req.userId;
 
-    /* ================= ROLE CHECK ================= */
     const user = await workspaceMemberModel.findOne({
       workspaceId: workspace._id,
       userId,
     });
 
-    if (!user || !["admin", "manager"].includes(user.role)) {
-      return res.status(403).json({
-        message: "Only admin or manager can add members",
-      });
-    }
-
-    /* ================= VALIDATE MEMBER ================= */
-    const isWorkspaceMember = await workspaceMemberModel.exists({
-      workspaceId: workspace._id,
-      userId: memberId,
-    });
-
-    if (!isWorkspaceMember) {
+    if (!user) {
       return res.status(400).json({
         message: "User is not part of workspace",
       });
     }
 
-    /* ================= ADD MEMBER ================= */
+    const isAdmin = await workspaceMemberModel.exists({
+      userId,
+      workspaceId : workspace._id,
+      role : 'admin'
+    })
+    const isManager = await departmentMemberModel.exists({
+      userId ,
+      departmentId : department._id,
+      role : 'manager'
+    })
+
+    if (!isAdmin && !isManager) {
+      return res.status(403).json({
+        message: "Only admin or manager can add members",
+      });
+    }
+
+    /* 🔥 FIX: ADD MULTIPLE MEMBERS */
     const updatedRoom = await chatRoomModel.findOneAndUpdate(
       {
         _id: chatRoomId,
@@ -308,7 +351,7 @@ export const addMemberToChatRoom = async (req, res) => {
         departmentId: department._id,
       },
       {
-        $addToSet: { members: memberId },
+        $addToSet: { members: { $each: members } }, // 🔥 IMPORTANT
       },
       { new: true }
     ).select("name members departmentId");
@@ -320,7 +363,7 @@ export const addMemberToChatRoom = async (req, res) => {
     }
 
     return res.status(200).json({
-      message: "Member added successfully",
+      message: "Members added successfully",
       chatRoom: {
         _id: updatedRoom._id,
         name: updatedRoom.name,
@@ -341,24 +384,70 @@ export const addMemberToChatRoom = async (req, res) => {
 export const removeMemberFromChatRoom = async (req, res) => {
   try {
     const { chatRoomId } = req.params;
-    const { memberId } = req.body;
+    const { memberId } = req.body; // 🔥 SINGLE ID
+
     const workspace = req.workspace;
     const department = req.department;
     const userId = req.userId;
 
-    /* ================= ROLE CHECK ================= */
+    /* ================= VALIDATION ================= */
+    if (!memberId) {
+      return res.status(400).json({
+        message: "memberId is required",
+      });
+    }
+
+    /* ================= USER CHECK ================= */
     const user = await workspaceMemberModel.findOne({
       workspaceId: workspace._id,
       userId,
     });
 
-    if (!user || !["admin", "manager"].includes(user.role)) {
+    if (!user) {
+      return res.status(400).json({
+        message: "User is not part of workspace",
+      });
+    }
+
+    /* ================= ROLE CHECK ================= */
+    const isAdmin = await workspaceMemberModel.exists({
+      userId,
+      workspaceId: workspace._id,
+      role: "admin",
+    });
+
+    const isManager = await departmentMemberModel.exists({
+      userId,
+      departmentId: department._id, // 🔥 FIX
+      role: "manager",
+    });
+
+    if (!isAdmin && !isManager) {
       return res.status(403).json({
         message: "Only admin or manager can remove members",
       });
     }
 
-    /* ================= REMOVE MEMBER ================= */
+    /* ================= TARGET ROLE CHECK ================= */
+    const isTargetAdmin = await workspaceMemberModel.exists({
+      userId: memberId,
+      workspaceId: workspace._id,
+      role: "admin",
+    });
+
+    const isTargetManager = await departmentMemberModel.exists({
+      userId: memberId,
+      departmentId: department._id, // 🔥 FIX
+      role: "manager",
+    });
+
+    if (isTargetAdmin || isTargetManager) {
+      return res.status(403).json({
+        message: "Admin or Manager cannot be removed",
+      });
+    }
+
+    /* ================= REMOVE ================= */
     const updatedRoom = await chatRoomModel.findOneAndUpdate(
       {
         _id: chatRoomId,
@@ -366,7 +455,7 @@ export const removeMemberFromChatRoom = async (req, res) => {
         departmentId: department._id,
       },
       {
-        $pull: { members: memberId },
+        $pull: { members: memberId }, // 🔥 SINGLE REMOVE
       },
       { new: true }
     ).select("name members departmentId");
@@ -377,6 +466,7 @@ export const removeMemberFromChatRoom = async (req, res) => {
       });
     }
 
+    /* ================= RESPONSE ================= */
     return res.status(200).json({
       message: "Member removed successfully",
       chatRoom: {

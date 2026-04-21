@@ -100,9 +100,6 @@ export const useChatrooms = () => {
 
   /* ================= DELETE ROOM ================= */
   const deleteRoom = async (chatRoomId) => {
-    const confirmDelete = window.confirm("Delete this chatroom?");
-    if (!confirmDelete) return;
-
     try {
       const res = await deleteChatRoomAPI({
         workspaceId,
@@ -148,28 +145,28 @@ export const useChatrooms = () => {
   };
 
   /* ================= REMOVE MEMBERS ================= */
-  const removeMembers = async (chatRoomId, members) => {
-    try {
-      const res = await removeMembersFromChatRoomAPI({
-        workspaceId,
-        departmentId,
-        chatRoomId,
-        members,
-      });
+const removeMembers = async (chatRoomId, memberId) => {
+  try {
+    const res = await removeMembersFromChatRoomAPI({
+      workspaceId,
+      departmentId,
+      chatRoomId,
+      memberId, // ✅ single
+    });
 
-      if (res.success) {
-        setRooms((prev) =>
-          prev.map((room) =>
-            room._id === chatRoomId ? res.chatRoom : room
-          )
-        );
-      } else {
-        alert(res.error);
-      }
-    } catch (error) {
-      console.error("💥 removeMembers ERROR:", error);
+    if (res.success) {
+      setRooms((prev) =>
+        prev.map((room) =>
+          room._id === chatRoomId ? res.chatRoom : room
+        )
+      );
+    } else {
+      alert(res.error);
     }
-  };
+  } catch (error) {
+    console.error("💥 removeMembers ERROR:", error);
+  }
+};
 
   return {
     rooms,

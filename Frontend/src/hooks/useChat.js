@@ -176,6 +176,8 @@ export const useChat = (chatRoomId) => {
       replyTo: replyingTo?._id || null,
     });
 
+    console.log(content)
+
     setReplyingTo(null);
   };
 

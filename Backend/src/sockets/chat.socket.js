@@ -3,6 +3,8 @@ import chatRoomModel from "../models/chatRoom.models.js";
 import messageModel from "../models/message.models.js";
 import workspaceModel from "../models/workspace.models.js";
 import { PLANS } from "../utils/plans.js";
+import mongoose from "mongoose";
+import workspaceMemberModel from "../models/workspaceMember.models.js";
 
 export const initSocket = (io) => {
 
@@ -44,93 +46,101 @@ export const initSocket = (io) => {
     });
 
     /* ================= SEND MESSAGE ================= */
-    socket.on("send_message", async (data) => {
-      try {
-        const {
-          content,
-          chatRoomId,
-          type = "text",
-          fileName,
-          replyTo,
-          mentions,
-        } = data;
+socket.on("send_message", async (data) => {
+  try {
+    const {
+      content,
+      chatRoomId,
+      type = "text",
+      fileName,
+      replyTo,
+      mentions,
+    } = data;
 
-        const chatRoom = await chatRoomModel.findOne({
-          _id: chatRoomId,
-          members: socket.userId,
-        });
+    const roomId = new mongoose.Types.ObjectId(chatRoomId);
+    const userId = new mongoose.Types.ObjectId(socket.userId);
 
-        if (!chatRoom) return;
-
-        const workspace = await workspaceModel.findById(chatRoom.workspaceId);
-        if (!workspace) return;
-
-        const features = PLANS[workspace.plan]?.features || {};
-
-        /* ===== VALIDATION ===== */
-        if (type === "text" && !content?.trim()) return;
-        if (type !== "text" && !content) return;
-
-        if (type !== "text" && !features.fileUpload) {
-          return socket.emit("chat_error", {
-            message: "File not allowed",
-          });
-        }
-
-        if (replyTo && !features.replyMessage) {
-          return socket.emit("chat_error", {
-            message: "Reply not allowed",
-          });
-        }
-
-        if (mentions?.length && !features.mentions) {
-          return socket.emit("chat_error", {
-            message: "Mentions not allowed",
-          });
-        }
-
-        /* ===== REPLY VALIDATION ===== */
-        let replyMessage = null;
-
-        if (replyTo) {
-          replyMessage = await messageModel.findById(replyTo);
-
-          if (!replyMessage) {
-            return socket.emit("chat_error", {
-              message: "Invalid reply message",
-            });
-          }
-        }
-
-        /* ===== CREATE ===== */
-        const message = await messageModel.create({
-          content: type === "text" ? content.trim() : content,
-          senderId: socket.userId,
-          chatRoomId,
-          type,
-          fileName,
-          replyTo: replyMessage?._id || null,
-          mentions: mentions || [],
-        });
-
-        /* ===== POPULATE ===== */
-        const populated = await messageModel
-          .findById(message._id)
-          .populate("senderId", "name email role")
-          .populate({
-            path: "replyTo",
-            populate: {
-              path: "senderId",
-              select: "name email role",
-            },
-          });
-
-        io.to(chatRoomId).emit("receive_message", populated);
-
-      } catch (err) {
-        socket.emit("chat_error", { message: "Send failed" });
-      }
+    /* ===== VALIDATE ROOM ===== */
+    const chatRoom = await chatRoomModel.findOne({
+      _id: roomId,
+      members: { $in: [userId] },
     });
+
+    if (!chatRoom) return;
+
+    const workspace = await workspaceModel.findById(chatRoom.workspaceId);
+    if (!workspace) return;
+
+    const features = PLANS[workspace.plan]?.features || {};
+
+    /* ===== VALIDATION ===== */
+    if (type === "text" && !content?.trim()) return;
+    if (type !== "text" && !content) return;
+
+    if (type !== "text" && !features.fileUpload) {
+      return socket.emit("chat_error", { message: "File not allowed" });
+    }
+
+    if (replyTo && !features.replyMessage) {
+      return socket.emit("chat_error", { message: "Reply not allowed" });
+    }
+
+    if (mentions?.length && !features.mentions) {
+      return socket.emit("chat_error", { message: "Mentions not allowed" });
+    }
+
+    /* ===== REPLY VALIDATION ===== */
+    let replyMessage = null;
+
+    if (replyTo) {
+      replyMessage = await messageModel.findById(replyTo);
+      if (!replyMessage) {
+        return socket.emit("chat_error", {
+          message: "Invalid reply message",
+        });
+      }
+    }
+
+    /* ===== CREATE ===== */
+    const message = await messageModel.create({
+      content: type === "text" ? content.trim() : content,
+      senderId: userId,
+      chatRoomId: roomId,
+      type,
+      fileName,
+      replyTo: replyMessage?._id || null,
+      mentions: mentions || [],
+    });
+
+    /* ===== POPULATE ===== */
+    const populated = await messageModel
+      .findById(message._id)
+      .populate("senderId", "name email")
+      .populate({
+        path: "replyTo",
+        populate: {
+          path: "senderId",
+          select: "name email",
+        },
+      });
+
+    /* ===== ATTACH ROLE (TEMP FIX) ===== */
+    const member = await workspaceMemberModel.findOne({
+      workspaceId: chatRoom.workspaceId,
+      userId: userId,
+    }).lean();
+
+    if (member) {
+      populated.senderId.role = member.role;
+    }
+
+    io.to(chatRoomId).emit("receive_message", populated);
+
+  } catch (err) {
+    console.error("SOCKET SEND ERROR:", err);
+    socket.emit("chat_error", { message: "Send failed" });
+  }
+});
 
     /* ================= EDIT MESSAGE ================= */
     socket.on("edit_message", async ({ messageId, content }) => {

@@ -169,14 +169,14 @@ export const removeMembersFromChatRoomAPI = async ({
   workspaceId,
   departmentId,
   chatRoomId,
-  members, // array of userIds
+  memberId, // ✅ single
 }) => {
   try {
     setAuthToken();
 
     const { data } = await axios.patch(
       `chatrooms/remove-members/${workspaceId}/${departmentId}/${chatRoomId}`,
-      { members }
+      { memberId } // ✅ single
     );
 
     return {
