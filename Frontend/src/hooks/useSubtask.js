@@ -24,9 +24,9 @@ export const useSubtask = (taskId, departmentId) => {
 
   const userId = localStorage.getItem("userId");
 
-  // ================== FETCH SUBTASKS ==================
+  // ================== FETCH TASK SUBTASKS ==================
   const fetchSubtasks = useCallback(async () => {
-    if (!taskId || !departmentId) return; // 🔥 IMPORTANT
+    if (!taskId) return;
 
     try {
       startLoading();
@@ -39,13 +39,15 @@ export const useSubtask = (taskId, departmentId) => {
     } catch (err) {
       console.error("FETCH SUBTASK ERROR:", err);
     } finally {
-      stopLoading(); // 🔥 ALWAYS
+      stopLoading();
     }
-  }, [taskId, departmentId]);
+  }, [taskId]);
 
-  // ================== MY SUBTASKS ==================
+  // ================== FETCH MY SUBTASKS ==================
   const fetchMySubtasks = useCallback(async () => {
     try {
+      startLoading();
+
       const res = await getMyPendingSubtasksAPI();
 
       if (res?.subtasks) {
@@ -53,6 +55,8 @@ export const useSubtask = (taskId, departmentId) => {
       }
     } catch (err) {
       console.error("MY SUBTASK ERROR:", err);
+    } finally {
+      stopLoading();
     }
   }, []);
 
@@ -63,6 +67,9 @@ export const useSubtask = (taskId, departmentId) => {
 
       if (res?.message) {
         claimSubtaskLocal(subtaskId, userId);
+
+        // 🔥 sync my subtasks instantly
+        fetchMySubtasks();
       }
 
       return res;
@@ -78,6 +85,9 @@ export const useSubtask = (taskId, departmentId) => {
 
       if (res?.message) {
         completeSubtaskLocal(subtaskId);
+
+        // 🔥 sync my subtasks instantly
+        fetchMySubtasks();
       }
 
       return res;
@@ -95,13 +105,14 @@ export const useSubtask = (taskId, departmentId) => {
 
     const handleClaim = ({ subtaskId, userId }) => {
       claimSubtaskLocal(subtaskId, userId);
+      fetchMySubtasks(); // 🔥 sync
     };
 
     const handleComplete = ({ subtaskId }) => {
       completeSubtaskLocal(subtaskId);
+      fetchMySubtasks(); // 🔥 sync
     };
 
-    // 🔥 CLEAN FIRST (important)
     socket.off("subtask-claimed");
     socket.off("subtask-completed");
 
@@ -112,15 +123,18 @@ export const useSubtask = (taskId, departmentId) => {
       socket.off("subtask-claimed", handleClaim);
       socket.off("subtask-completed", handleComplete);
     };
-  }, [departmentId]);
+  }, [departmentId, fetchMySubtasks]);
 
   // ================== INIT ==================
   useEffect(() => {
-    if (!taskId || !departmentId) return; // 🔥 FIX
-
-    fetchSubtasks();
+    // 🔥 ALWAYS FETCH MY TASKS (IMPORTANT FIX)
     fetchMySubtasks();
-  }, [taskId, departmentId, fetchSubtasks, fetchMySubtasks]);
+
+    // 🔥 ONLY FETCH TASK SUBTASKS IF taskId exists
+    if (taskId) {
+      fetchSubtasks();
+    }
+  }, [taskId, fetchSubtasks, fetchMySubtasks]);
 
   return {
     subtasks,

@@ -230,4 +230,4 @@ it handles **real-world problems like auth, state sync, real-time updates, and d
 
 ---
 
-Made with ❤️ by Somesh
+Made with ❤️ by Soumis

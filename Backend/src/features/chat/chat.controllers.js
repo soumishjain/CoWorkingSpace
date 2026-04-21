@@ -1,129 +1,202 @@
-import departmentModel from "../../models/department.models.js";
-import departmentMemberModel from "../../models/departmentMember.models.js";
 import messageModel from "../../models/message.models.js";
-import workspaceModel from "../../models/workspace.models.js";
+import chatRoomModel from "../../models/chatRoom.models.js";
 import workspaceMemberModel from "../../models/workspaceMember.models.js";
+import departmentMemberModel from "../../models/departmentMember.models.js";
 
-export async function getOldMessage(req, res) {
+import mongoose from "mongoose";
+
+export const getMessages = async (req, res) => {
   try {
+ 
+    const { chatRoomId } = req.params;
+    let { page = 1, limit = 20 } = req.query;
     const userId = req.userId;
-    const { departmentId } = req.params;
 
-    // 🔥 pagination params
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 30;
+    page = parseInt(page);
+    limit = parseInt(limit);
 
-    if (!departmentId) {
-      return res.status(400).json({
-        message: "Department ID is required",
-      });
-    }
+    const roomId = new mongoose.Types.ObjectId(chatRoomId);
+    const userObjectId = new mongoose.Types.ObjectId(userId);
 
-    // 🔍 CHECK DEPARTMENT
-    const department = await departmentModel.findById(departmentId);
-    if (!department) {
-      return res.status(404).json({
-        message: "Department not found",
-      });
-    }
+    /* ================= VALIDATE ACCESS ================= */
+    const chatRoom = await chatRoomModel.findOne({
+      _id: roomId,
+      members: { $in: [userObjectId] }, // 🔥 FIXED
+    }).lean();
 
-    const workspaceId = department.workspaceId;
+       console.log("====== ACCESS DEBUG ======");
+console.log("chatRoomId:", chatRoomId);
+console.log("userId:", userId);
 
-    // 🔍 CHECK WORKSPACE
-    const workspace = await workspaceModel.findById(workspaceId);
-    if (!workspace) {
-      return res.status(404).json({
-        message: "Workspace not found",
-      });
-    }
+const room = await chatRoomModel.findById(chatRoomId);
+console.log("ROOM FOUND:", !!room);
+console.log("ROOM MEMBERS:", room?.members);
 
-    // 🔐 AUTH CHECK
-    const admin = await workspaceMemberModel.findOne({
-      userId,
-      workspaceId,
-      role: "admin",
-    });
+const isMember = room?.members?.some(
+  (id) => id.toString() === userId.toString()
+);
 
-    const departmentMember = await departmentMemberModel.findOne({
-      userId,
-      departmentId,
-    });
+console.log("IS USER MEMBER:", isMember);
+console.log("==========================");
 
-    if (!admin && !departmentMember) {
+    if (!chatRoom) {
       return res.status(403).json({
-        message: "Not authorized",
+        message: "Access denied or chat room not found",
       });
     }
 
-    // 🔥 FETCH WITH PAGINATION
+    /* ================= FETCH MESSAGES ================= */
     const messages = await messageModel
-      .find({ departmentId })
-      .sort({ createdAt: -1 }) // 🔥 newest first
-      .skip((page - 1) * limit) // 🔥 pagination
+      .find({ chatRoomId: roomId }) // 🔥 FIXED
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
       .limit(limit)
-      .populate("senderId", "name profileImage");
+      .populate("senderId", "name email")
+      .populate("mentions", "name email")
+      .populate({
+        path: "replyTo",
+        populate: {
+          path: "senderId",
+          select: "name email",
+        },
+      })
+      .lean();
 
-    // 🔥 collect userIds
-    const userIds = messages.map((msg) =>
-      msg.senderId._id.toString()
-    );
+    /* ================= COLLECT USER IDS ================= */
+    const userIds = new Set();
 
-    // 🔥 batch fetch roles
-    const workspaceAdmins = await workspaceMemberModel.find({
-      workspaceId,
-      role: "admin",
-      userId: { $in: userIds },
-    });
-
-    const departmentMembers = await departmentMemberModel.find({
-      departmentId,
-      userId: { $in: userIds },
-    });
-
-    // 🔥 maps
-    const adminSet = new Set(
-      workspaceAdmins.map((a) => a.userId.toString())
-    );
-
-    const memberMap = new Map();
-    departmentMembers.forEach((m) => {
-      memberMap.set(m.userId.toString(), m.role);
-    });
-
-    // 🔥 attach roles
-    const messagesWithRole = messages.map((msg) => {
-      const uid = msg.senderId._id.toString();
-
-      let role = "member";
-
-      if (adminSet.has(uid)) {
-        role = "admin";
-      } else if (memberMap.get(uid) === "manager") {
-        role = "manager";
+    messages.forEach((msg) => {
+      if (msg.senderId?._id) {
+        userIds.add(msg.senderId._id.toString());
       }
 
-      return {
-        ...msg.toObject(),
-        role,
+      if (msg.replyTo?.senderId?._id) {
+        userIds.add(msg.replyTo.senderId._id.toString());
+      }
+    });
+
+    const userIdArray = Array.from(userIds).map(
+      (id) => new mongoose.Types.ObjectId(id)
+    );
+
+    /* ================= FETCH ROLES ================= */
+
+    // workspace roles
+    const workspaceMembers = await workspaceMemberModel
+      .find({
+        workspaceId: chatRoom.workspaceId,
+        userId: { $in: userIdArray },
+      })
+      .select("userId role")
+      .lean();
+
+    // department roles
+    const departmentMembers = await departmentMemberModel
+      .find({
+        department: chatRoom.departmentId,
+        userId: { $in: userIdArray },
+      })
+      .select("userId role")
+      .lean();
+
+    /* ================= BUILD ROLE MAP ================= */
+    const roleMap = {};
+
+    // workspace roles
+    workspaceMembers.forEach((m) => {
+      roleMap[m.userId.toString()] = m.role;
+    });
+
+    // department override (manager > member, admin stays top)
+    departmentMembers.forEach((m) => {
+      const uid = m.userId.toString();
+
+      if (m.role === "manager" && roleMap[uid] !== "admin") {
+        roleMap[uid] = "manager";
+      }
+    });
+
+    /* ================= ATTACH ROLES ================= */
+    const enrichedMessages = messages.map((msg) => {
+      const senderId = msg.senderId?._id?.toString();
+
+      const enrichedMsg = {
+        ...msg,
+        senderId: {
+          ...msg.senderId,
+          role: roleMap[senderId] || "member",
+        },
       };
+
+      // reply role fix
+      if (msg.replyTo?.senderId?._id) {
+        const replySenderId =
+          msg.replyTo.senderId._id.toString();
+
+        enrichedMsg.replyTo = {
+          ...msg.replyTo,
+          senderId: {
+            ...msg.replyTo.senderId,
+            role: roleMap[replySenderId] || "member",
+          },
+        };
+      }
+
+      return enrichedMsg;
     });
 
-    // 🔥 IMPORTANT: reverse before sending
-    // frontend ko ascending chahiye for chat UI
-    messagesWithRole.reverse();
-
+    /* ================= RESPONSE ================= */
     return res.status(200).json({
-      success: true,
-      data: messagesWithRole,
-      hasMore: messages.length === limit, // 🔥 pagination helper
+      message: "Messages fetched successfully",
+      data: enrichedMessages,
+      meta: {
+        page,
+        limit,
+        hasMore: messages.length === limit,
+      },
     });
 
-  } catch (err) {
-    console.error("GET OLD MESSAGE ERROR:", err);
+  } catch (error) {
+    console.error("Get messages error:", error);
 
     return res.status(500).json({
-      success: false,
-      message: "Internal server error",
+      message: "Server error while fetching messages",
     });
   }
-}
+};
+
+export const deleteMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.userId;
+
+    const message = await messageModel.findById(messageId);
+
+    if (!message) {
+      return res.status(404).json({
+        message: "Message not found"
+      });
+    }
+
+    // ✅ ONLY SENDER CAN DELETE
+    if (message.senderId.toString() !== userId) {
+      return res.status(403).json({
+        message: "You can only delete your own messages"
+      });
+    }
+
+    // ✅ DELETE
+    await messageModel.deleteOne({ _id: messageId });
+
+    return res.status(200).json({
+      message: "Message deleted successfully"
+    });
+
+  } catch (error) {
+    console.error("Delete message error:", error);
+    return res.status(500).json({
+      message: "Server error while deleting message"
+    });
+  }
+};
+

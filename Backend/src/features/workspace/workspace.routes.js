@@ -1,27 +1,27 @@
 import express from 'express'
 import { identifyUser } from '../../middleware/auth.middleware.js'
-import { approveJoinRequest, changeMemberRole, createWorkspace, deleteWorkspace, getAllPendingRequestsForWorkspace, getAllWorkspace, getMyWorkspaces, getWorkspace, getWorkspaceMembers, joinWorkspace, leaveWorkspace, rejectJoinRequest, removeMember, searchWorkspaces, updateWorkspace, workspaceStats } from './workspace.controllers.js'
+import { approveJoinRequest, changeMemberRole, createFreeWorkspace, deleteWorkspace, getAllPendingRequestsForWorkspace, getAllWorkspace, getMyWorkspaces, getWorkspace, getWorkspaceMembers, joinWorkspace, leaveWorkspace, rejectJoinRequest, removeMember, searchWorkspaces, updateWorkspace, workspaceStats } from './workspace.controllers.js'
 import { validateWorkspace } from '../../middleware/validateWorkspace.middleware.js'
 import multer from 'multer'
 
 const upload = multer({storage : multer.memoryStorage()})
-const worskpaceRouter = express.Router()
+const workspaceRouter = express.Router()
 
-worskpaceRouter.post('/create',upload.single("coverImage"),identifyUser , createWorkspace)
-worskpaceRouter.get('/get-all-workspace',identifyUser , getAllWorkspace)
-worskpaceRouter.get('/get-workspace/:workspaceId',identifyUser , validateWorkspace , getWorkspace)
-worskpaceRouter.post('/delete/:workspaceId',identifyUser, validateWorkspace , deleteWorkspace)
-worskpaceRouter.post('/update/:workspaceId',identifyUser , validateWorkspace , updateWorkspace)
-worskpaceRouter.post('/join-request/:workspaceId',identifyUser , joinWorkspace)
-worskpaceRouter.patch('/join-request/approve/:reqId',identifyUser , approveJoinRequest)
-worskpaceRouter.patch('/join-request/reject/:reqId',identifyUser , rejectJoinRequest)
-worskpaceRouter.post('/leave/:workspaceId',identifyUser , validateWorkspace , leaveWorkspace)
-worskpaceRouter.get('/get-my-workspaces',identifyUser , getMyWorkspaces)
-worskpaceRouter.get('/get-all-requests/:workspaceId',identifyUser , validateWorkspace , getAllPendingRequestsForWorkspace)
-worskpaceRouter.post('/remove/:workspaceId/:removeUserId',identifyUser , validateWorkspace ,  removeMember)
-worskpaceRouter.post('/change-role/:workspaceId/:targetUserId', identifyUser ,validateWorkspace, changeMemberRole)
-worskpaceRouter.get('/get-workspace-members/:workspaceId',identifyUser ,validateWorkspace, getWorkspaceMembers)
-worskpaceRouter.get('/stats/:workspaceId',identifyUser , validateWorkspace ,  workspaceStats)
-worskpaceRouter.get('/search',identifyUser,searchWorkspaces)
+workspaceRouter.post('/create-free',upload.single("coverImage"),identifyUser , createFreeWorkspace)
+workspaceRouter.get('/get-all-workspace',identifyUser , getAllWorkspace)
+workspaceRouter.get('/get-workspace/:workspaceId',identifyUser , validateWorkspace , getWorkspace)
+workspaceRouter.post('/delete/:workspaceId',identifyUser, validateWorkspace , deleteWorkspace)
+workspaceRouter.post('/update/:workspaceId',identifyUser , validateWorkspace , updateWorkspace)
+workspaceRouter.post('/join-request/:workspaceId',identifyUser , joinWorkspace)
+workspaceRouter.patch('/join-request/approve/:reqId',identifyUser , approveJoinRequest)
+workspaceRouter.patch('/join-request/reject/:reqId',identifyUser , rejectJoinRequest)
+workspaceRouter.post('/leave/:workspaceId',identifyUser , validateWorkspace , leaveWorkspace)
+workspaceRouter.get('/get-my-workspaces',identifyUser , getMyWorkspaces)
+workspaceRouter.get('/get-all-requests/:workspaceId',identifyUser , validateWorkspace , getAllPendingRequestsForWorkspace)
+workspaceRouter.post('/remove/:workspaceId/:removeUserId',identifyUser , validateWorkspace ,  removeMember)
+workspaceRouter.post('/change-role/:workspaceId/:targetUserId', identifyUser ,validateWorkspace, changeMemberRole)
+workspaceRouter.get('/get-workspace-members/:workspaceId',identifyUser ,validateWorkspace, getWorkspaceMembers)
+workspaceRouter.get('/stats/:workspaceId',identifyUser , validateWorkspace ,  workspaceStats)
+workspaceRouter.get('/search',identifyUser,searchWorkspaces)
 
-export default worskpaceRouter
+export default workspaceRouter

@@ -3,7 +3,8 @@ import departmentMemberModel from '../models/departmentMember.models.js'
 import monthlyLeaderboardModel from '../models/monthlyLeaderboard.models.js'
 import departmentModel from '../models/department.models.js'
 
-cron.schedule("0 0 1 * *", async () => {
+export const leaderboardReset = () => {
+    cron.schedule("0 0 1 * *", async () => {
     console.log("Running monthly leaderboard reset")
     try{
         const members = await departmentMemberModel.find({
@@ -63,3 +64,4 @@ cron.schedule("0 0 1 * *", async () => {
         console.error("Leaderboard reset errror",error)
     }
 })
+}

@@ -1,50 +1,52 @@
+// LeaderboardList.jsx
 import { Crown } from "lucide-react";
 import { motion } from "framer-motion";
 
 const LeaderboardList = ({ data }) => {
   if (!data.length) {
     return (
-      <div className="text-center py-10 text-gray-500 text-sm">
+      <div
+        className="text-center py-10 text-sm"
+        style={{ color: "var(--text-secondary)" }}
+      >
         No leaderboard data yet 🚀
       </div>
     );
   }
 
   return (
-    <motion.div layout className="space-y-3">
+    <motion.div layout className="space-y-2">
       {data.map((user, index) => {
         const isTop = index < 3;
+        const isFirst = index === 0;
 
         return (
           <motion.div
             key={user._id}
             layout
-            transition={{
-              type: "spring",
-              stiffness: 500,
-              damping: 40,
+            transition={{ type: "spring", stiffness: 500, damping: 40 }}
+            whileHover={{ y: -2 }}
+            className="group flex items-center justify-between px-4 py-3 rounded-xl"
+            style={{
+              background: "var(--bg-secondary)",
+              border: "1px solid var(--border)",
             }}
-            className={`group flex items-center justify-between px-5 py-4 rounded-2xl bg-white 
-            hover:-translate-y-[2px] hover:shadow-md transition
-            ${isTop ? "shadow-sm" : ""}`}
           >
             {/* LEFT */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               
               {/* Rank */}
               <div
-                className={`w-9 h-9 flex items-center justify-center rounded-full text-sm font-semibold
-                ${
-                  index === 0
-                    ? "bg-yellow-100 text-yellow-600"
-                    : index === 1
-                    ? "bg-gray-200 text-gray-700"
-                    : index === 2
-                    ? "bg-orange-100 text-orange-600"
-                    : "bg-gray-100 text-gray-500"
-                }`}
+                className="w-8 h-8 flex items-center justify-center rounded-full text-xs font-semibold"
+                style={{
+                  background: "var(--bg-hover)",
+                  border: "1px solid var(--border)",
+                  color: isTop
+                    ? "var(--accent)"
+                    : "var(--text-secondary)",
+                }}
               >
-                {index === 0 ? <Crown size={14} /> : index + 1}
+                {isFirst ? <Crown size={13} /> : index + 1}
               </div>
 
               {/* Avatar */}
@@ -53,24 +55,55 @@ const LeaderboardList = ({ data }) => {
                   user.profileImage ||
                   "https://ui-avatars.com/api/?name=User"
                 }
-                className="w-10 object-cover h-10 rounded-full"
+                className="w-9 h-9 rounded-full"
+                style={{
+                  border: isTop
+                    ? "2px solid rgba(255,106,0,0.4)"
+                    : "2px solid var(--border)",
+                }}
               />
 
-              {/* Name */}
-              <div>
-                <p className="text-sm font-semibold text-gray-900">
+              {/* Name + Email */}
+              <div className="leading-tight">
+                <p
+                  className="text-sm font-medium"
+                  style={{ color: "var(--text-primary)" }}
+                >
                   {user.name}
                 </p>
-                <p className="text-xs text-gray-400">
+                <p
+                  className="text-xs"
+                  style={{ color: "var(--text-secondary)" }}
+                >
                   {user.email || "—"}
                 </p>
               </div>
             </div>
 
-            {/* Points */}
-            <p className="font-semibold text-gray-900">
-              {user.points} pts
-            </p>
+            {/* RIGHT */}
+            <div className="flex items-center gap-2">
+              
+              {/* optional rank change */}
+              {/* <span className="text-[10px] text-green-500">↑2</span> */}
+
+              <p
+                className="text-sm font-semibold"
+                style={{
+                  color: isTop
+                    ? "var(--accent)"
+                    : "var(--text-primary)",
+                }}
+              >
+                {user.points}
+              </p>
+
+              <span
+                className="text-[10px]"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                pts
+              </span>
+            </div>
           </motion.div>
         );
       })}

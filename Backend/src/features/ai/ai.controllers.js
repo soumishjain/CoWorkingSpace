@@ -9,7 +9,7 @@ export async function generateTaskSubtasks(req,res) {
                 message : "Task Title required"
             })
         }
-        const aiResponse = await generateSubtasks(title)
+        const aiResponse = await generateSubtasks(title);
 
         const subtasks = aiResponse.split("\n")
         .map(s => s.replace(/^\d+\.\s*/,"").trim())

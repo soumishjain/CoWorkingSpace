@@ -1,109 +1,246 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { getMessagesAPI } from "../api/chat.api";
+import { uploadChatFileAPI } from "../api/file.api";
 import { socket, connectSocket } from "../socket";
-import { getOldMessagesAPI } from "../api/chat.api";
-import { useChatState } from "../state/useChatState";
 
-export const useChat = (departmentId) => {
-  const {
-    messages,
-    loading,
-    startLoading,
-    stopLoading,
-    setAllMessages,
-    addMessage,
-  } = useChatState();
+export const useChat = (chatRoomId) => {
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  // ✅ INITIAL FETCH
+  const [replyingTo, setReplyingTo] = useState(null);
+
+  const [errorModal, setErrorModal] = useState({
+    open: false,
+    message: "",
+  });
+
+  const isJoinedRef = useRef(false);
+
+  /* ================= INITIAL FETCH ================= */
   useEffect(() => {
-    if (!departmentId) return;
+    if (!chatRoomId) return;
 
     const fetchMessages = async () => {
-      startLoading();
+      setLoading(true);
+      try {
+        const res = await getMessagesAPI({
+          chatRoomId,
+          page: 1,
+          limit: 20,
+        });
 
-      const res = await getOldMessagesAPI({
-        departmentId,
-        page: 1,
-        limit: 30,
-      });
-
-      if (res.success) {
-        setAllMessages(res.data);
-        setHasMore(res.data.length === 30);
-        setPage(1);
+        if (res.success) {
+          const ordered = [...(res.data || [])].reverse();
+          setMessages(ordered);
+          setHasMore(res.meta?.hasMore ?? false);
+          setPage(1);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
-
-      stopLoading();
     };
 
     fetchMessages();
-  }, [departmentId]);
+  }, [chatRoomId]);
 
-  // ✅ LOAD MORE
-  const loadMore = useCallback(async () => {
-    if (!departmentId || !hasMore || loadingMore) return;
+  /* ================= LOAD MORE ================= */
+  const loadMoreMessages = async () => {
+    if (loadingMore || !hasMore) return;
 
-    setLoadingMore(true);
+    try {
+      setLoadingMore(true);
 
-    const nextPage = page + 1;
+      const nextPage = page + 1;
 
-    const res = await getOldMessagesAPI({
-      departmentId,
-      page: nextPage,
-      limit: 30,
-    });
+      const res = await getMessagesAPI({
+        chatRoomId,
+        page: nextPage,
+        limit: 20,
+      });
 
-    if (res.success) {
-      setAllMessages(res.data);
-      setPage(nextPage);
+      if (res.success) {
+        let newMessages = res.data || [];
 
-      if (res.data.length < 30) {
-        setHasMore(false);
+        newMessages = [...newMessages].reverse();
+
+        setMessages((prev) => {
+          const existingIds = new Set(prev.map((m) => m._id));
+
+          const filtered = newMessages.filter(
+            (m) => !existingIds.has(m._id)
+          );
+
+          return [...filtered, ...prev];
+        });
+
+        setPage(nextPage);
+        setHasMore(res.meta?.hasMore ?? false);
       }
+    } catch (err) {
+      console.error("❌ LOAD MORE ERROR:", err);
+    } finally {
+      setLoadingMore(false);
     }
+  };
 
-    setLoadingMore(false);
-  }, [departmentId, page, hasMore, loadingMore]);
-
-  // ✅ SOCKET
+  /* ================= SOCKET ================= */
   useEffect(() => {
-    if (!departmentId) return;
-
     connectSocket();
-    socket.emit("join_department", { departmentId });
 
+    return () => {
+      socket.off("connect");
+      socket.off("disconnect");
+    };
+  }, []);
+
+  /* ================= JOIN ================= */
+  useEffect(() => {
+    if (!chatRoomId || !socket.connected) return;
+    if (isJoinedRef.current) return;
+
+    socket.emit("join_chatroom", { chatRoomId });
+    isJoinedRef.current = true;
+
+    return () => {
+      socket.emit("leave_chatroom", { chatRoomId });
+      isJoinedRef.current = false;
+    };
+  }, [chatRoomId, socket.connected]);
+
+  /* ================= RECEIVE ================= */
+  useEffect(() => {
     const handleReceive = (msg) => {
-      addMessage(msg); // ✅ IMPORTANT
+      setMessages((prev) => {
+        if (prev.some((m) => m._id === msg._id)) return prev;
+        return [...prev, msg];
+      });
+    };
+
+    const handleDelete = ({ messageId }) => {
+      setMessages((prev) =>
+        prev.filter((m) => m._id !== messageId)
+      );
+    };
+
+    // 🔥 FIXED EDIT HANDLER (ONLY CHANGE)
+    const handleEdit = (updatedMsg) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m._id === updatedMsg._id
+            ? {
+                ...m,
+                ...updatedMsg,
+                replyTo: m.replyTo || updatedMsg.replyTo,
+              }
+            : m
+        )
+      );
+    };
+
+    const handleError = (err) => {
+      setErrorModal({
+        open: true,
+        message: err.message,
+      });
     };
 
     socket.on("receive_message", handleReceive);
+    socket.on("message_deleted", handleDelete);
+    socket.on("message_edited", handleEdit);
+    socket.on("chat_error", handleError);
 
     return () => {
-      socket.emit("leave_department", { departmentId });
       socket.off("receive_message", handleReceive);
+      socket.off("message_deleted", handleDelete);
+      socket.off("message_edited", handleEdit);
+      socket.off("chat_error", handleError);
     };
-  }, [departmentId]);
+  }, []);
 
-  // ✅ SEND
+  /* ================= SEND ================= */
   const sendMessage = (content) => {
     if (!content?.trim()) return;
     if (!socket.connected) return;
 
     socket.emit("send_message", {
+      chatRoomId,
       content,
-      departmentId,
+      type: "text",
+      replyTo: replyingTo?._id || null,
     });
+
+    console.log(content)
+
+    setReplyingTo(null);
+  };
+
+  const editMessage = (messageId, content) => {
+    if (!socket.connected) return;
+
+    socket.emit("edit_message", {
+      messageId,
+      content,
+    });
+  };
+
+  const deleteMessage = (messageId) => {
+    if (!socket.connected) return;
+
+    socket.emit("delete_message", { messageId });
+  };
+
+  const sendFile = async (file, workspaceId) => {
+    if (!file || !workspaceId) return;
+
+    try {
+      setUploading(true);
+
+      const res = await uploadChatFileAPI({
+        file,
+        workspaceId,
+      });
+
+      if (!res.success) return;
+
+      socket.emit("send_message", {
+        chatRoomId,
+        content: res.fileUrl,
+        type: res.type,
+        fileName: res.fileName,
+        replyTo: replyingTo?._id || null,
+      });
+
+      setReplyingTo(null);
+    } finally {
+      setUploading(false);
+    }
   };
 
   return {
     messages,
     loading,
+    uploading,
+
     sendMessage,
-    loadMore,
+    sendFile,
+    deleteMessage,
+    editMessage,
+
+    replyingTo,
+    setReplyingTo,
+
+    loadMoreMessages,
     hasMore,
     loadingMore,
+
+    errorModal,
+    setErrorModal,
   };
 };

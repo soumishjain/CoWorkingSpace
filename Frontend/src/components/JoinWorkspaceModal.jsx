@@ -10,102 +10,144 @@ const JoinWorkspaceModal = ({ setOpen, fetchWorkspaces }) => {
 
   const [query, setQuery] = useState("");
 
-  // 🔥 Load ALL workspaces on open
   useEffect(() => {
-    search(""); // empty search = get all
+    search("");
   }, []);
 
-  // 🔥 Client-side filtering (fast feel)
   const filteredWorkspaces = state.results.filter((ws) =>
     ws.name.toLowerCase().includes(query.toLowerCase())
   );
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50">
-      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl p-6 border border-gray-100">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+
+      {/* BACKDROP */}
+      <div
+        onClick={() => setOpen(false)}
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+      />
+
+      {/* PANEL */}
+      <div className="relative w-full max-w-2xl mx-4 rounded-2xl 
+                      bg-[var(--bg-secondary)] 
+                      border border-[var(--border)] 
+                      shadow-[0_20px_60px_rgba(0,0,0,0.8)] 
+                      overflow-hidden">
 
         {/* HEADER */}
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">
+            <h2 className="text-base font-semibold text-[var(--text-primary)]">
               Join Workspace
             </h2>
-            <p className="text-xs text-gray-500">
-              Discover and join available workspaces
+            <p className="text-xs text-[var(--text-secondary)]">
+              Discover teams & collaborate instantly
             </p>
           </div>
 
-          <button onClick={() => setOpen(false)}>
-            <X size={20} className="text-gray-400 hover:text-black transition" />
+          <button
+            onClick={() => setOpen(false)}
+            className="p-2 rounded-md hover:bg-[var(--bg-hover)]"
+          >
+            <X size={16} className="text-[var(--text-secondary)]" />
           </button>
         </div>
 
         {/* SEARCH */}
-        <div className="relative mb-5">
-          <Search size={16} className="absolute left-3 top-3 text-gray-400" />
+        <div className="px-6 py-4 border-b border-[var(--border)]">
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-2.5 text-[var(--text-secondary)]" />
 
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search workspaces..."
-            className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] transition text-sm"
-          />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search workspaces..."
+              className="w-full pl-9 pr-3 py-2 rounded-lg text-sm
+                         bg-[var(--bg-main)] 
+                         border border-[var(--border)] 
+                         text-[var(--text-primary)] 
+                         placeholder:text-[var(--text-secondary)]
+                         focus:outline-none 
+                         focus:border-[var(--accent)]"
+            />
+          </div>
         </div>
 
-        {/* RESULTS */}
-        <div className="max-h-[350px] overflow-y-auto space-y-3 pr-1">
+        {/* LIST */}
+        <div className="max-h-[420px] overflow-y-auto">
 
           {state.loading && (
-            <Loader />
+            <div className="py-10 flex justify-center">
+              <Loader />
+            </div>
           )}
 
           {!state.loading && filteredWorkspaces.length === 0 && (
-            <p className="text-sm text-gray-500 text-center py-6">
-              No matching workspaces
+            <p className="text-center text-sm text-[var(--text-secondary)] py-10">
+              No workspaces found
             </p>
           )}
 
           {filteredWorkspaces.map((ws) => (
             <div
               key={ws._id}
-              className="flex items-center justify-between p-4 rounded-2xl border border-gray-100 bg-white hover:shadow-md hover:border-gray-200 transition-all duration-200"
+              className="group flex items-center justify-between px-6 py-4 
+                         border-b border-[var(--border)] 
+                         hover:bg-[var(--bg-hover)] transition"
             >
 
               {/* LEFT */}
-              <div className="flex flex-col">
-                <p className="text-sm font-semibold text-gray-900">
-                  {ws.name}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {ws.description || "No description"}
-                </p>
+              <div className="flex items-center gap-4">
+
+                {/* ICON */}
+                <div className="w-10 h-10 rounded-lg 
+                                bg-[var(--bg-main)] 
+                                border border-[var(--border)] 
+                                flex items-center justify-center 
+                                text-sm font-semibold text-[var(--accent)]">
+                  {ws.name[0]}
+                </div>
+
+                <div>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">
+                    {ws.name}
+                  </p>
+
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    {ws.description || "No description"}
+                  </p>
+                </div>
+
               </div>
 
               {/* RIGHT */}
-              {ws.status === "joined" && (
-                <span className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-600 font-medium">
-                  Joined
-                </span>
-              )}
+              <div>
 
-              {ws.status === "requested" && (
-                <span className="text-xs px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 font-medium">
-                  Requested
-                </span>
-              )}
+                {ws.status === "joined" && (
+                  <span className="text-xs px-2 py-1 rounded bg-green-500/10 text-green-400">
+                    Joined
+                  </span>
+                )}
 
-              {ws.status === "none" && (
-                <button
-                  onClick={() => join(ws._id)}
-                  disabled={state.loading}
-                  className="text-xs px-4 py-1.5 rounded-full bg-black text-white hover:bg-gray-800 transition flex items-center gap-2"
-                >
-                  {state.loading && (
-                    <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                  )}
-                  Join
-                </button>
-              )}
+                {ws.status === "requested" && (
+                  <span className="text-xs px-2 py-1 rounded bg-yellow-500/10 text-yellow-400">
+                    Requested
+                  </span>
+                )}
+
+                {ws.status === "none" && (
+                  <button
+                    onClick={() => join(ws._id)}
+                    className="text-xs px-3 py-1.5 rounded-md 
+                               bg-[var(--accent)] text-white 
+                               hover:opacity-90 transition"
+                  >
+                    Join
+                  </button>
+                )}
+
+              </div>
 
             </div>
           ))}

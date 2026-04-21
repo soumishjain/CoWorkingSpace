@@ -10,53 +10,96 @@ import monthlyLeaderboardModel from "../../models/monthlyLeaderboard.models.js";
 import { createActivity } from "../../utils/createActivity.js";
 import { createNotification } from "../../utils/createNotification.js";
 import { getIO } from "../../lib/socket.js";
+import subscriptionModel from "../../models/subscription.models.js";
+import { PLANS } from "../../utils/plans.js";
 
-export async function createDepartment(req,res){
-    try{
 
-        const workspace = req.workspace
-    const userId = req.userId
 
-    const admin = await workspaceMemberModel.findOne({userId , workspaceId : workspace._id})
+export async function createDepartment(req, res) {
+  try {
+    const workspace = req.workspace;
+    const userId = req.userId;
+    const workspaceId = workspace._id;
 
-    if(!admin || admin.role !== 'admin') {
-        return res.status(403).json({
-            message : "You are not authorized to create a department in this workspace"
-        })
+    // ================= AUTH CHECK =================
+    const admin = await workspaceMemberModel.findOne({
+      userId,
+      workspaceId,
+    });
+
+    if (!admin || admin.role !== "admin") {
+      return res.status(403).json({
+        message:
+          "You are not authorized to create a department in this workspace",
+      });
     }
 
+    // ================= PLAN CHECK =================
+    const subscription = await subscriptionModel.findOne({
+      workspaceId,
+      status: "active",
+    });
 
+    if (!subscription) {
+      return res.status(403).json({
+        message: "No active Subscription",
+      });
+    }
 
-    const {name , description} = req.body
+    if (
+      workspace.departmentCount >=
+      PLANS[subscription.plan].limits.departments
+    ) {
+      return res.status(403).json({
+        message: "Max Departments Count Reached For this Plan",
+      });
+    }
+
+    // ================= CREATE DEPARTMENT =================
+    const { name, description } = req.body;
+
     const department = await departmentModel.create({
-        name : name , 
-        description : description,
-        workspaceId : workspace._id ,
-        createdBy : userId 
-    })
+      name,
+      description,
+      workspaceId,
+      createdBy: userId,
+    });
 
-    const workspaceId = workspace._id
-    const departmentId = department._id
+    // ================= 🔥 DEFAULT CHATROOM =================
+    await chatRoomModel.create({
+      name: "general",
+      workspaceId,
+      departmentId: department._id,
+      createdBy: userId,
+      members: [userId], // ✅ only admin added
+    });
 
+    // ================= UPDATE COUNT =================
+    await workspaceModel.findByIdAndUpdate(workspaceId, {
+      $inc: { departmentCount: 1 },
+    });
+
+    // ================= ACTIVITY =================
     await createActivity({
-  workspaceId,
-  departmentId: null,
-  userId,
-  type: "DEPARTMENT_CREATED",
-  message: `${name} department created`
-})
+      workspaceId,
+      departmentId: department._id,
+      userId,
+      type: "DEPARTMENT_CREATED",
+      message: `${name} department created`,
+    });
 
-    res.status(200).json({
-        message : "Department created Successfully",
-        department : department 
-    })
-    }catch(error){
-        console.error(error)
-        res.status(500).json({
-            message : "Internal Server Error"
-        })
-    }
+    return res.status(200).json({
+      message: "Department created Successfully",
+      department,
+    });
 
+  } catch (error) {
+    console.error("CREATE DEPARTMENT ERROR:", error);
+
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }
 
 export async function addDepartmentManager(req, res) {
@@ -197,92 +240,125 @@ export async function addDepartmentManager(req, res) {
   }
 }
 
-export async function addMemberInDepartment(req,res){
-    
-    try{
-        const {newUserId} = req.params
-    const headId = req.userId
+export async function addMemberInDepartment(req, res) {
+  try {
+    const { newUserId } = req.params;
+    const headId = req.userId;
 
-    const workspace = req.workspace
-    const department = req.department
+    const workspace = req.workspace;
+    const department = req.department;
 
-    const newUser = await workspaceMemberModel.findOne({userId : newUserId , workspaceId : workspace._id})
+    // ================= WORKSPACE MEMBER CHECK =================
+    const newUser = await workspaceMemberModel.findOne({
+      userId: newUserId,
+      workspaceId: workspace._id,
+    });
 
-    if(!newUser){
-        return res.status(404).json({
-            message : "User is not a member of workspace"
-        })
+    if (!newUser) {
+      return res.status(404).json({
+        message: "User is not a member of workspace",
+      });
     }
 
-    if(newUser.role === "admin"){
-        return res.status(400).json({
-            message : "You cannot add admin in department"
-        })
+    if (newUser.role === "admin") {
+      return res.status(400).json({
+        message: "You cannot add admin in department",
+      });
     }
 
-   const workspaceAdmin = await workspaceMemberModel.findOne({workspaceId : workspace._id , userId : headId , role : "admin"})
-   const departmentManager = await departmentMemberModel.findOne({departmentId : department._id , userId : headId , role : 'manager'})
+    // ================= AUTH =================
+    const workspaceAdmin = await workspaceMemberModel.findOne({
+      workspaceId: workspace._id,
+      userId: headId,
+      role: "admin",
+    });
 
-   if(!workspaceAdmin && !departmentManager){
-    return res.status(403).json({
-        message : "Not authorized"
-    })
-   }
+    const departmentManager = await departmentMemberModel.findOne({
+      departmentId: department._id,
+      userId: headId,
+      role: "manager",
+    });
 
-   const existingMember = await departmentMemberModel.findOne({departmentId : department._id , userId : newUserId})
+    if (!workspaceAdmin && !departmentManager) {
+      return res.status(403).json({
+        message: "Not authorized",
+      });
+    }
 
-   if(existingMember){
-    return res.status(400).json({
-        message : "User is already a member of this department"
-    })
-   }
+    // ================= DUPLICATE CHECK =================
+    const existingMember = await departmentMemberModel.findOne({
+      departmentId: department._id,
+      userId: newUserId,
+    });
 
+    if (existingMember) {
+      return res.status(400).json({
+        message: "User is already a member of this department",
+      });
+    }
+
+    // ================= ADD MEMBER =================
     const newMember = await departmentMemberModel.create({
-        userId : newUserId,
-        departmentId : department._id ,
-        role : "employee"
-    })
+      userId: newUserId,
+      departmentId: department._id,
+      role: "employee",
+    });
 
+    // ================= 🔥 ADD TO GENERAL CHATROOM =================
+    const generalRoom = await chatRoomModel.findOne({
+      workspaceId: workspace._id,
+      departmentId: department._id,
+      name: "general",
+    });
 
+    if (generalRoom) {
+      await chatRoomModel.findByIdAndUpdate(generalRoom._id, {
+        $addToSet: { members: newUserId }, // ✅ no duplicate
+      });
+    }
+
+    // ================= ACTIVITY =================
     await createActivity({
-        workspaceId : workspace._id,
-        departmentId : department._id,
-        userId : headId,
-        type : "MEMBER_ADDED",
-        message : `Member Added to Department`
-    })
+      workspaceId: workspace._id,
+      departmentId: department._id,
+      userId: headId,
+      type: "MEMBER_ADDED",
+      message: `Member Added to Department`,
+    });
 
+    // ================= NOTIFICATION =================
     await createNotification({
-        workspaceId : workspace._id,
-        departmentId : department._id,
-        userId : newUserId,
-        type : "MEMBER_ADDED",
-        message : `you have been added in the department`
-    })
+      workspaceId: workspace._id,
+      departmentId: department._id,
+      userId: newUserId,
+      type: "MEMBER_ADDED",
+      message: `you have been added in the department`,
+    });
 
-    const io = getIO()
+    // ================= SOCKET =================
+    const io = getIO();
 
-    io.to(newUserId.toString()).emoit("member-added",{
-        departmentId : department._id,
-        type : "MEMBER_ADDED"
-    })
-
-
+    io.to(newUserId.toString()).emit("member-added", {
+      departmentId: department._id,
+      type: "MEMBER_ADDED",
+    });
 
     return res.status(201).json({
-        message : "user added successfully",
-        newMember
-    })
-    }catch(error){
-        console.error(error)
-        res.status(500).json({
-            message : "Internal Server Error"
-        })
-    }
+      message: "user added successfully",
+      newMember,
+    });
 
+  } catch (error) {
+    console.error("ADD MEMBER ERROR:", error);
+
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }
 
 //* deleteDepartment
+
 export async function deleteDepartment(req, res) {
   try {
     const userId = req.userId;
@@ -292,7 +368,7 @@ export async function deleteDepartment(req, res) {
     const workspaceId = workspace._id;
     const departmentId = department._id;
 
-    // 🔥 1. BLOCK GENERAL DEPARTMENT (NAME BASED)
+    // 🔥 1. BLOCK GENERAL
     if (department.name === "general") {
       return res.status(400).json({
         message: "General department cannot be deleted",
@@ -311,15 +387,39 @@ export async function deleteDepartment(req, res) {
       });
     }
 
-    // 🔥 3. DELETE ALL MEMBERS
+    // ================= GET CHATROOMS =================
+    const chatRooms = await chatRoomModel.find({
+      workspaceId,
+      departmentId,
+    });
+
+    const chatRoomIds = chatRooms.map((c) => c._id);
+
+    // ================= DELETE MESSAGES =================
+    await messageModel.deleteMany({
+      chatRoomId: { $in: chatRoomIds },
+    });
+
+    // ================= DELETE CHATROOMS =================
+    await chatRoomModel.deleteMany({
+      workspaceId,
+      departmentId,
+    });
+
+    // ================= DELETE MEMBERS =================
     await departmentMemberModel.deleteMany({
       departmentId,
     });
 
-    // 🔥 4. DELETE DEPARTMENT
+    // ================= UPDATE COUNT =================
+    await workspaceModel.findByIdAndUpdate(workspaceId, {
+      $inc: { departmentCount: -1 },
+    });
+
+    // ================= DELETE DEPARTMENT =================
     await departmentModel.findByIdAndDelete(departmentId);
 
-    // 🔥 5. ACTIVITY LOG
+    // ================= ACTIVITY =================
     await createActivity({
       workspaceId,
       departmentId: null,
@@ -328,20 +428,18 @@ export async function deleteDepartment(req, res) {
       message: `${department.name} department was deleted`,
     });
 
-
-    // 🔥 7. RESPONSE
     return res.status(200).json({
       message: "Department deleted successfully",
     });
 
   } catch (error) {
-    console.error(error);
+    console.error("DELETE DEPARTMENT ERROR:", error);
+
     return res.status(500).json({
       message: "Internal Server Error",
     });
   }
 }
-
 // * updateDepartment
 export async function updateDepartment(req,res) {
         try{
@@ -506,6 +604,7 @@ export async function getMyDepartments(req, res) {
 }
 
 // *leaveDepartment
+
 export async function leaveDepartment(req, res) {
   try {
     const workspace = req.workspace;
@@ -515,14 +614,14 @@ export async function leaveDepartment(req, res) {
     const departmentId = department._id;
     const workspaceId = workspace._id;
 
-    // 🔥 1. BLOCK GENERAL DEPARTMENT (name-based, case-insensitive)
+    // 🔥 1. BLOCK GENERAL
     if ((department.name || "").toLowerCase() === "general") {
       return res.status(400).json({
         message: "You cannot leave the general department",
       });
     }
 
-    // 🔥 2. CHECK WORKSPACE MEMBERSHIP
+    // 🔥 2. WORKSPACE CHECK
     const workspaceMember = await workspaceMemberModel.findOne({
       userId,
       workspaceId,
@@ -534,7 +633,7 @@ export async function leaveDepartment(req, res) {
       });
     }
 
-    // 🔥 3. CHECK DEPARTMENT MEMBERSHIP + populate name
+    // 🔥 3. DEPARTMENT CHECK
     const deptMember = await departmentMemberModel
       .findOne({ departmentId, userId })
       .populate("userId", "name");
@@ -553,11 +652,22 @@ export async function leaveDepartment(req, res) {
       role: "manager",
     });
 
-    // 🔥 5. REMOVE USER
+    // 🔥 5. REMOVE FROM DEPARTMENT
     await departmentMemberModel.findOneAndDelete({
       userId,
       departmentId,
     });
+
+    // ================= 🔥 REMOVE FROM ALL CHATROOMS =================
+    await chatRoomModel.updateMany(
+      {
+        departmentId,
+        workspaceId,
+      },
+      {
+        $pull: { members: userId },
+      }
+    );
 
     // 🔥 6. ACTIVITY
     await createActivity({
@@ -568,38 +678,36 @@ export async function leaveDepartment(req, res) {
       message: `${userName} left the department`,
     });
 
-    // 🔥 7. SOCKET (department room
-    // 🔥 8. NOTIFY MANAGER (if exists & not same user)
+    // 🔥 7. NOTIFY MANAGER
     if (manager && manager.userId.toString() !== userId.toString()) {
       await createNotification({
         workspaceId,
         departmentId,
         userId: manager.userId,
-        type: "MEMBER-LEFT",
+        type: "MEMBER_LEFT",
         message: `${userName} left the department`,
       });
 
-      const io = getIO()
+      const io = getIO();
 
       io.to(manager.userId.toString()).emit("member-left", {
         departmentId,
       });
     }
 
-    // 🔥 9. RESPONSE
+    // 🔥 8. RESPONSE
     return res.status(200).json({
       message: "You are no longer part of this department",
     });
 
   } catch (error) {
-    console.error(error);
+    console.error("LEAVE DEPARTMENT ERROR:", error);
+
     return res.status(500).json({
       message: "Internal Server Error",
     });
   }
 }
-
-
 
 // * getAllDepartmentMembers
 export async function getAllDepartmentMembers(req, res) {
@@ -693,80 +801,109 @@ export async function getAllDepartmentMembers(req, res) {
 }
 
 // * removeMemeberFromDepartment
-export async function removeMemberFromDepartment(req,res) {
-    try{
-      const io = getIO()
-        const headId = req.userId
-    const workspace = req.workspace
-    const department = req.department
-    const departmentId = department._id
-    const workspaceId = workspace._id
 
+export async function removeMemberFromDepartment(req, res) {
+  try {
+    const io = getIO();
 
-    const {removeUserId} = req.params
+    const headId = req.userId;
+    const workspace = req.workspace;
+    const department = req.department;
 
-    const headAdmin = await workspaceMemberModel.findOne({workspaceId , userId : headId , role: "admin"})
+    const departmentId = department._id;
+    const workspaceId = workspace._id;
 
-    const headManager = await departmentMemberModel.findOne({userId : headId , departmentId , role : 'manager'})
+    const { removeUserId } = req.params;
 
-    if(!headAdmin && !headManager) {
-        return res.status(403).json({
-            message : "Unauthorized Access"
-        })
+    // ================= AUTH =================
+    const headAdmin = await workspaceMemberModel.findOne({
+      workspaceId,
+      userId: headId,
+      role: "admin",
+    });
+
+    const headManager = await departmentMemberModel.findOne({
+      userId: headId,
+      departmentId,
+      role: "manager",
+    });
+
+    if (!headAdmin && !headManager) {
+      return res.status(403).json({
+        message: "Unauthorized Access",
+      });
     }
 
-    const removeUser = await departmentMemberModel.findOne({userId : removeUserId , departmentId})
+    // ================= MEMBER CHECK =================
+    const removeUser = await departmentMemberModel.findOne({
+      userId: removeUserId,
+      departmentId,
+    });
 
-    if(!removeUser){
-        return res.status(404).json({
-            message : "User is not a member of department"
-        })
+    if (!removeUser) {
+      return res.status(404).json({
+        message: "User is not a member of department",
+      });
     }
 
-    if(removeUserId == headId) {
-        return res.status(400).json({
-            message : "Use Leave Workspace Instead"
-        })
+    // ================= SELF REMOVE BLOCK =================
+    if (removeUserId.toString() === headId.toString()) {
+      return res.status(400).json({
+        message: "Use Leave Department Instead",
+      });
     }
 
-    await departmentMemberModel.findOneAndDelete({userId : removeUserId , departmentId})
+    // ================= REMOVE FROM DEPARTMENT =================
+    await departmentMemberModel.findOneAndDelete({
+      userId: removeUserId,
+      departmentId,
+    });
 
+    // ================= 🔥 REMOVE FROM ALL CHATROOMS =================
+    await chatRoomModel.updateMany(
+      {
+        workspaceId,
+        departmentId,
+      },
+      {
+        $pull: { members: removeUserId },
+      }
+    );
 
+    // ================= ACTIVITY =================
     await createActivity({
-        workspaceId : workspace._id,
-        departmentId : department._id,
-        userId : headId,
-        type : "MEMBER_REMOVED",
-        message : `Member removed from department`
-    })
+      workspaceId,
+      departmentId,
+      userId: headId,
+      type: "MEMBER_REMOVED",
+      message: `Member removed from department`,
+    });
 
+    // ================= NOTIFICATION =================
     await createNotification({
-        workspaceId : workspace._id,
-        departmentId : department._id,
-        userId : removeUserId,
-        type : "MEMBER-REMOVED",
-        message : `You have been removed from the department`
-    })
+      workspaceId,
+      departmentId,
+      userId: removeUserId,
+      type: "MEMBER_REMOVED",
+      message: `You have been removed from the department`,
+    });
 
-    io.to(removeUserId.toString()).emit("member-removed",{
-        departmentId : department._id
-    })
-
-
-
+    // ================= SOCKET =================
+    io.to(removeUserId.toString()).emit("member-removed", {
+      departmentId,
+    });
 
     return res.status(200).json({
-        message : "User removed Successfully"
-    })
-    }catch(error){
-        console.error(error)
-        res.status(500).json({
-            message : "Internal Server Error"
-        })
-    }
+      message: "User removed Successfully",
+    });
 
-    
+  } catch (error) {
+    console.error("REMOVE MEMBER ERROR:", error);
 
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }
 
 export async function joinDepartment(req, res) {
@@ -872,78 +1009,115 @@ export async function joinDepartment(req, res) {
   }
 }
 
-export async function approveDepartmentJoinRequest (req,res) {
-    try{
-    const userId = req.userId
-    const workspace = req.workspace
-    const department = req.department
-    const workspaceId = workspace._id
-    const departmentId = department._id
-    const {reqId} = req.params
 
-    const departmentManager = await departmentMemberModel.findOne({userId , departmentId , role : 'manager'})
-    const workspaceAdmin = await workspaceMemberModel.findOne({userId , workspaceId , role : 'admin'})
-    if(!departmentManager && !workspaceAdmin) {
-            return res.status(403).json({
-                message : "You are not authorized"
-            })
+export async function approveDepartmentJoinRequest(req, res) {
+  try {
+    const userId = req.userId;
+    const workspace = req.workspace;
+    const department = req.department;
+
+    const workspaceId = workspace._id;
+    const departmentId = department._id;
+    const { reqId } = req.params;
+
+    // ================= AUTH =================
+    const departmentManager = await departmentMemberModel.findOne({
+      userId,
+      departmentId,
+      role: "manager",
+    });
+
+    const workspaceAdmin = await workspaceMemberModel.findOne({
+      userId,
+      workspaceId,
+      role: "admin",
+    });
+
+    if (!departmentManager && !workspaceAdmin) {
+      return res.status(403).json({
+        message: "You are not authorized",
+      });
     }
 
-    const request = await joinRequestModel.findOne({_id : reqId , status: 'pending' , type : 'department'})
+    // ================= REQUEST =================
+    const request = await joinRequestModel.findOne({
+      _id: reqId,
+      status: "pending",
+      type: "department",
+    });
 
-    if(!request){
-        return res.status(404).json({
-            message : "No request found"
-        })
+    if (!request) {
+      return res.status(404).json({
+        message: "No request found",
+      });
     }
 
+    // ================= DUPLICATE CHECK =================
     const alreadyMember = await departmentMemberModel.findOne({
-        userId : request.userId,
-        departmentId
-    })
+      userId: request.userId,
+      departmentId,
+    });
 
-    if(alreadyMember) {
-        return res.status(400).json({
-            message : "User already a member"
-        })
+    if (alreadyMember) {
+      return res.status(400).json({
+        message: "User already a member",
+      });
     }
 
+    // ================= ADD MEMBER =================
+    const newUser = await departmentMemberModel.create({
+      userId: request.userId,
+      departmentId,
+      role: "employee",
+    });
 
-    const newUser = await departmentMemberModel.create({userId : request.userId , departmentId , role : 'employee'})
+    // ================= 🔥 ADD TO GENERAL CHATROOM =================
+    const generalRoom = await chatRoomModel.findOne({
+      workspaceId,
+      departmentId,
+      name: "general",
+    });
 
+    if (generalRoom) {
+      await chatRoomModel.findByIdAndUpdate(generalRoom._id, {
+        $addToSet: { members: request.userId }, // ✅ safe add
+      });
+    }
 
-    await joinRequestModel.findByIdAndDelete(reqId)
+    // ================= DELETE REQUEST =================
+    await joinRequestModel.findByIdAndDelete(reqId);
 
+    // ================= NOTIFICATION =================
     await createNotification({
-    workspaceId : workspace._id,
-    departmentId : department._id,
-    userId : request.userId,
-    type : "JOIN_REQUEST_APPROVED",
-    message : `Your request to join ${department.name} was approved`
-})
+      workspaceId,
+      departmentId,
+      userId: request.userId,
+      type: "JOIN_REQUEST_APPROVED",
+      message: `Your request to join ${department.name} was approved`,
+    });
 
-await createActivity({
-  workspaceId,
-  departmentId,
-  userId: request.userId,
-  type: "MEMBER_JOINED",
-  message: `User joined department`
-})
+    // ================= ACTIVITY =================
+    await createActivity({
+      workspaceId,
+      departmentId,
+      userId: request.userId,
+      type: "MEMBER_JOINED",
+      message: `User joined department`,
+    });
 
-    res.status(200).json({
-        message : "Join request approved",
-        newUser
-    })
-    }catch(error){
-        console.error(error)
-        res.status(500).json({
-            message : "Internal Server Error"
-        })
-    }
+    return res.status(200).json({
+      message: "Join request approved",
+      newUser,
+    });
 
+  } catch (error) {
+    console.error("APPROVE REQUEST ERROR:", error);
 
-} 
-
+    return res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
+}
 export async function rejectDepartmentJoinRequest(req,res){
     try{
     const userId = req.userId

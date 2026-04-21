@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import RejectModal from "./RejectModal";
 
 const TaskCard = ({ task, userRole, onApprove, onReject }) => {
@@ -8,129 +8,182 @@ const TaskCard = ({ task, userRole, onApprove, onReject }) => {
   const [loadingAction, setLoadingAction] = useState(null);
   const [openRejectModal, setOpenRejectModal] = useState(false);
 
-  const getPriorityColor = () => {
-    if (task.priority === "high") return "text-red-500";
-    if (task.priority === "medium") return "text-yellow-500";
-    return "text-green-500";
-  };
+  // 🔥 SAFE CONDITIONS
+  const isManager = ["manager"].includes(userRole);
 
-  const getStatusDot = () => {
-    if (task.status === "completed") return "bg-green-500";
-    if (task.status === "in-progress") return "bg-blue-500";
-    if (task.status === "awaiting-approval") return "bg-purple-500";
-    return "bg-gray-400";
-  };
+  const isAwaiting =
+    task.status?.toLowerCase().includes("await");
 
-  const isManager = userRole === "manager";
-  const isAwaiting = task.status === "awaiting-approval";
+  // 🔥 DEBUG LOGS (IMPORTANT)
+  useEffect(() => {
+    console.log("------------ TASK DEBUG ------------");
+    console.log("TASK ID:", task._id);
+    console.log("ROLE:", userRole);
+    console.log("STATUS:", task.status);
+    console.log("isManager:", isManager);
+    console.log("isAwaiting:", isAwaiting);
+    console.log("-----------------------------------");
+  }, [task, userRole]);
 
-  const handleCardClick = (e) => {
-    if (e.target.closest("button")) return;
-    navigate(`task/${task._id}`);
-  };
+  // 🔥 APPROVE
+  const handleApproveClick = async (e) => {
+    e.stopPropagation();
 
-  const handleApproveClick = async () => {
+    console.log("🔥 APPROVE BUTTON CLICKED");
+
     if (loadingAction) return;
 
     try {
       setLoadingAction("approve");
-      await onApprove(task._id);
+
+      if (!onApprove) {
+        console.error("❌ onApprove NOT PASSED");
+        return;
+      }
+
+      console.log("👉 Calling onApprove with:", task._id);
+
+      const res = await onApprove(task._id);
+
+      console.log("✅ APPROVE RESPONSE:", res);
     } catch (err) {
-      console.error("Approve failed:", err);
+      console.error("❌ APPROVE ERROR:", err);
     } finally {
       setLoadingAction(null);
     }
   };
 
+  // 🔥 REJECT
   const handleRejectSubmit = async (feedback) => {
     try {
+      console.log("🔥 REJECT CLICKED", task._id, feedback);
+
       setLoadingAction("reject");
-      await onReject(task._id, feedback);
+
+      const res = await onReject(task._id, feedback);
+
+      console.log("✅ REJECT RESPONSE:", res);
+    } catch (err) {
+      console.error("❌ REJECT ERROR:", err);
     } finally {
       setLoadingAction(null);
     }
   };
+
+  const handleCardClick = () => {
+    navigate(`task/${task._id}`);
+  };
+
+  const progress = task.progress ?? 0;
 
   return (
     <>
       <div
-        onClick={handleCardClick}
-        className="group relative bg-white border border-gray-200 rounded-2xl p-5 cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+      onClick={handleCardClick}
+        className="group relative p-4 rounded-xl transition"
+        style={{
+          background: "var(--bg-secondary)",
+          border: "1px solid var(--border)",
+        }}
       >
-
         {/* TOP */}
         <div className="flex justify-between items-start mb-3">
-          <div className="flex items-center gap-2">
-            <span className={`h-2 w-2 rounded-full ${getStatusDot()}`} />
-            <h2 className="font-semibold text-gray-900 text-sm group-hover:text-indigo-600 transition">
-              {task.title}
-            </h2>
-          </div>
+          <h2
+            className="text-sm font-medium"
+            style={{ color: "var(--text-primary)" }}
+          >
+            {task.title}
+          </h2>
 
-          <span className={`text-xs font-medium ${getPriorityColor()}`}>
+          <span
+            className="text-[11px] px-2 py-0.5 rounded-md"
+            style={{
+              background: "var(--bg-hover)",
+              color: "var(--text-secondary)",
+            }}
+          >
             {task.priority}
           </span>
         </div>
 
-        {/* DESCRIPTION */}
-        <p className="text-sm text-gray-500 line-clamp-2 mb-4 leading-relaxed">
+        {/* DESC */}
+        <p
+          className="text-sm mb-4"
+          style={{ color: "var(--text-secondary)" }}
+        >
           {task.description || "No description"}
         </p>
 
         {/* PROGRESS */}
         <div className="mb-4">
-          <div className="flex justify-between text-xs text-gray-400 mb-1">
+          <div className="flex justify-between text-[11px] mb-1">
             <span>Progress</span>
-            <span>{task.progress ?? 0}%</span>
+            <span>{progress}%</span>
           </div>
 
-          <div className="h-[6px] w-full bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className="h-[6px] w-full rounded-full overflow-hidden"
+            style={{ background: "var(--bg-hover)" }}
+          >
             <div
-              className="h-full bg-indigo-500 rounded-full transition-all duration-500"
-              style={{ width: `${task.progress ?? 0}%` }}
+              className="h-full rounded-full"
+              style={{
+                width: `${progress}%`,
+                background: "var(--accent)",
+              }}
             />
           </div>
         </div>
 
-        {/* FOOTER */}
-        <div className="flex justify-between items-center text-xs text-gray-400 mb-3">
-          <span>
-            {task.deadline
-              ? new Date(task.deadline).toLocaleDateString()
-              : "No deadline"}
-          </span>
-
-          <span className="capitalize">
-            {task.status.replace("-", " ")}
-          </span>
+        {/* STATUS */}
+        <div className="text-[11px] mb-3">
+          Status: {task.status}
         </div>
 
-        {/* MANAGER ACTIONS */}
-        {isManager && isAwaiting && (
+        {/* 🔥 ACTION BUTTONS */}
+        {isManager && isAwaiting ? (
           <div className="flex gap-2 mt-2">
             <button
               onClick={handleApproveClick}
               disabled={loadingAction !== null}
-              className="flex-1 bg-green-500 text-white text-xs py-2 rounded-lg hover:bg-green-600 transition disabled:opacity-50"
+              className="flex-1 text-xs py-2 rounded-md"
+              style={{
+                background: "var(--accent)",
+                color: "white",
+              }}
             >
-              {loadingAction === "approve" ? "Approving..." : "Approve"}
+              {loadingAction === "approve"
+                ? "Approving..."
+                : "Approve"}
             </button>
 
             <button
-              onClick={() => setOpenRejectModal(true)}
-              disabled={loadingAction !== null}
-              className="flex-1 bg-red-500 text-white text-xs py-2 rounded-lg hover:bg-red-600 transition disabled:opacity-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log("🔥 OPEN REJECT MODAL");
+                setOpenRejectModal(true);
+              }}
+              className="flex-1 text-xs py-2 rounded-md"
+              style={{
+                background: "var(--bg-hover)",
+                color: "var(--text-primary)",
+                border: "1px solid var(--border)",
+              }}
             >
               Reject
             </button>
           </div>
+        ) : (
+          <p
+            className="text-xs mt-2"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            {/* ❌ Buttons hidden (check role/status) */}
+          </p>
         )}
-
-        {/* HOVER LIGHT */}
-        <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition duration-500 bg-gradient-to-r from-indigo-500/5 via-purple-500/5 to-pink-500/5 rounded-2xl" />
       </div>
 
-      {/* 🔥 REJECT MODAL */}
+      {/* MODAL */}
       {openRejectModal && (
         <RejectModal
           onClose={() => setOpenRejectModal(false)}

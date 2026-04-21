@@ -5,8 +5,8 @@ export const useCreateWorkspaceState = () => {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    joinPassword: "",
-    coverImage: null
+    coverImage: null,
+    plan: "individual" // 🔥 ADD THIS
   });
 
   const [loading, setLoading] = useState(false);

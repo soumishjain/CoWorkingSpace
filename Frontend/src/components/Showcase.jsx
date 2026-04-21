@@ -20,26 +20,29 @@ export default function Showcase() {
   return (
     <section className="max-w-6xl mx-auto px-6 py-28">
 
-      {/* 🔥 HEADER (BIG + CLEAN) */}
+      {/* 🔥 HEADER */}
       <div className="mb-20">
 
-        <h2 className="text-5xl font-semibold tracking-tight text-gray-900 leading-tight max-w-3xl">
+        <h2 className="text-5xl font-semibold tracking-tight 
+                       text-[var(--text-primary)] leading-tight max-w-3xl">
           A better way to manage your workspace
         </h2>
 
-        <p className="mt-6 text-gray-500 text-lg max-w-xl">
+        <p className="mt-6 text-[var(--text-secondary)] text-lg max-w-xl">
           Designed to simplify collaboration and give you complete control over your team and tasks.
         </p>
 
       </div>
 
-      {/* 🔥 LIST STYLE (NOT CARDS) */}
-      <div className="divide-y divide-gray-200">
+      {/* 🔥 LIST */}
+      <div className="divide-y divide-[var(--border)]">
 
         {items.map((item, i) => (
           <div
             key={i}
-            className="group flex items-start justify-between py-10 hover:bg-gray-50/60 transition px-4 -mx-4 rounded-xl"
+            className="group flex items-start justify-between py-10 
+                       hover:bg-[var(--bg-hover)]/60 
+                       transition px-4 -mx-4 rounded-xl"
           >
 
             {/* LEFT */}
@@ -52,11 +55,14 @@ export default function Showcase() {
 
               {/* TEXT */}
               <div>
-                <h3 className="text-xl font-semibold text-gray-900 group-hover:text-indigo-600 transition">
+                <h3 className="text-xl font-semibold 
+                               text-[var(--text-primary)] 
+                               group-hover:text-[var(--accent)] 
+                               transition">
                   {item.title}
                 </h3>
 
-                <p className="text-gray-500 mt-2 leading-relaxed">
+                <p className="text-[var(--text-secondary)] mt-2 leading-relaxed">
                   {item.desc}
                 </p>
               </div>
@@ -66,7 +72,13 @@ export default function Showcase() {
             {/* RIGHT VISUAL */}
             <div className="hidden md:block">
 
-              <div className="w-40 h-24 bg-white border rounded-xl shadow-sm group-hover:shadow-md transition flex items-center justify-center text-xs text-gray-400">
+              <div className="w-40 h-24 
+                              bg-[var(--bg-secondary)] 
+                              border border-[var(--border)] 
+                              rounded-xl shadow-sm 
+                              group-hover:shadow-[0_0_15px_var(--accent-glow)] 
+                              transition flex items-center justify-center 
+                              text-xs text-[var(--text-secondary)]">
                 Preview
               </div>
 

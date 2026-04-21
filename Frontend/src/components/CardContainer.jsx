@@ -14,7 +14,6 @@ import { useWorkspace } from "../hooks/useWorkspace";
 import { useCreateWorkspaceState } from "../state/useCreateWorkspaceState";
 import { useCreateWorkspace } from "../hooks/useCrateWorkspace";
 
-// 🔥 IMPORT COUNT API
 import { getUnreadNotificationCount } from "../api/notification.api";
 
 const CardContainer = () => {
@@ -23,8 +22,6 @@ const CardContainer = () => {
 
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const [openJoinModal, setOpenJoinModal] = useState(false);
-
-  // 🔥 NEW STATE
   const [unreadCount, setUnreadCount] = useState(0);
 
   const workspaceState = useWorkspaceState();
@@ -41,30 +38,31 @@ const CardContainer = () => {
     error: createError
   } = createState;
 
-  const { submitWorkspace } = useCreateWorkspace(
+  const {
+    submitWorkspace,
+    retryWorkspaceCreation,
+    retryPayload
+  } = useCreateWorkspace(
     createState,
     () => setOpenCreateModal(false),
     fetchWorkspaces
   );
 
-  // 🔥 FETCH WORKSPACES
   useEffect(() => {
     if (workspaceId) {
       fetchWorkspaces(workspaceId);
     }
   }, [workspaceId]);
 
-  // 🔥 FETCH NOTIFICATION COUNT
   useEffect(() => {
     const fetchCount = async () => {
       try {
         const res = await getUnreadNotificationCount();
         setUnreadCount(res.count || 0);
       } catch (err) {
-        console.error("Notification count error:", err);
+        console.error(err);
       }
     };
-
     fetchCount();
   }, []);
 
@@ -90,10 +88,11 @@ const CardContainer = () => {
 
         {/* LEFT */}
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900 tracking-tight">
+          <h2 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
             Workspaces
           </h2>
-          <p className="text-sm text-gray-500 mt-1">
+
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
             Access and manage your workspace environments
           </p>
         </div>
@@ -101,16 +100,22 @@ const CardContainer = () => {
         {/* RIGHT */}
         <div className="flex items-center gap-3">
 
-          {/* 🔔 NOTIFICATION WITH COUNT */}
+          {/* 🔔 NOTIFICATIONS */}
           <button
             onClick={() => navigate(`/dashboard/notifications`)}
-            className="relative p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition shadow-sm"
+            className="relative p-2.5 rounded-xl 
+                       border border-[var(--border)] 
+                       bg-[var(--bg-secondary)] 
+                       hover:bg-[var(--bg-hover)] 
+                       transition-all duration-300 
+                       hover:shadow-[0_0_15px_var(--accent-glow)]"
           >
-            <Bell size={18} />
+            <Bell size={18} className="text-[var(--text-primary)]" />
 
-            {/* 🔥 BADGE */}
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1.5 py-[1px] rounded-full">
+              <span className="absolute -top-1 -right-1 
+                               bg-[var(--accent)] text-white 
+                               text-[10px] px-1.5 py-[1px] rounded-full">
                 {unreadCount}
               </span>
             )}
@@ -119,7 +124,12 @@ const CardContainer = () => {
           {/* JOIN */}
           <button
             onClick={() => setOpenJoinModal(true)}
-            className="px-4 py-2 rounded-xl text-sm font-medium border border-gray-200 bg-white hover:bg-gray-50 transition shadow-sm"
+            className="px-4 py-2 rounded-xl text-sm font-medium 
+                       border border-[var(--border)] 
+                       bg-[var(--bg-secondary)] 
+                       text-[var(--text-primary)]
+                       hover:bg-[var(--bg-hover)] 
+                       transition-all duration-300"
           >
             Join
           </button>
@@ -127,7 +137,11 @@ const CardContainer = () => {
           {/* CREATE */}
           <button
             onClick={() => setOpenCreateModal(true)}
-            className="px-4 py-2 rounded-xl text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-md"
+            className="px-4 py-2 rounded-xl text-sm font-medium text-white 
+                       bg-[var(--accent)] 
+                       hover:bg-[var(--accent-soft)] 
+                       hover:shadow-[0_0_20px_var(--accent-glow)] 
+                       transition-all duration-300"
           >
             + New Workspace
           </button>
@@ -137,7 +151,9 @@ const CardContainer = () => {
 
       {/* 🔥 ERROR */}
       {error && (
-        <p className="text-red-500 text-sm mb-4">{error}</p>
+        <p className="text-red-400 text-sm mb-4 bg-red-500/10 px-3 py-2 rounded-lg border border-red-500/20">
+          {error}
+        </p>
       )}
 
       {/* 🔥 LOADING */}
@@ -149,16 +165,24 @@ const CardContainer = () => {
         </div>
       )}
 
-      {/* 🔥 EMPTY */}
+      {/* 🔥 EMPTY STATE */}
       {!loading && !error && workspaces?.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 border border-dashed border-gray-200 rounded-2xl bg-gray-50">
-          <p className="text-sm text-gray-500 mb-3">
+        <div className="flex flex-col items-center justify-center py-20 
+                        border border-dashed border-[var(--border)] 
+                        rounded-2xl bg-[var(--bg-secondary)]/50 backdrop-blur">
+
+          <p className="text-sm text-[var(--text-secondary)] mb-3">
             No workspaces yet
           </p>
 
           <button
             onClick={() => setOpenCreateModal(true)}
-            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition"
+            className="px-4 py-2 text-sm font-medium text-white 
+                       bg-[var(--accent)] 
+                       rounded-lg 
+                       hover:bg-[var(--accent-soft)] 
+                       hover:shadow-[0_0_15px_var(--accent-glow)] 
+                       transition"
           >
             Create your first workspace
           </button>
@@ -169,10 +193,7 @@ const CardContainer = () => {
       {!loading && !error && workspaces?.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {workspaces.map((workspace) => (
-            <WorkspaceCards
-              key={workspace._id}
-              workspace={workspace}
-            />
+            <WorkspaceCards key={workspace._id} workspace={workspace} />
           ))}
         </div>
       )}
@@ -186,6 +207,8 @@ const CardContainer = () => {
           loading={createLoading}
           error={createError}
           setOpenModal={setOpenCreateModal}
+          retryPayload={retryPayload}
+          onRetry={retryWorkspaceCreation}
         />
       )}
 

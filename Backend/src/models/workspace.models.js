@@ -21,6 +21,26 @@ const workspaceSchema = new mongoose.Schema({
         ref : "User",
         required : true,
         index : true
+    },
+    plan: {
+        type: String,
+        enum: ["individual", "startup", "company", "bigtech"],
+        default: "individual"
+    },
+
+    memberCount: {
+        type: Number,
+        default: 1
+    },
+
+    departmentCount: {
+        type: Number,
+        default: 1
+    },
+
+    subscriptionId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Subscription"
     }
 },{
     timestamps : true
