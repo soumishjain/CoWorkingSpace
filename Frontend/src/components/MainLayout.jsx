@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
-import ChatroomSidebar from "./ChatRoomSideBar";
+import ChatroomSidebar from "./ChatroomSidebar";
 import ChatWindow from "./ChatWindow";
 import { useChatContext } from "../context/ChatContext";
 import { useChatrooms } from "../hooks/useChatrooms";
