@@ -12,6 +12,7 @@ import { createNotification } from "../../utils/createNotification.js";
 import { getIO } from "../../lib/socket.js";
 import subscriptionModel from "../../models/subscription.models.js";
 import { PLANS } from "../../utils/plans.js";
+import chatRoomModel from "../../models/chatRoom.models.js";
 
 
 
@@ -1054,7 +1055,7 @@ export async function approveDepartmentJoinRequest(req, res) {
 
     // ================= DUPLICATE CHECK =================
     const alreadyMember = await departmentMemberModel.findOne({
-      userId: request.userId,
+      userId: reqId,
       departmentId,
     });
 
@@ -1080,7 +1081,7 @@ export async function approveDepartmentJoinRequest(req, res) {
 
     if (generalRoom) {
       await chatRoomModel.findByIdAndUpdate(generalRoom._id, {
-        $addToSet: { members: request.userId }, // ✅ safe add
+        $addToSet: { members: reqId }, // ✅ safe add
       });
     }
 
@@ -1091,7 +1092,7 @@ export async function approveDepartmentJoinRequest(req, res) {
     await createNotification({
       workspaceId,
       departmentId,
-      userId: request.userId,
+      userId: reqId,
       type: "JOIN_REQUEST_APPROVED",
       message: `Your request to join ${department.name} was approved`,
     });
@@ -1100,7 +1101,7 @@ export async function approveDepartmentJoinRequest(req, res) {
     await createActivity({
       workspaceId,
       departmentId,
-      userId: request.userId,
+      userId: reqId,
       type: "MEMBER_JOINED",
       message: `User joined department`,
     });

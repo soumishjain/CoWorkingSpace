@@ -5,6 +5,7 @@ import workspaceModel from "../models/workspace.models.js";
 import { PLANS } from "../utils/plans.js";
 import mongoose from "mongoose";
 import workspaceMemberModel from "../models/workspaceMember.models.js";
+import { createNotification } from "../utils/createNotification.js";
 
 export const initSocket = (io) => {
 
@@ -227,6 +228,60 @@ socket.on("send_message", async (data) => {
         );
 
       } catch (err) {}
+    });
+
+    /* ================= INITIATE VIDEO CALL ================= */
+    socket.on("initiate_video_call", async (data) => {
+      try {
+        const { chatRoomId, chatRoomName } = data;
+        const userId = new mongoose.Types.ObjectId(socket.userId);
+        const roomId = new mongoose.Types.ObjectId(chatRoomId);
+
+        console.log("SOCKET : ", chatRoomId,chatRoomName)
+
+        /* ===== VALIDATE ROOM ===== */
+        const chatRoom = await chatRoomModel.findOne({
+          _id: roomId,
+          members: { $in: [userId] },
+        }).populate("members", "name email");
+
+        if (!chatRoom) return;
+
+        /* ===== GET CALLER INFO ===== */
+        const caller = chatRoom.members.find(
+          (m) => m._id.toString() === socket.userId
+        );
+
+        if (!caller) return;
+
+        /* ===== SEND REAL-TIME NOTIFICATION ===== */
+        socket.broadcast.to(chatRoomId).emit("video_call_initiated", {
+          chatRoomId: chatRoom._id,
+          chatRoomName: chatRoomName,
+          callerName: caller.name,
+          callUrl: `/video/${chatRoomId}`,
+          initiatedAt: new Date(),
+        });
+
+        /* ===== CREATE DATABASE NOTIFICATIONS FOR OFFLINE MEMBERS ===== */
+        const otherMembers = chatRoom.members.filter(
+          (m) => m._id.toString() !== socket.userId
+        );
+
+        for (const member of otherMembers) {
+          await createNotification({
+            userId: member._id,
+            workspaceId: chatRoom.workspaceId,
+            departmentId: chatRoom.departmentId,
+            type: "VIDEO_CALL_INITIATED",
+            message: `${caller.name} initiated a video call in #${chatRoomName}`,
+          });
+        }
+
+      } catch (err) {
+        console.error("VIDEO CALL ERROR:", err);
+        socket.emit("chat_error", { message: "Video call notification failed" });
+      }
     });
 
     /* ================= DISCONNECT ================= */

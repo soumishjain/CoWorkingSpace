@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
 import SmartDepartmentContainer from "../components/SmartDepartmentContainer";
@@ -18,12 +18,13 @@ const AllDepartments = () => {
   const { user } = useAuth();
 
   const departmentState = useDepartmentState();
-  const { fetchDepartments } = useDepartment(departmentState);
+  const { fetchDepartments , fetchMembers } = useDepartment(departmentState);
 
   const actions = useDepartmentActions(
     departmentState,
     fetchDepartments
   );
+
 
   const statsState = useWorkspaceStatsState();
   const { fetchWorkspaceStats } = useWorkspaceStats(statsState);
@@ -37,7 +38,9 @@ const AllDepartments = () => {
 
   const handleOpenDepartment = (deptId) => {
     navigate(`/dashboard/workspace/${workspaceId}/department/${deptId}`);
-  };
+  }
+
+
 
   if (!user) return null;
 

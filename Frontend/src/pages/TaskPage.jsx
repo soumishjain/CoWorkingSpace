@@ -116,7 +116,10 @@ const TaskPage = () => {
           {/* CREATE BUTTON */}
           {isManager && (
             <button
-              onClick={() => setOpenModal(true)}
+              onClick={() => {
+                setOpenModal(true)
+                console.log("Create Task button clicked")
+              }}
               className="px-4 py-2 rounded-md text-sm font-medium transition"
               style={{
                 background: "var(--accent)",

@@ -40,7 +40,13 @@ const SmartDepartmentCard = ({
 
       {/* 🔥 CONTENT */}
       <div
-        onClick={() => onOpenDepartment(department._id)}
+        onClick={() => {
+          if(!isMember && !isAdmin) {
+            toast.error("Join the department to view details");
+            return;
+          } // Only allow members and admins to open
+          onOpenDepartment(department._id)
+        }}
         className="relative p-5"
       >
 

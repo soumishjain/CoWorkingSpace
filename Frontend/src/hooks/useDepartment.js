@@ -5,12 +5,14 @@ import {
   leaveDepartment,
   deleteDepartment,
   assignManager,
-  getMyDepartments
+  getMyDepartments,
+  getAllDepartmentMembers
 } from "../api/department.api";
 
 export const useDepartment = (state) => {
 
   const {
+    setMembers,
     setDepartments,
     setLoading,
     setError,
@@ -34,6 +36,21 @@ export const useDepartment = (state) => {
       setLoading(false);
     }
   };
+
+  const fetchMembers = async (workspaceId , departmentId) => {
+    try{
+      setLoading(true)
+      setError("")
+      const data = await getAllDepartmentMembers(workspaceId,departmentId)
+      setMembers(data?.safeMembers || []);
+    }catch(error){
+      setError(err || "failed to fetch members")
+    } finally{
+      setLoading(false)
+    }
+  }
+
+
 
     const fetchMyDepartments = async (workspaceId) => {
     try {
@@ -143,6 +160,7 @@ export const useDepartment = (state) => {
     handleLeaveDepartment,
     handleAssignManager,
     handleDeleteDepartment,
-    fetchMyDepartments
+    fetchMyDepartments,
+    fetchMembers
   };
 };

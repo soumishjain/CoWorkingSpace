@@ -27,7 +27,8 @@ const notificationSchema = new mongoose.Schema({
       "MEMBER_REMOVED",
       "JOIN_REQUEST_APPROVED",
       "JOIN_REQUEST_REJECTED",
-      "JOIN_REQUEST"
+      "JOIN_REQUEST",
+      "VIDEO_CALL_INITIATED"
     ]
   },
   message : {

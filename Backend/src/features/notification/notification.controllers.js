@@ -119,30 +119,35 @@ export async function getMyRequests(req, res) {
     const workspaceIds = memberships.map((m) => m.workspaceId);
 
     // 🔥 check roles (important)
-    const isAdminAnywhere = memberships.some(m => m.role === "admin");
+    const adminWorkspaceIds = memberships
+      .filter(m => m.role === "admin")
+      .map(m => m.workspaceId);
 
     let requests = [];
 
-    // ✅ ADMIN → ALL requests from all workspaces
-    if (isAdminAnywhere) {
+    // ✅ ADMIN → Workspace-level join requests ONLY (no departmentId)
+    if (adminWorkspaceIds.length > 0) {
       requests = await joinRequestModel
         .find({
-          workspaceId: { $in: workspaceIds },
+          workspaceId: { $in: adminWorkspaceIds },
+          departmentId: { $in: [null, undefined] },
           status: "pending",
         })
         .populate("userId", "name email profileImage")
         .populate("departmentId", "name");
     } 
-    // ✅ MANAGER → only their departments
-    else {
-      const managedDepartments = await departmentMemberModel.find({
-        userId,
-        role: "manager",
-      });
+    
+    // ✅ MANAGER → only their department requests
+    const managedDepartments = await departmentMemberModel.find({
+      userId,
+      role: "manager",
+    });
 
-      const deptIds = managedDepartments.map((d) => d.departmentId);
+    const deptIds = managedDepartments.map((d) => d.departmentId);
 
-      requests = await joinRequestModel
+    let deptRequests = [];
+    if (deptIds.length > 0) {
+      deptRequests = await joinRequestModel
         .find({
           departmentId: { $in: deptIds },
           status: "pending",
@@ -150,6 +155,9 @@ export async function getMyRequests(req, res) {
         .populate("userId", "name email profileImage")
         .populate("departmentId", "name");
     }
+
+    // Combine: workspace requests (admins only) + department requests (managers only)
+    requests = [...requests, ...deptRequests];
 
     console.log("✅ GLOBAL REQUESTS:", requests);
 

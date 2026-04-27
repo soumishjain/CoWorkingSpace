@@ -117,19 +117,20 @@ const CreateTaskModal = ({ onClose }) => {
     };
 
     try {
-  const res = await createTask(payload);
+      const res = await createTask(payload);
 
-    if (res) {
-      toast.success("Task created 🚀");
-      setForm(initialForm);
-      setSelectedDate(null);
-      onClose();
-    } else {
+      if (res) {
+        toast.success("Task created 🚀");
+        setForm(initialForm);
+        setSelectedDate(null);
+        onClose();
+      } else {
+        toast.error("Something went wrong");
+      }
+    } catch (err) {
       toast.error("Something went wrong");
     }
-  } catch (err) {
-    toast.error("Something went wrong");
-  }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -337,6 +338,5 @@ const CreateTaskModal = ({ onClose }) => {
     </div>
   );
 };
-}
 
 export default CreateTaskModal;
